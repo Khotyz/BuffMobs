@@ -83,7 +83,7 @@ This mod is built using the Fabric mod development environment.
 
 1. **Clone the Repository**
    ```bash
-   git clone --branch fabric --single-branch https://github.com/khotyyz/buffmobs.git
+   git clone --branch fabric --single-branch https://github.com/khotyz/buffmobs.git
    cd buffmobs
    ```
 
