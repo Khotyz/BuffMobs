@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "buffmobs",
+  "version": "2.2.0",
+  "name": "BuffMobs",
+  "description": "Enhanced mob difficulty scaling system",
+  "authors": ["Khotyz"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/buffmobs/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.khotyz.buffmobs.BuffMobsMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": ">=1.21.1 <=1.21.5"
+  }
+}
