@@ -1,6 +1,7 @@
 package com.khotyz.buffmobs;
 
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.effects.BuffMobEffects;
 import com.khotyz.buffmobs.events.DamageHandler;
 import com.khotyz.buffmobs.events.DayScalingHandler;
 import com.khotyz.buffmobs.events.MobSpawnHandler;
@@ -21,6 +22,7 @@ public class BuffMobsMod implements ModInitializer {
         LOGGER.info("Initializing BuffMobs...");
 
         BuffMobsConfig.initialize();
+        BuffMobEffects.initialize();
 
         DamageHandler damageHandler = new DamageHandler();
         DayScalingHandler dayScalingHandler = new DayScalingHandler();

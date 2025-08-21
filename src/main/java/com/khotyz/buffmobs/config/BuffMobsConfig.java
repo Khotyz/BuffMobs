@@ -33,13 +33,17 @@ public class BuffMobsConfig {
         }
     }
 
+    public static void save() {
+        saveConfig();
+    }
+
     private static void loadConfig() {
         if (Files.exists(CONFIG_PATH)) {
             try {
                 String json = Files.readString(CONFIG_PATH);
                 config = GSON.fromJson(json, ConfigData.class);
                 LOGGER.info("Config loaded successfully");
-                saveConfig(); // Ensure any new fields are added
+                saveConfig();
             } catch (IOException | JsonSyntaxException e) {
                 LOGGER.error("Failed to load config, using defaults", e);
                 config = new ConfigData();
@@ -55,7 +59,7 @@ public class BuffMobsConfig {
     private static void saveConfig() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
-            String json = generateCommentedJson(config);
+            String json = GSON.toJson(config);
             Files.writeString(CONFIG_PATH, json);
         } catch (IOException e) {
             LOGGER.error("Failed to save config", e);
@@ -67,121 +71,6 @@ public class BuffMobsConfig {
         SCALING_INCREASE_ONLY
     }
 
-    private static String generateCommentedJson(ConfigData data) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  // Enable/disable the entire mod\n");
-        json.append("  \"enabled\": ").append(data.general.enabled).append(",\n");
-        json.append("  // Show visual potion effects on buffed mobs\n");
-        json.append("  \"visualEffects\": ").append(data.general.visualEffects).append(",\n\n");
-
-        json.append("  \"dayScaling\": {\n");
-        json.append("    // Enable scaling based on world days\n");
-        json.append("    \"enabled\": ").append(data.dayScaling.enabled).append(",\n");
-        json.append("    // Days interval for scaling increase\n");
-        json.append("    // Default: 7, Range: 1 ~ 365\n");
-        json.append("    \"interval\": ").append(data.dayScaling.interval).append(",\n");
-        json.append("    // Multiplier increase per interval\n");
-        json.append("    // Default: 0.1, Range: 0.01 ~ 2.0\n");
-        json.append("    \"multiplier\": ").append(data.dayScaling.multiplier).append(",\n");
-        json.append("    // Maximum scaling multiplier\n");
-        json.append("    // Default: 5.0, Range: 1.0 ~ 10.0\n");
-        json.append("    \"maxMultiplier\": ").append(data.dayScaling.maxMultiplier).append(",\n");
-        json.append("    // Show day scaling notifications in chat\n");
-        json.append("    \"showNotifications\": ").append(data.dayScaling.showNotifications).append(",\n");
-        json.append("    // When to show day scaling notifications: EVERY_DAY, SCALING_INCREASE_ONLY\n");
-        json.append("    \"notificationMode\": \"").append(data.dayScaling.notificationMode).append("\"\n");
-        json.append("  },\n\n");
-
-        json.append("  \"attributes\": {\n");
-        json.append("    // Health multiplier (1.0 = default/disabled)\n");
-        json.append("    // Default: 1.0, Range: 1.0 ~ 10.0\n");
-        json.append("    \"healthMultiplier\": ").append(data.attributes.healthMultiplier).append(",\n");
-        json.append("    // Attack damage multiplier (1.0 = default/disabled)\n");
-        json.append("    // Default: 1.0, Range: 1.0 ~ 10.0\n");
-        json.append("    \"damageMultiplier\": ").append(data.attributes.damageMultiplier).append(",\n");
-        json.append("    // Movement speed multiplier (1.0 = default/disabled)\n");
-        json.append("    // Default: 1.0, Range: 1.0 ~ 5.0\n");
-        json.append("    \"speedMultiplier\": ").append(data.attributes.speedMultiplier).append(",\n");
-        json.append("    // Attack speed multiplier (1.0 = default/disabled)\n");
-        json.append("    // Default: 1.0, Range: 1.0 ~ 10.0\n");
-        json.append("    \"attackSpeedMultiplier\": ").append(data.attributes.attackSpeedMultiplier).append(",\n");
-        json.append("    // Override internal attack timers to allow true attack speed scaling\n");
-        json.append("    \"overrideAttackTimers\": ").append(data.attributes.overrideAttackTimers).append(",\n");
-        json.append("    // Additional armor points (0 = disabled)\n");
-        json.append("    // Default: 0.0, Range: 0.0 ~ 20.0\n");
-        json.append("    \"armorAddition\": ").append(data.attributes.armorAddition).append(",\n");
-        json.append("    // Additional armor toughness (0 = disabled)\n");
-        json.append("    // Default: 0.0, Range: 0.0 ~ 10.0\n");
-        json.append("    \"armorToughnessAddition\": ").append(data.attributes.armorToughnessAddition).append("\n");
-        json.append("  },\n\n");
-
-        json.append("  \"effects\": {\n");
-        json.append("    // Effect duration in seconds (-1 for infinite)\n");
-        json.append("    // Default: -1, Range: -1 ~ 7200\n");
-        json.append("    \"duration\": ").append(data.effects.duration).append(",\n");
-        json.append("    // Strength effect amplifier (0 = disabled)\n");
-        json.append("    // Default: 0, Range: 0 ~ 10\n");
-        json.append("    \"strengthAmplifier\": ").append(data.effects.strengthAmplifier).append(",\n");
-        json.append("    // Speed effect amplifier (0 = disabled)\n");
-        json.append("    // Default: 0, Range: 0 ~ 10\n");
-        json.append("    \"speedAmplifier\": ").append(data.effects.speedAmplifier).append(",\n");
-        json.append("    // Resistance effect amplifier (0 = disabled)\n");
-        json.append("    // Default: 0, Range: 0 ~ 10\n");
-        json.append("    \"resistanceAmplifier\": ").append(data.effects.resistanceAmplifier).append(",\n");
-        json.append("    // Regeneration effect amplifier (0 = disabled)\n");
-        json.append("    // Default: 0, Range: 0 ~ 10\n");
-        json.append("    \"regenerationAmplifier\": ").append(data.effects.regenerationAmplifier).append("\n");
-        json.append("  },\n\n");
-
-        json.append("  \"harmfulEffects\": {\n");
-        json.append("    // Mobs apply harmful effects to players on attack\n");
-        json.append("    \"enabled\": ").append(data.harmfulEffects.enabled).append(",\n");
-        json.append("    // Chance to apply harmful effects (0.0-1.0)\n");
-        json.append("    // Default: 0.15, Range: 0.0 ~ 1.0\n");
-        json.append("    \"chance\": ").append(data.harmfulEffects.chance).append(",\n");
-        json.append("    // Poison effect duration in seconds\n");
-        json.append("    // Default: 5, Range: 1 ~ 60\n");
-        json.append("    \"poisonDuration\": ").append(data.harmfulEffects.poisonDuration).append(",\n");
-        json.append("    // Slowness effect duration in seconds\n");
-        json.append("    // Default: 3, Range: 1 ~ 60\n");
-        json.append("    \"slownessDuration\": ").append(data.harmfulEffects.slownessDuration).append(",\n");
-        json.append("    // Wither effect duration in seconds\n");
-        json.append("    // Default: 3, Range: 1 ~ 60\n");
-        json.append("    \"witherDuration\": ").append(data.harmfulEffects.witherDuration).append("\n");
-        json.append("  },\n\n");
-
-        json.append("  \"mobFilter\": {\n");
-        json.append("    // Use whitelist mode (only listed mobs affected)\n");
-        json.append("    \"useWhitelist\": ").append(data.mobFilter.useWhitelist).append(",\n");
-        json.append("    // Mob whitelist (mob registry names)\n");
-        json.append("    \"whitelist\": ").append(GSON.toJson(data.mobFilter.whitelist)).append(",\n");
-        json.append("    // Mob blacklist (mob registry names)\n");
-        json.append("    \"blacklist\": ").append(GSON.toJson(data.mobFilter.blacklist)).append("\n");
-        json.append("  },\n\n");
-
-        json.append("  \"modidFilter\": {\n");
-        json.append("    // Use modid whitelist mode (only mobs from listed mods affected)\n");
-        json.append("    \"useWhitelist\": ").append(data.modidFilter.useWhitelist).append(",\n");
-        json.append("    // ModID whitelist (only mobs from these mods will be affected)\n");
-        json.append("    \"whitelist\": ").append(GSON.toJson(data.modidFilter.whitelist)).append(",\n");
-        json.append("    // ModID blacklist (mobs from these mods will not be affected)\n");
-        json.append("    \"blacklist\": ").append(GSON.toJson(data.modidFilter.blacklist)).append("\n");
-        json.append("  },\n\n");
-
-        json.append("  \"dimensionFilter\": {\n");
-        json.append("    // Use dimension whitelist mode (only listed dimensions affected)\n");
-        json.append("    \"useWhitelist\": ").append(data.dimensionFilter.useWhitelist).append(",\n");
-        json.append("    // Dimension whitelist (only these dimensions will be affected)\n");
-        json.append("    \"whitelist\": ").append(GSON.toJson(data.dimensionFilter.whitelist)).append(",\n");
-        json.append("    // Dimension blacklist (these dimensions will not be affected)\n");
-        json.append("    \"blacklist\": ").append(GSON.toJson(data.dimensionFilter.blacklist)).append("\n");
-        json.append("  }\n");
-        json.append("}");
-
-        return json.toString();
-    }
-
     public static class ConfigData {
         public GeneralSettings general = new GeneralSettings();
         public DayScalingSettings dayScaling = new DayScalingSettings();
@@ -191,6 +80,7 @@ public class BuffMobsConfig {
         public FilterSettings mobFilter = new FilterSettings();
         public FilterSettings modidFilter = new FilterSettings();
         public FilterSettings dimensionFilter = new FilterSettings();
+        public DimensionScalingSettings dimensionScaling = new DimensionScalingSettings();
 
         public static class GeneralSettings {
             public boolean enabled = true;
@@ -237,7 +127,29 @@ public class BuffMobsConfig {
             public List<String> whitelist = Arrays.asList();
             public List<String> blacklist = Arrays.asList();
 
-            public FilterSettings() {}
+            public FilterSettings() {
+            }
+        }
+
+        public static class DimensionScalingSettings {
+            public List<DimensionScaling> scalings = Arrays.asList();
+
+            public static class DimensionScaling {
+                public String dimensionName = "";
+                public double healthMultiplier = 1.0;
+                public double damageMultiplier = 1.0;
+                public double speedMultiplier = 1.0;
+                public double attackSpeedMultiplier = 1.0;
+                public double armorAddition = 0.0;
+                public double armorToughnessAddition = 0.0;
+
+                public DimensionScaling() {
+                }
+
+                public DimensionScaling(String dimensionName) {
+                    this.dimensionName = dimensionName;
+                }
+            }
         }
 
         public ConfigData() {
@@ -386,5 +298,158 @@ public class BuffMobsConfig {
 
     public static List<String> getDimensionBlacklist() {
         return config.dimensionFilter.blacklist;
+    }
+
+    // Setters for Cloth Config
+    public static void setEnabled(boolean enabled) {
+        config.general.enabled = enabled;
+    }
+
+    public static void setVisualEffects(boolean visualEffects) {
+        config.general.visualEffects = visualEffects;
+    }
+
+    public static void setDayScalingEnabled(boolean enabled) {
+        config.dayScaling.enabled = enabled;
+    }
+
+    public static void setDayScalingInterval(int interval) {
+        config.dayScaling.interval = Math.max(1, Math.min(365, interval));
+    }
+
+    public static void setDayScalingMultiplier(double multiplier) {
+        config.dayScaling.multiplier = Math.max(0.01, Math.min(2.0, multiplier));
+    }
+
+    public static void setDayScalingMax(double max) {
+        config.dayScaling.maxMultiplier = Math.max(1.0, Math.min(10.0, max));
+    }
+
+    public static void setShowDayScalingNotifications(boolean show) {
+        config.dayScaling.showNotifications = show;
+    }
+
+    public static void setDayScalingNotificationMode(NotificationMode mode) {
+        config.dayScaling.notificationMode = mode;
+    }
+
+    public static void setHealthMultiplier(double multiplier) {
+        config.attributes.healthMultiplier = Math.max(1.0, Math.min(10.0, multiplier));
+    }
+
+    public static void setDamageMultiplier(double multiplier) {
+        config.attributes.damageMultiplier = Math.max(1.0, Math.min(10.0, multiplier));
+    }
+
+    public static void setSpeedMultiplier(double multiplier) {
+        config.attributes.speedMultiplier = Math.max(1.0, Math.min(5.0, multiplier));
+    }
+
+    public static void setAttackSpeedMultiplier(double multiplier) {
+        config.attributes.attackSpeedMultiplier = Math.max(1.0, Math.min(10.0, multiplier));
+    }
+
+    public static void setOverrideAttackTimers(boolean override) {
+        config.attributes.overrideAttackTimers = override;
+    }
+
+    public static void setArmorAddition(double armor) {
+        config.attributes.armorAddition = Math.max(0.0, Math.min(20.0, armor));
+    }
+
+    public static void setArmorToughnessAddition(double toughness) {
+        config.attributes.armorToughnessAddition = Math.max(0.0, Math.min(10.0, toughness));
+    }
+
+    public static void setEffectDuration(int duration) {
+        config.effects.duration = Math.max(-1, Math.min(7200, duration));
+    }
+
+    public static void setStrengthAmplifier(int amplifier) {
+        config.effects.strengthAmplifier = Math.max(0, Math.min(10, amplifier));
+    }
+
+    public static void setSpeedAmplifier(int amplifier) {
+        config.effects.speedAmplifier = Math.max(0, Math.min(10, amplifier));
+    }
+
+    public static void setResistanceAmplifier(int amplifier) {
+        config.effects.resistanceAmplifier = Math.max(0, Math.min(10, amplifier));
+    }
+
+    public static void setRegenerationAmplifier(int amplifier) {
+        config.effects.regenerationAmplifier = Math.max(0, Math.min(10, amplifier));
+    }
+
+    public static void setApplyHarmfulEffects(boolean apply) {
+        config.harmfulEffects.enabled = apply;
+    }
+
+    public static void setHarmfulEffectChance(double chance) {
+        config.harmfulEffects.chance = Math.max(0.0, Math.min(1.0, chance));
+    }
+
+    public static void setPoisonDuration(int duration) {
+        config.harmfulEffects.poisonDuration = Math.max(1, Math.min(60, duration));
+    }
+
+    public static void setSlownessDuration(int duration) {
+        config.harmfulEffects.slownessDuration = Math.max(1, Math.min(60, duration));
+    }
+
+    public static void setWitherDuration(int duration) {
+        config.harmfulEffects.witherDuration = Math.max(1, Math.min(60, duration));
+    }
+
+    public static void setUseMobWhitelist(boolean use) {
+        config.mobFilter.useWhitelist = use;
+    }
+
+    public static void setMobWhitelist(List<String> whitelist) {
+        config.mobFilter.whitelist = whitelist;
+    }
+
+    public static void setMobBlacklist(List<String> blacklist) {
+        config.mobFilter.blacklist = blacklist;
+    }
+
+    public static void setUseModidWhitelist(boolean use) {
+        config.modidFilter.useWhitelist = use;
+    }
+
+    public static void setModidWhitelist(List<String> whitelist) {
+        config.modidFilter.whitelist = whitelist;
+    }
+
+    public static void setModidBlacklist(List<String> blacklist) {
+        config.modidFilter.blacklist = blacklist;
+    }
+
+    public static void setUseDimensionWhitelist(boolean use) {
+        config.dimensionFilter.useWhitelist = use;
+    }
+
+    public static void setDimensionWhitelist(List<String> whitelist) {
+        config.dimensionFilter.whitelist = whitelist;
+    }
+
+    public static void setDimensionBlacklist(List<String> blacklist) {
+        config.dimensionFilter.blacklist = blacklist;
+    }
+
+    // Dimension Scaling getters and setters
+    public static List<ConfigData.DimensionScalingSettings.DimensionScaling> getDimensionScalings() {
+        return config.dimensionScaling.scalings;
+    }
+
+    public static void setDimensionScalings(List<ConfigData.DimensionScalingSettings.DimensionScaling> scalings) {
+        config.dimensionScaling.scalings = scalings;
+    }
+
+    public static ConfigData.DimensionScalingSettings.DimensionScaling getDimensionScaling(String dimensionName) {
+        return config.dimensionScaling.scalings.stream()
+                .filter(scaling -> scaling.dimensionName.equals(dimensionName))
+                .findFirst()
+                .orElse(null);
     }
 }

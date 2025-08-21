@@ -3,6 +3,8 @@ package com.khotyz.buffmobs.events;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.FilterUtil;
+import com.khotyz.buffmobs.util.DimensionScalingUtil;
+import com.khotyz.buffmobs.util.RegenHandler;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.server.MinecraftServer;
@@ -18,7 +20,7 @@ public class TickHandler {
     }
 
     public void onServerTick(MinecraftServer server) {
-        if (!BuffMobsConfig.isEnabled() || !BuffMobsConfig.shouldOverrideAttackTimers()) {
+        if (!BuffMobsConfig.isEnabled()) {
             return;
         }
 
@@ -26,7 +28,13 @@ public class TickHandler {
             if (!world.isClient) {
                 world.iterateEntities().forEach(entity -> {
                     if (entity instanceof MobEntity mob && mob.isAlive() && FilterUtil.isValidMob(mob)) {
-                        handleAttackSpeedOverride(mob);
+                        // Handle attack speed override
+                        if (BuffMobsConfig.shouldOverrideAttackTimers()) {
+                            handleAttackSpeedOverride(mob);
+                        }
+
+                        // Handle custom regeneration
+                        RegenHandler.handleRegenTick(mob);
                     }
                 });
             }
@@ -40,7 +48,7 @@ public class TickHandler {
             return;
         }
 
-        double speedMultiplier = BuffMobsConfig.getAttackSpeedMultiplier();
+        double speedMultiplier = DimensionScalingUtil.getEffectiveAttackSpeedMultiplier(mob);
         if (speedMultiplier <= 1.0) return;
 
         if (MobBuffUtil.isDayScalingEnabled()) {
