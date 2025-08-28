@@ -73,6 +73,7 @@ public class BuffMobsConfig {
 
     public static class ConfigData {
         public GeneralSettings general = new GeneralSettings();
+        public RangedEquipmentSettings rangedEquipment = new RangedEquipmentSettings();
         public DayScalingSettings dayScaling = new DayScalingSettings();
         public AttributeSettings attributes = new AttributeSettings();
         public EffectSettings effects = new EffectSettings();
@@ -85,6 +86,16 @@ public class BuffMobsConfig {
         public static class GeneralSettings {
             public boolean enabled = true;
             public boolean visualEffects = true;
+        }
+
+        public static class RangedEquipmentSettings {
+            public boolean enabled = true;
+            public double triggerDistance = 8.0;
+            public double netheriteChance = 0.01;
+            public double diamondChance = 0.05;
+            public double ironChance = 0.15;
+            public boolean enchantmentsEnabled = true;
+            public double enchantmentChance = 0.25;
         }
 
         public static class DayScalingSettings {
@@ -170,6 +181,40 @@ public class BuffMobsConfig {
 
     public static boolean showVisualEffects() {
         return config.general.visualEffects;
+    }
+
+    // Ranged Equipment getters
+    public static boolean isRangedEquipmentEnabled() {
+        return config.rangedEquipment.enabled;
+    }
+
+    public static double getRangedEquipmentDistance() {
+        return Math.max(2.0, Math.min(32.0, config.rangedEquipment.triggerDistance));
+    }
+
+    public static double getRangedNetheriteChance() {
+        return Math.max(0.001, Math.min(0.1, config.rangedEquipment.netheriteChance));
+    }
+
+    public static double getRangedDiamondChance() {
+        return Math.max(0.01, Math.min(0.2, config.rangedEquipment.diamondChance));
+    }
+
+    public static double getRangedIronChance() {
+        return Math.max(0.05, Math.min(0.4, config.rangedEquipment.ironChance));
+    }
+
+    public static boolean isRangedEnchantmentsEnabled() {
+        return config.rangedEquipment.enchantmentsEnabled;
+    }
+
+    public static double getRangedEnchantmentChance() {
+        return Math.max(0.0, Math.min(1.0, config.rangedEquipment.enchantmentChance));
+    }
+
+    // Legacy method for backwards compatibility
+    public static boolean isMeleeSwitchEnabled() {
+        return isRangedEquipmentEnabled();
     }
 
     public static boolean isDayScalingEnabled() {
@@ -307,6 +352,40 @@ public class BuffMobsConfig {
 
     public static void setVisualEffects(boolean visualEffects) {
         config.general.visualEffects = visualEffects;
+    }
+
+    // Ranged Equipment setters
+    public static void setRangedEquipmentEnabled(boolean enabled) {
+        config.rangedEquipment.enabled = enabled;
+    }
+
+    public static void setRangedEquipmentDistance(double distance) {
+        config.rangedEquipment.triggerDistance = Math.max(2.0, Math.min(32.0, distance));
+    }
+
+    public static void setRangedNetheriteChance(double chance) {
+        config.rangedEquipment.netheriteChance = Math.max(0.001, Math.min(0.1, chance));
+    }
+
+    public static void setRangedDiamondChance(double chance) {
+        config.rangedEquipment.diamondChance = Math.max(0.01, Math.min(0.2, chance));
+    }
+
+    public static void setRangedIronChance(double chance) {
+        config.rangedEquipment.ironChance = Math.max(0.05, Math.min(0.4, chance));
+    }
+
+    public static void setRangedEnchantmentsEnabled(boolean enabled) {
+        config.rangedEquipment.enchantmentsEnabled = enabled;
+    }
+
+    public static void setRangedEnchantmentChance(double chance) {
+        config.rangedEquipment.enchantmentChance = Math.max(0.0, Math.min(1.0, chance));
+    }
+
+    // Legacy setter for backwards compatibility
+    public static void setMeleeSwitchEnabled(boolean enabled) {
+        setRangedEquipmentEnabled(enabled);
     }
 
     public static void setDayScalingEnabled(boolean enabled) {

@@ -5,6 +5,7 @@ import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.FilterUtil;
 import com.khotyz.buffmobs.util.DimensionScalingUtil;
 import com.khotyz.buffmobs.util.RegenHandler;
+import com.khotyz.buffmobs.util.MeleeEquipmentHandler;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.server.MinecraftServer;
@@ -35,6 +36,9 @@ public class TickHandler {
 
                         // Handle custom regeneration
                         RegenHandler.handleRegenTick(mob);
+
+                        // Handle melee weapon switching
+                        MeleeEquipmentHandler.handleMobTick(mob);
                     }
                 });
             }

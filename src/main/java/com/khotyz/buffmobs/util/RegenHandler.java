@@ -34,6 +34,7 @@ public class RegenHandler {
     public static void handleRegenTick(MobEntity mob) {
         if (!mob.isAlive() || !FilterUtil.isValidMob(mob)) {
             REGEN_TRACKERS.remove(mob);
+            MeleeEquipmentHandler.cleanup(mob);
             return;
         }
 
@@ -52,16 +53,12 @@ public class RegenHandler {
             float maxHealth = mob.getMaxHealth();
 
             if (currentHealth < maxHealth) {
-                // Direct healing works for both undead and living mobs
                 if (isUndeadMob(mob)) {
-                    // For undead, use direct healing without status effects
                     mob.setHealth(Math.min(maxHealth, currentHealth + healAmount));
                 } else {
-                    // For living mobs, use heal() method which handles all edge cases
                     mob.heal(healAmount);
                 }
 
-                // Spawn particles if visual effects enabled
                 if (BuffMobsConfig.showVisualEffects() && mob.getWorld() instanceof ServerWorld serverWorld) {
                     serverWorld.spawnParticles(
                             net.minecraft.particle.ParticleTypes.HAPPY_VILLAGER,
@@ -75,6 +72,7 @@ public class RegenHandler {
 
     public static void stopCustomRegen(MobEntity mob) {
         REGEN_TRACKERS.remove(mob);
+        MeleeEquipmentHandler.cleanup(mob);
     }
 
     public static boolean hasCustomRegen(MobEntity mob) {
@@ -83,7 +81,6 @@ public class RegenHandler {
     }
 
     private static boolean isUndeadMob(MobEntity mob) {
-        // Check vanilla undead mobs
         if (mob instanceof AbstractSkeletonEntity ||
                 mob instanceof ZombieEntity ||
                 mob instanceof ZombifiedPiglinEntity ||
@@ -96,7 +93,6 @@ public class RegenHandler {
             return true;
         }
 
-        // Check for modded undead mobs by name patterns
         String mobName = mob.getType().toString().toLowerCase();
         return mobName.contains("zombie") ||
                 mobName.contains("skeleton") ||

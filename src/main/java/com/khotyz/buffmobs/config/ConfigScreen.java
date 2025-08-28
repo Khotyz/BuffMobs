@@ -34,6 +34,56 @@ public class ConfigScreen {
                 .setSaveConsumer(BuffMobsConfig::setVisualEffects)
                 .build());
 
+        // Ranged Equipment Category
+        ConfigCategory rangedEquipment = builder.getOrCreateCategory(Text.literal("Ranged Equipment"));
+
+        rangedEquipment.addEntry(entryBuilder.startBooleanToggle(Text.literal("Enabled"), BuffMobsConfig.isRangedEquipmentEnabled())
+                .setDefaultValue(true)
+                .setTooltip(Text.literal("Enable ranged mobs to equip melee weapons when players get close"))
+                .setSaveConsumer(BuffMobsConfig::setRangedEquipmentEnabled)
+                .build());
+
+        rangedEquipment.addEntry(entryBuilder.startDoubleField(Text.literal("Trigger Distance"), BuffMobsConfig.getRangedEquipmentDistance())
+                .setDefaultValue(8.0)
+                .setMin(2.0).setMax(32.0)
+                .setTooltip(Text.literal("Distance at which ranged mobs will equip melee weapons"))
+                .setSaveConsumer(BuffMobsConfig::setRangedEquipmentDistance)
+                .build());
+
+        rangedEquipment.addEntry(entryBuilder.startDoubleField(Text.literal("Netherite Chance"), BuffMobsConfig.getRangedNetheriteChance())
+                .setDefaultValue(0.01)
+                .setMin(0.001).setMax(0.1)
+                .setTooltip(Text.literal("Base chance multiplier for netherite weapons (ultra rare)"))
+                .setSaveConsumer(BuffMobsConfig::setRangedNetheriteChance)
+                .build());
+
+        rangedEquipment.addEntry(entryBuilder.startDoubleField(Text.literal("Diamond Chance"), BuffMobsConfig.getRangedDiamondChance())
+                .setDefaultValue(0.05)
+                .setMin(0.01).setMax(0.2)
+                .setTooltip(Text.literal("Base chance multiplier for diamond weapons (Overworld only)"))
+                .setSaveConsumer(BuffMobsConfig::setRangedDiamondChance)
+                .build());
+
+        rangedEquipment.addEntry(entryBuilder.startDoubleField(Text.literal("Iron Chance"), BuffMobsConfig.getRangedIronChance())
+                .setDefaultValue(0.15)
+                .setMin(0.05).setMax(0.4)
+                .setTooltip(Text.literal("Base chance multiplier for iron weapons (Overworld only)"))
+                .setSaveConsumer(BuffMobsConfig::setRangedIronChance)
+                .build());
+
+        rangedEquipment.addEntry(entryBuilder.startBooleanToggle(Text.literal("Enchantments Enabled"), BuffMobsConfig.isRangedEnchantmentsEnabled())
+                .setDefaultValue(true)
+                .setTooltip(Text.literal("Enable enchantments on melee weapons for ranged mobs"))
+                .setSaveConsumer(BuffMobsConfig::setRangedEnchantmentsEnabled)
+                .build());
+
+        rangedEquipment.addEntry(entryBuilder.startDoubleField(Text.literal("Enchantment Chance"), BuffMobsConfig.getRangedEnchantmentChance())
+                .setDefaultValue(0.25)
+                .setMin(0.0).setMax(1.0)
+                .setTooltip(Text.literal("Base chance for weapons to be enchanted"))
+                .setSaveConsumer(BuffMobsConfig::setRangedEnchantmentChance)
+                .build());
+
         // Day Scaling Category
         ConfigCategory dayScaling = builder.getOrCreateCategory(Text.literal("Day Scaling"));
 

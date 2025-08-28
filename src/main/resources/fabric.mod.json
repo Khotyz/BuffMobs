@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "buffmobs",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "name": "BuffMobs",
   "description": "A mod that buffs hostile mobs based on configurable settings",
   "authors": ["khotyz"],
@@ -24,7 +24,7 @@
   "mixins": [],
   "depends": {
     "fabricloader": ">=0.15.0",
-    "minecraft": ">=1.21.1 <=1.21.5",
+    "minecraft": ">=1.21.1 <=1.21.8",
     "java": ">=21",
     "fabric-api": "*"
   },
