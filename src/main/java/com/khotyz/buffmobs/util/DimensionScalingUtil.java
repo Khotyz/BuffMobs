@@ -33,7 +33,7 @@ public class DimensionScalingUtil {
         return baseMultiplier;
     }
 
-    public static double getEffectiveSpeedMultiplier(MobEntity mob) {
+    public static double getEffectiveMovementSpeedMultiplier(MobEntity mob) {
         String dimensionName = mob.getWorld().getRegistryKey().getValue().toString();
         BuffMobsConfig.ConfigData.DimensionScalingSettings.DimensionScaling dimensionScaling =
                 BuffMobsConfig.getDimensionScaling(dimensionName);

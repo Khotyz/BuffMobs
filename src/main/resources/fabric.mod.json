@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "buffmobs",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "name": "BuffMobs",
   "description": "A mod that buffs hostile mobs based on configurable settings",
   "authors": ["khotyz"],

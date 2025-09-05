@@ -23,8 +23,8 @@ import net.minecraft.util.Identifier;
 public class MobBuffUtil {
     private static final Identifier HEALTH_ID = Identifier.of(BuffMobsMod.MOD_ID, "health_buff");
     private static final Identifier DAMAGE_ID = Identifier.of(BuffMobsMod.MOD_ID, "damage_buff");
-    private static final Identifier SPEED_ID = Identifier.of(BuffMobsMod.MOD_ID, "speed_buff");
     private static final Identifier ATTACK_SPEED_ID = Identifier.of(BuffMobsMod.MOD_ID, "attack_speed_buff");
+    private static final Identifier MOVEMENT_SPEED_ID = Identifier.of(BuffMobsMod.MOD_ID, "movement_speed_buff");
     private static final Identifier ARMOR_ID = Identifier.of(BuffMobsMod.MOD_ID, "armor_buff");
     private static final Identifier ARMOR_TOUGHNESS_ID = Identifier.of(BuffMobsMod.MOD_ID, "armor_toughness_buff");
 
@@ -33,11 +33,9 @@ public class MobBuffUtil {
 
         try {
             double dayMultiplier = calculateDayMultiplier(mob.getWorld().getTimeOfDay());
-
             applyAttributeBuffs(mob, dayMultiplier);
             applyPotionEffects(mob);
             applyCustomVisualEffects(mob, dayMultiplier);
-
             mob.setHealth(mob.getMaxHealth());
         } catch (Exception e) {
             BuffMobsMod.LOGGER.error("Error applying buffs to mob", e);
@@ -51,7 +49,6 @@ public class MobBuffUtil {
             int duration = BuffMobsConfig.getEffectDuration();
             int effectDuration = duration == -1 ? StatusEffectInstance.INFINITE : duration * 20;
 
-            // Enhanced Vitality (HP Buff)
             double healthMult = DimensionScalingUtil.getEffectiveHealthMultiplier(mob) * dayMultiplier;
             if (healthMult > 1.0) {
                 int amplifier = Math.min(9, Math.max(0, (int) Math.floor(healthMult - 1.0)));
@@ -61,7 +58,6 @@ public class MobBuffUtil {
                 ));
             }
 
-            // Combat Fury (Attack Speed Buff)
             double attackSpeedMult = DimensionScalingUtil.getEffectiveAttackSpeedMultiplier(mob) * dayMultiplier;
             if (attackSpeedMult > 1.0) {
                 int amplifier = Math.min(9, Math.max(0, (int) Math.floor(attackSpeedMult - 1.0)));
@@ -71,7 +67,6 @@ public class MobBuffUtil {
                 ));
             }
 
-            // Destructive Power (Damage Buff)
             double damageMult = DimensionScalingUtil.getEffectiveDamageMultiplier(mob) * dayMultiplier;
             if (damageMult > 1.0) {
                 int amplifier = Math.min(9, Math.max(0, (int) Math.floor(damageMult - 1.0)));
@@ -106,36 +101,42 @@ public class MobBuffUtil {
     }
 
     private static void applyAttributeBuffs(MobEntity mob, double dayMultiplier) {
+        // Health
         double healthMult = DimensionScalingUtil.getEffectiveHealthMultiplier(mob);
         if (healthMult > 1.0) {
             applyAttributeModifier(mob, EntityAttributes.GENERIC_MAX_HEALTH, HEALTH_ID,
                     (healthMult * dayMultiplier) - 1.0, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         }
 
+        // Damage
         double damageMult = DimensionScalingUtil.getEffectiveDamageMultiplier(mob);
         if (damageMult > 1.0) {
             applyAttributeModifier(mob, EntityAttributes.GENERIC_ATTACK_DAMAGE, DAMAGE_ID,
                     (damageMult * dayMultiplier) - 1.0, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         }
 
-        double speedMult = DimensionScalingUtil.getEffectiveSpeedMultiplier(mob);
-        if (speedMult > 1.0) {
-            applyAttributeModifier(mob, EntityAttributes.GENERIC_MOVEMENT_SPEED, SPEED_ID,
-                    (speedMult * dayMultiplier) - 1.0, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        // Movement Speed (separate from attack speed)
+        double movementSpeedMult = DimensionScalingUtil.getEffectiveMovementSpeedMultiplier(mob);
+        if (movementSpeedMult > 1.0) {
+            applyAttributeModifier(mob, EntityAttributes.GENERIC_MOVEMENT_SPEED, MOVEMENT_SPEED_ID,
+                    (movementSpeedMult * dayMultiplier) - 1.0, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         }
 
+        // Attack Speed (separate from movement speed)
         double attackSpeedMult = DimensionScalingUtil.getEffectiveAttackSpeedMultiplier(mob);
         if (attackSpeedMult > 1.0) {
             applyAttributeModifier(mob, EntityAttributes.GENERIC_ATTACK_SPEED, ATTACK_SPEED_ID,
                     (attackSpeedMult * dayMultiplier) - 1.0, EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         }
 
+        // Armor
         double armorValue = DimensionScalingUtil.getEffectiveArmorAddition(mob) * dayMultiplier;
         if (armorValue > 0.0) {
             applyAttributeModifier(mob, EntityAttributes.GENERIC_ARMOR, ARMOR_ID,
                     armorValue, EntityAttributeModifier.Operation.ADD_VALUE);
         }
 
+        // Armor Toughness
         double toughnessValue = DimensionScalingUtil.getEffectiveArmorToughnessAddition(mob) * dayMultiplier;
         if (toughnessValue > 0.0) {
             applyAttributeModifier(mob, EntityAttributes.GENERIC_ARMOR_TOUGHNESS, ARMOR_TOUGHNESS_ID,
@@ -168,14 +169,6 @@ public class MobBuffUtil {
             if (strengthAmp > 0) {
                 mob.addStatusEffect(new StatusEffectInstance(
                         StatusEffects.STRENGTH, effectDuration, strengthAmp - 1,
-                        false, showParticles, showParticles
-                ));
-            }
-
-            int speedAmp = BuffMobsConfig.getSpeedAmplifier();
-            if (speedAmp > 0) {
-                mob.addStatusEffect(new StatusEffectInstance(
-                        StatusEffects.SPEED, effectDuration, speedAmp - 1,
                         false, showParticles, showParticles
                 ));
             }

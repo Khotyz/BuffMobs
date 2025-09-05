@@ -28,17 +28,21 @@ public class TickHandler {
         server.getWorlds().forEach(world -> {
             if (!world.isClient) {
                 world.iterateEntities().forEach(entity -> {
-                    if (entity instanceof MobEntity mob && mob.isAlive() && FilterUtil.isValidMob(mob)) {
-                        // Handle attack speed override
-                        if (BuffMobsConfig.shouldOverrideAttackTimers()) {
-                            handleAttackSpeedOverride(mob);
+                    if (entity instanceof MobEntity mob && mob.isAlive()) {
+                        // Handle custom regeneration for all buffed mobs
+                        if (FilterUtil.isValidMob(mob)) {
+                            RegenHandler.handleRegenTick(mob);
                         }
 
-                        // Handle custom regeneration
-                        RegenHandler.handleRegenTick(mob);
-
-                        // Handle melee weapon switching
+                        // Handle melee weapon switching for ALL ranged mobs (not just buffed ones)
                         MeleeEquipmentHandler.handleMobTick(mob);
+
+                        // Handle attack speed override for buffed mobs only
+                        if (FilterUtil.isValidMob(mob) &&
+                                BuffMobsConfig.shouldOverrideAttackTimers() &&
+                                !MeleeEquipmentHandler.isSwitchedToMelee(mob)) {
+                            handleAttackSpeedOverride(mob);
+                        }
                     }
                 });
             }
@@ -52,18 +56,21 @@ public class TickHandler {
             return;
         }
 
-        double speedMultiplier = DimensionScalingUtil.getEffectiveAttackSpeedMultiplier(mob);
-        if (speedMultiplier <= 1.0) return;
+        double attackSpeedMultiplier = DimensionScalingUtil.getEffectiveAttackSpeedMultiplier(mob);
+        if (attackSpeedMultiplier <= 1.0) {
+            ATTACK_TRACKERS.remove(mob);
+            return;
+        }
 
         if (MobBuffUtil.isDayScalingEnabled()) {
-            speedMultiplier *= MobBuffUtil.getDayMultiplier(mob.getWorld().getTimeOfDay());
+            attackSpeedMultiplier *= MobBuffUtil.getDayMultiplier(mob.getWorld().getTimeOfDay());
         }
 
         AttackData data = ATTACK_TRACKERS.computeIfAbsent(mob, k -> new AttackData());
         long currentTime = mob.getWorld().getTime();
 
         int baseInterval = 20;
-        int attackInterval = Math.max(1, (int)(baseInterval / speedMultiplier));
+        int attackInterval = Math.max(3, (int)(baseInterval / attackSpeedMultiplier));
 
         if (data.cooldown > 0) {
             data.cooldown--;

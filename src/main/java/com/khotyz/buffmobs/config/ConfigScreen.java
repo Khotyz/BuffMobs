@@ -144,17 +144,17 @@ public class ConfigScreen {
                 .setSaveConsumer(BuffMobsConfig::setDamageMultiplier)
                 .build());
 
-        attributes.addEntry(entryBuilder.startDoubleField(Text.literal("Speed Multiplier"), BuffMobsConfig.getSpeedMultiplier())
+        attributes.addEntry(entryBuilder.startDoubleField(Text.literal("Movement Speed Multiplier"), BuffMobsConfig.getSpeedMultiplier())
                 .setDefaultValue(1.0)
                 .setMin(1.0).setMax(5.0)
-                .setTooltip(Text.literal("Movement speed multiplier (1.0 = default/disabled)"))
+                .setTooltip(Text.literal("Movement speed multiplier - how fast mobs walk/run (1.0 = default/disabled)"))
                 .setSaveConsumer(BuffMobsConfig::setSpeedMultiplier)
                 .build());
 
         attributes.addEntry(entryBuilder.startDoubleField(Text.literal("Attack Speed Multiplier"), BuffMobsConfig.getAttackSpeedMultiplier())
                 .setDefaultValue(1.0)
                 .setMin(1.0).setMax(10.0)
-                .setTooltip(Text.literal("Attack speed multiplier (1.0 = default/disabled)"))
+                .setTooltip(Text.literal("Attack speed multiplier - how fast mobs attack (1.0 = default/disabled)"))
                 .setSaveConsumer(BuffMobsConfig::setAttackSpeedMultiplier)
                 .build());
 
@@ -178,8 +178,8 @@ public class ConfigScreen {
                 .setSaveConsumer(BuffMobsConfig::setArmorToughnessAddition)
                 .build());
 
-        // Effects Category
-        ConfigCategory effects = builder.getOrCreateCategory(Text.literal("Effects"));
+        // Effects Category - Only potion effects that don't interfere with attributes
+        ConfigCategory effects = builder.getOrCreateCategory(Text.literal("Potion Effects"));
 
         effects.addEntry(entryBuilder.startIntField(Text.literal("Duration"), BuffMobsConfig.getEffectDuration())
                 .setDefaultValue(-1)
@@ -191,15 +191,8 @@ public class ConfigScreen {
         effects.addEntry(entryBuilder.startIntField(Text.literal("Strength Amplifier"), BuffMobsConfig.getStrengthAmplifier())
                 .setDefaultValue(0)
                 .setMin(0).setMax(10)
-                .setTooltip(Text.literal("Strength effect amplifier (0 = disabled)"))
+                .setTooltip(Text.literal("Strength effect amplifier (0 = disabled, adds to damage multiplier)"))
                 .setSaveConsumer(BuffMobsConfig::setStrengthAmplifier)
-                .build());
-
-        effects.addEntry(entryBuilder.startIntField(Text.literal("Speed Amplifier"), BuffMobsConfig.getSpeedAmplifier())
-                .setDefaultValue(0)
-                .setMin(0).setMax(10)
-                .setTooltip(Text.literal("Speed effect amplifier (0 = disabled)"))
-                .setSaveConsumer(BuffMobsConfig::setSpeedAmplifier)
                 .build());
 
         effects.addEntry(entryBuilder.startIntField(Text.literal("Resistance Amplifier"), BuffMobsConfig.getResistanceAmplifier())

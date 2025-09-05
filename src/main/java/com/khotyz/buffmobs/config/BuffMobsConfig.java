@@ -120,7 +120,7 @@ public class BuffMobsConfig {
         public static class EffectSettings {
             public int duration = -1;
             public int strengthAmplifier = 0;
-            public int speedAmplifier = 0;
+            // Removed speedAmplifier - handled by attributes only
             public int resistanceAmplifier = 0;
             public int regenerationAmplifier = 0;
         }
@@ -212,7 +212,6 @@ public class BuffMobsConfig {
         return Math.max(0.0, Math.min(1.0, config.rangedEquipment.enchantmentChance));
     }
 
-    // Legacy method for backwards compatibility
     public static boolean isMeleeSwitchEnabled() {
         return isRangedEquipmentEnabled();
     }
@@ -277,9 +276,7 @@ public class BuffMobsConfig {
         return Math.max(0, config.effects.strengthAmplifier);
     }
 
-    public static int getSpeedAmplifier() {
-        return Math.max(0, config.effects.speedAmplifier);
-    }
+    // Removed getSpeedAmplifier - using attributes only
 
     public static int getResistanceAmplifier() {
         return Math.max(0, config.effects.resistanceAmplifier);
@@ -354,7 +351,6 @@ public class BuffMobsConfig {
         config.general.visualEffects = visualEffects;
     }
 
-    // Ranged Equipment setters
     public static void setRangedEquipmentEnabled(boolean enabled) {
         config.rangedEquipment.enabled = enabled;
     }
@@ -383,7 +379,6 @@ public class BuffMobsConfig {
         config.rangedEquipment.enchantmentChance = Math.max(0.0, Math.min(1.0, chance));
     }
 
-    // Legacy setter for backwards compatibility
     public static void setMeleeSwitchEnabled(boolean enabled) {
         setRangedEquipmentEnabled(enabled);
     }
@@ -448,9 +443,7 @@ public class BuffMobsConfig {
         config.effects.strengthAmplifier = Math.max(0, Math.min(10, amplifier));
     }
 
-    public static void setSpeedAmplifier(int amplifier) {
-        config.effects.speedAmplifier = Math.max(0, Math.min(10, amplifier));
-    }
+    // Removed setSpeedAmplifier - using attributes only
 
     public static void setResistanceAmplifier(int amplifier) {
         config.effects.resistanceAmplifier = Math.max(0, Math.min(10, amplifier));
