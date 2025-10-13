@@ -15,7 +15,7 @@ public class MobEntityMixin {
     @Unique
     private boolean buffmobs$initialized = false;
 
-    @Inject(method = "tick", at = @At("HEAD"))
+    @Inject(method = "tick()V", at = @At("HEAD"), require = 0)
     private void buffmobs$onTick(CallbackInfo ci) {
         MobEntity self = (MobEntity)(Object)this;
 

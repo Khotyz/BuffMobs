@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = MobEntity.class, priority = 900)
 public class ClientMobEntityMixin {
 
-    @Inject(method = "tick", at = @At("HEAD"), require = 0)
+    @Inject(method = "tick()V", at = @At("HEAD"), require = 0)
     private void buffmobs$onClientTick(CallbackInfo ci) {
         // Client-side visual handling is automatic via vanilla particles
     }
