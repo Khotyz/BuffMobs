@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "buffmobs",
+  "version": "${version}",
+  "name": "BuffMobs",
+  "description": "A mod that buffs hostile mobs based on configurable settings",
+  "authors": ["khotyz"],
+  "contact": {
+    "homepage": "https://github.com/Khotyz/BuffMobs",
+    "sources": "https://github.com/Khotyz/BuffMobs",
+    "issues": "https://github.com/Khotyz/BuffMobs/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/buffmobs/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.khotyz.buffmobs.BuffMobsMod"
+    ],
+    "client": [
+      "com.khotyz.buffmobs.BuffMobsClient"
+    ],
+    "modmenu": [
+      "com.khotyz.buffmobs.config.ModMenuIntegration"
+    ]
+  },
+  "mixins": ["buffmobs.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.7",
+    "minecraft": ">=1.21.2 <=1.21.8",
+    "java": ">=21",
+    "fabric-api": "*",
+    "cloth-config": ">=19.0.147"
+  },
+  "suggests": {
+    "modmenu": ">=15.0.0"
+  }
+}
