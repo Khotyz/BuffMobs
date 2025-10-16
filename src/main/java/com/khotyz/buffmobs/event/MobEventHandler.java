@@ -16,12 +16,11 @@ import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 
 public class MobEventHandler {
-    private final Map<ServerWorld, Long> lastDayCheck = new WeakHashMap<>();
-    private final Map<ServerWorld, Long> lastInfiniteEffectCheck = new WeakHashMap<>();
+    private final Map<String, Long> lastDayCheck = new HashMap<>();
     private final Random random = Random.create();
 
     public void onLivingDamage(LivingEntity entity, DamageSource source, float damageTaken) {
@@ -41,7 +40,8 @@ public class MobEventHandler {
                 attackingMob = mob;
             }
 
-            if (attackingMob != null && random.nextFloat() < BuffMobsMod.CONFIG.harmfulEffects.chance) {
+            if (attackingMob != null &&
+                    random.nextFloat() < BuffMobsMod.CONFIG.harmfulEffects.chance) {
                 applyRandomHarmfulEffect(player);
             }
         }
@@ -49,14 +49,11 @@ public class MobEventHandler {
 
     public void onWorldTick(ServerWorld world) {
         if (!BuffMobsMod.CONFIG.enabled) return;
-
-        long currentTime = world.getTime();
-
         handleDayScaling(world);
-        handleInfiniteEffects(world, currentTime);
     }
 
-    public ActionResult onPlayerAttack(PlayerEntity player, World world, Hand hand, Entity entity, EntityHitResult hitResult) {
+    public ActionResult onPlayerAttack(PlayerEntity player, World world,
+                                       Hand hand, Entity entity, EntityHitResult hitResult) {
         return ActionResult.PASS;
     }
 
@@ -67,10 +64,12 @@ public class MobEventHandler {
 
         long currentTime = world.getTimeOfDay();
         long currentDay = currentTime / 24000L;
-        Long lastCheckedDay = lastDayCheck.get(world);
+        String worldKey = world.getRegistryKey().getValue().toString();
+
+        Long lastCheckedDay = lastDayCheck.get(worldKey);
 
         if (lastCheckedDay == null || currentDay > lastCheckedDay) {
-            lastDayCheck.put(world, currentDay);
+            lastDayCheck.put(worldKey, currentDay);
 
             if (lastCheckedDay != null && currentDay > 0) {
                 boolean shouldNotify = false;
@@ -100,47 +99,28 @@ public class MobEventHandler {
 
         Text message;
         if (isMaxed) {
-            message = Text.literal("Day " + currentDay + " - Mob Scaling: " +
-                    String.format("%.1fx", currentMultiplier) + " (MAXIMUM)");
+            message = Text.literal(String.format(
+                    "Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, currentMultiplier));
         } else {
-            message = Text.literal("Day " + currentDay + " - Mob Scaling: " +
-                    String.format("%.1fx", currentMultiplier) + " | Next increase in " +
-                    daysUntilNextScaling + " day" + (daysUntilNextScaling != 1 ? "s" : ""));
+            message = Text.literal(String.format(
+                    "Day %d - Mob Scaling: %.1fx | Next increase in %d day%s",
+                    currentDay, currentMultiplier, daysUntilNextScaling,
+                    daysUntilNextScaling != 1 ? "s" : ""));
         }
 
         world.getPlayers().forEach(player -> player.sendMessage(message, false));
     }
 
-    private void handleInfiniteEffects(ServerWorld world, long currentTime) {
-        if (BuffMobsMod.CONFIG.effects.duration != -1) return;
-
-        Long lastCheck = lastInfiniteEffectCheck.get(world);
-        if (lastCheck != null && (currentTime - lastCheck) < 600) return;
-
-        lastInfiniteEffectCheck.put(world, currentTime);
-
-        world.iterateEntities().forEach(entity -> {
-            if (entity instanceof MobEntity mob && MobBuffUtil.isValidMob(mob)) {
-                try {
-                    MobBuffUtil.refreshInfiniteEffects(mob);
-                } catch (Exception e) {
-                    BuffMobsMod.LOGGER.warn("Failed to refresh infinite effects for mob: " + mob.getType().toString(), e);
-                }
-            }
-        });
-    }
-
     private void applyRandomHarmfulEffect(PlayerEntity player) {
         int effectType = random.nextInt(3);
 
-        try {
-            switch (effectType) {
-                case 0 -> MobBuffUtil.applyPoisonToPlayer(player, BuffMobsMod.CONFIG.harmfulEffects.poisonDuration);
-                case 1 -> MobBuffUtil.applySlownessToPlayer(player, BuffMobsMod.CONFIG.harmfulEffects.slownessDuration);
-                case 2 -> MobBuffUtil.applyWitherToPlayer(player, BuffMobsMod.CONFIG.harmfulEffects.witherDuration);
-            }
-        } catch (Exception e) {
-            BuffMobsMod.LOGGER.warn("Failed to apply harmful effect to player: " + player.getName().getString(), e);
+        switch (effectType) {
+            case 0 -> MobBuffUtil.applyPoisonToPlayer(player,
+                    BuffMobsMod.CONFIG.harmfulEffects.poisonDuration);
+            case 1 -> MobBuffUtil.applySlownessToPlayer(player,
+                    BuffMobsMod.CONFIG.harmfulEffects.slownessDuration);
+            case 2 -> MobBuffUtil.applyWitherToPlayer(player,
+                    BuffMobsMod.CONFIG.harmfulEffects.witherDuration);
         }
     }
 }

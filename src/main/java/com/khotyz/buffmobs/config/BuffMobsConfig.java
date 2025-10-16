@@ -29,9 +29,6 @@ public class BuffMobsConfig implements ConfigData {
     public HarmfulEffects harmfulEffects = new HarmfulEffects();
 
     @ConfigEntry.Gui.CollapsibleObject
-    public VisualBuffEffects visualBuffEffects = new VisualBuffEffects();
-
-    @ConfigEntry.Gui.CollapsibleObject
     public DimensionScaling dimensionScaling = new DimensionScaling();
 
     @ConfigEntry.Gui.CollapsibleObject
@@ -142,17 +139,6 @@ public class BuffMobsConfig implements ConfigData {
         public int witherDuration = 3;
     }
 
-    public static class VisualBuffEffects {
-        @ConfigEntry.Gui.Tooltip(count = 2)
-        public boolean healthEffect = true;
-
-        @ConfigEntry.Gui.Tooltip(count = 2)
-        public boolean damageEffect = true;
-
-        @ConfigEntry.Gui.Tooltip(count = 2)
-        public boolean attackSpeedEffect = true;
-    }
-
     public static class DimensionScaling {
         @ConfigEntry.Gui.CollapsibleObject
         public DimensionSlot slot1 = new DimensionSlot();
@@ -215,7 +201,7 @@ public class BuffMobsConfig implements ConfigData {
         public boolean useWhitelist = false;
 
         @ConfigEntry.Gui.Tooltip(count = 3)
-        public List<String> whitelist = List.of("minecraft");
+        public List<String> whitelist = new ArrayList<>();
 
         @ConfigEntry.Gui.Tooltip(count = 3)
         public List<String> blacklist = new ArrayList<>();
@@ -226,7 +212,8 @@ public class BuffMobsConfig implements ConfigData {
         public boolean useWhitelist = false;
 
         @ConfigEntry.Gui.Tooltip(count = 4)
-        public List<String> whitelist = List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end");
+        public List<String> whitelist = List.of(
+                "minecraft:overworld", "minecraft:the_nether", "minecraft:the_end");
 
         @ConfigEntry.Gui.Tooltip(count = 3)
         public List<String> blacklist = new ArrayList<>();

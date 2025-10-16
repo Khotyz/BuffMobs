@@ -3,15 +3,8 @@
   "minVersion": "0.8",
   "package": "com.khotyz.buffmobs.mixin",
   "compatibilityLevel": "JAVA_21",
-  "refmap": "buffmobs.refmap.json",
-  "mixins": [
-    "MobEntityMixin",
-    "RangedMobEntityMixin"
-  ],
-  "client": [
-    "ClientMobEntityMixin"
-  ],
+  "mixins": [],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }

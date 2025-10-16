@@ -21,7 +21,12 @@ import java.util.List;
 
 public class MobBuffUtil {
 
-    private static final Identifier HEALTH_MODIFIER_ID = Identifier.of(BuffMobsMod.MOD_ID, "temp_health");
+    private static final Identifier HEALTH_MOD_ID = Identifier.of(BuffMobsMod.MOD_ID, "health");
+    private static final Identifier DAMAGE_MOD_ID = Identifier.of(BuffMobsMod.MOD_ID, "damage");
+    private static final Identifier SPEED_MOD_ID = Identifier.of(BuffMobsMod.MOD_ID, "speed");
+    private static final Identifier ATTACK_SPEED_MOD_ID = Identifier.of(BuffMobsMod.MOD_ID, "attack_speed");
+    private static final Identifier ARMOR_MOD_ID = Identifier.of(BuffMobsMod.MOD_ID, "armor");
+    private static final Identifier TOUGHNESS_MOD_ID = Identifier.of(BuffMobsMod.MOD_ID, "toughness");
 
     public static void applyBuffs(MobEntity mob) {
         if (!BuffMobsMod.CONFIG.enabled || !isValidMob(mob)) {
@@ -30,6 +35,9 @@ public class MobBuffUtil {
 
         double dayMultiplier = getDayMultiplier(mob.getWorld().getTimeOfDay());
         DimensionMultipliers dimMultipliers = getDimensionMultipliers(mob);
+
+        BuffMobsMod.LOGGER.debug("Applying buffs to {} - Day mult: {}, Dim mult: health={}, damage={}",
+                mob.getType(), dayMultiplier, dimMultipliers.health, dimMultipliers.damage);
 
         applyAttributeModifiers(mob, dayMultiplier, dimMultipliers);
         applyVanillaStatusEffects(mob);
@@ -60,14 +68,23 @@ public class MobBuffUtil {
 
         for (BuffMobsConfig.DimensionScaling.DimensionSlot slot : slots) {
             if (!slot.dimensionName.isEmpty() && slot.dimensionName.equals(dimensionName)) {
-                return new DimensionMultipliers(
-                        slot.healthMultiplier / 100.0, slot.damageMultiplier / 100.0,
-                        slot.speedMultiplier / 100.0, slot.attackSpeedMultiplier / 100.0,
-                        slot.armorAddition, slot.armorToughnessAddition
+                DimensionMultipliers multipliers = new DimensionMultipliers(
+                        slot.healthMultiplier / 100.0,
+                        slot.damageMultiplier / 100.0,
+                        slot.speedMultiplier / 100.0,
+                        slot.attackSpeedMultiplier / 100.0,
+                        slot.armorAddition,
+                        slot.armorToughnessAddition
                 );
+
+                BuffMobsMod.LOGGER.debug("Dimension {} has custom scaling: health={}, damage={}",
+                        dimensionName, multipliers.health, multipliers.damage);
+
+                return multipliers;
             }
         }
 
+        BuffMobsMod.LOGGER.debug("Dimension {} using default scaling", dimensionName);
         return new DimensionMultipliers(1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
     }
 
@@ -77,199 +94,195 @@ public class MobBuffUtil {
         boolean showParticles = BuffMobsMod.CONFIG.visualEffects;
         int infiniteDuration = StatusEffectInstance.INFINITE;
 
-        refreshEffect(mob, StatusEffects.STRENGTH, BuffMobsMod.CONFIG.effects.strengthAmplifier,
-                infiniteDuration, showParticles);
-        refreshEffect(mob, StatusEffects.RESISTANCE, BuffMobsMod.CONFIG.effects.resistanceAmplifier,
-                infiniteDuration, showParticles);
+        refreshEffect(mob, StatusEffects.STRENGTH,
+                BuffMobsMod.CONFIG.effects.strengthAmplifier, infiniteDuration, showParticles);
+        refreshEffect(mob, StatusEffects.RESISTANCE,
+                BuffMobsMod.CONFIG.effects.resistanceAmplifier, infiniteDuration, showParticles);
 
         if (BuffMobsMod.CONFIG.effects.regenerationAmplifier > 0 &&
                 !mob.getType().isIn(EntityTypeTags.UNDEAD)) {
-            refreshEffect(mob, StatusEffects.REGENERATION, BuffMobsMod.CONFIG.effects.regenerationAmplifier,
-                    infiniteDuration, showParticles);
+            refreshEffect(mob, StatusEffects.REGENERATION,
+                    BuffMobsMod.CONFIG.effects.regenerationAmplifier, infiniteDuration, showParticles);
         }
     }
 
     public static void applyPoisonToPlayer(PlayerEntity player, int duration) {
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, duration * 20, 0));
+        player.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.POISON, duration * 20, 0));
     }
 
     public static void applySlownessToPlayer(PlayerEntity player, int duration) {
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, duration * 20, 0));
+        player.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.SLOWNESS, duration * 20, 0));
     }
 
     public static void applyWitherToPlayer(PlayerEntity player, int duration) {
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, duration * 20, 0));
+        player.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.WITHER, duration * 20, 0));
     }
 
     public static boolean isValidMob(MobEntity mob) {
-        if (mob instanceof TameableEntity tameable && tameable.isTamed()) return false;
+        if (mob.isRemoved() || !mob.isAlive()) {
+            return false;
+        }
+
+        if (mob instanceof TameableEntity tameable && tameable.isTamed()) {
+            return false;
+        }
 
         boolean isHostileOrNeutral = mob instanceof HostileEntity ||
                 mob.getType().isIn(EntityTypeTags.RAIDERS) ||
-                isNeutralMob(mob);
+                mob.getType().isIn(EntityTypeTags.SKELETONS) ||
+                mob.getType().isIn(EntityTypeTags.ZOMBIES) ||
+                isNeutralMob(mob) ||
+                hasAttackDamageAttribute(mob);
 
-        if (!isHostileOrNeutral) return false;
+        if (!isHostileOrNeutral) {
+            if (BuffMobsMod.LOGGER.isDebugEnabled()) {
+                BuffMobsMod.LOGGER.debug("Mob {} is not hostile/neutral",
+                        Registries.ENTITY_TYPE.getId(mob.getType()));
+            }
+            return false;
+        }
 
         String mobId = Registries.ENTITY_TYPE.getId(mob.getType()).toString();
         String modId = Registries.ENTITY_TYPE.getId(mob.getType()).getNamespace();
         String dimensionName = mob.getWorld().getRegistryKey().getValue().toString();
 
-        return isValidDimension(dimensionName) &&
-                isValidModId(modId) &&
-                isValidMobId(mobId);
+        boolean validDim = isValidDimension(dimensionName);
+        boolean validMod = isValidModId(modId);
+        boolean validMob = isValidMobId(mobId);
+
+        if (!validDim && BuffMobsMod.LOGGER.isDebugEnabled()) {
+            BuffMobsMod.LOGGER.debug("Mob {} filtered by dimension: {}", mobId, dimensionName);
+        }
+        if (!validMod && BuffMobsMod.LOGGER.isDebugEnabled()) {
+            BuffMobsMod.LOGGER.debug("Mob {} filtered by mod: {}", mobId, modId);
+        }
+        if (!validMob && BuffMobsMod.LOGGER.isDebugEnabled()) {
+            BuffMobsMod.LOGGER.debug("Mob {} filtered by mob filter", mobId);
+        }
+
+        return validDim && validMod && validMob;
+    }
+
+    private static boolean hasAttackDamageAttribute(MobEntity mob) {
+        EntityAttributeInstance attackAttr = mob.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE);
+        return attackAttr != null && attackAttr.getBaseValue() > 0.0;
     }
 
     private static boolean isNeutralMob(MobEntity mob) {
         String mobId = Registries.ENTITY_TYPE.getId(mob.getType()).toString();
 
-        return mobId.equals("minecraft:enderman") ||
-                mobId.equals("minecraft:piglin") ||
-                mobId.equals("minecraft:zombified_piglin") ||
-                mobId.equals("minecraft:iron_golem") ||
-                mobId.equals("minecraft:spider") ||
-                mobId.equals("minecraft:cave_spider") ||
-                mobId.equals("minecraft:wolf") ||
-                mobId.equals("minecraft:polar_bear") ||
-                mobId.equals("minecraft:bee") ||
-                mobId.equals("minecraft:panda") ||
-                mobId.equals("minecraft:llama") ||
-                mobId.equals("minecraft:dolphin") ||
-                mobId.equals("minecraft:trader_llama") ||
-                mobId.equals("minecraft:slime") ||
-                mobId.equals("minecraft:magma_cube") ||
-                hasAttackGoal(mob);
-    }
-
-    private static boolean hasAttackGoal(MobEntity mob) {
-        try {
-            var goals = net.minecraft.entity.ai.goal.GoalSelector.class
-                    .getDeclaredField("goals");
-            goals.setAccessible(true);
-
-            var mobGoalSelector = MobEntity.class.getDeclaredField("goalSelector");
-            mobGoalSelector.setAccessible(true);
-
-            var goalSelector = mobGoalSelector.get(mob);
-            var goalSet = (java.util.Set<?>) goals.get(goalSelector);
-
-            for (var prioritizedGoal : goalSet) {
-                var goal = prioritizedGoal.getClass().getMethod("getGoal").invoke(prioritizedGoal);
-                String goalName = goal.getClass().getSimpleName();
-
-                if (goalName.contains("Attack") || goalName.contains("Melee") ||
-                        goalName.contains("Ranged") || goalName.contains("Combat")) {
-                    return true;
-                }
-            }
-        } catch (Exception e) {
-            // Silent fail
-        }
-        return false;
+        return switch (mobId) {
+            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
+                 "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
+                 "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
+                 "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
+                 "minecraft:trader_llama", "minecraft:slime", "minecraft:magma_cube" -> true;
+            default -> false;
+        };
     }
 
     private static void applyAttributeModifiers(MobEntity mob, double dayMultiplier,
                                                 DimensionMultipliers dimMultipliers) {
-        double healthMult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.healthMultiplier,
-                dimMultipliers.health, dayMultiplier);
+        applyHealthModifier(mob, dayMultiplier, dimMultipliers);
+        applyDamageModifier(mob, dayMultiplier, dimMultipliers);
+        applySpeedModifier(mob, dayMultiplier, dimMultipliers);
+        applyAttackSpeedModifier(mob, dayMultiplier, dimMultipliers);
+        applyArmorModifier(mob, dayMultiplier, dimMultipliers);
+        applyToughnessModifier(mob, dayMultiplier, dimMultipliers);
+    }
 
-        if (healthMult > 1.0) {
-            EntityAttributeInstance healthAttr = mob.getAttributeInstance(EntityAttributes.MAX_HEALTH);
-            if (healthAttr != null) {
-                healthAttr.removeModifier(HEALTH_MODIFIER_ID);
-                healthAttr.addTemporaryModifier(new EntityAttributeModifier(
-                        HEALTH_MODIFIER_ID,
-                        healthMult - 1.0,
-                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                ));
+    private static void applyHealthModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
+        double mult = calculateFinalMultiplier(
+                BuffMobsMod.CONFIG.attributes.healthMultiplier, dimMult.health, dayMult);
+
+        if (mult > 1.0) {
+            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.MAX_HEALTH);
+            if (attr != null) {
+                attr.removeModifier(HEALTH_MOD_ID);
+                attr.addPersistentModifier(new EntityAttributeModifier(
+                        HEALTH_MOD_ID, mult - 1.0,
+                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+
+                BuffMobsMod.LOGGER.debug("Applied health mult {} to {}", mult, mob.getType());
             }
         }
+    }
 
-        double damageMult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.damageMultiplier,
-                dimMultipliers.damage, dayMultiplier);
+    private static void applyDamageModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
+        double mult = calculateFinalMultiplier(
+                BuffMobsMod.CONFIG.attributes.damageMultiplier, dimMult.damage, dayMult);
 
-        if (damageMult > 1.0) {
-            EntityAttributeInstance damageAttr = mob.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE);
-            if (damageAttr != null) {
-                Identifier damageId = Identifier.of(BuffMobsMod.MOD_ID, "temp_damage");
-                damageAttr.removeModifier(damageId);
-                damageAttr.addTemporaryModifier(new EntityAttributeModifier(
-                        damageId,
-                        damageMult - 1.0,
-                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                ));
+        if (mult > 1.0) {
+            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE);
+            if (attr != null) {
+                attr.removeModifier(DAMAGE_MOD_ID);
+                attr.addPersistentModifier(new EntityAttributeModifier(
+                        DAMAGE_MOD_ID, mult - 1.0,
+                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
             }
         }
+    }
 
-        double speedMult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.speedMultiplier,
-                dimMultipliers.speed, dayMultiplier);
+    private static void applySpeedModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
+        double mult = calculateFinalMultiplier(
+                BuffMobsMod.CONFIG.attributes.speedMultiplier, dimMult.speed, dayMult);
 
-        if (speedMult > 1.0 && speedMult < 3.0) {
-            EntityAttributeInstance speedAttr = mob.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
-            if (speedAttr != null) {
-                Identifier speedId = Identifier.of(BuffMobsMod.MOD_ID, "temp_speed");
-                speedAttr.removeModifier(speedId);
-                double cappedMult = Math.min(speedMult, 1.5);
-                double speedBonus = (cappedMult - 1.0) * 0.2;
-                speedAttr.addTemporaryModifier(new EntityAttributeModifier(
-                        speedId,
-                        speedBonus,
-                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                ));
+        if (mult > 1.0) {
+            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+            if (attr != null) {
+                attr.removeModifier(SPEED_MOD_ID);
+                double cappedMult = Math.min(mult, 2.0);
+                double bonus = (cappedMult - 1.0) * 0.3;
+                attr.addPersistentModifier(new EntityAttributeModifier(
+                        SPEED_MOD_ID, bonus,
+                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
             }
         }
+    }
 
-        double attackSpeedMult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.attackSpeedMultiplier,
-                dimMultipliers.attackSpeed, dayMultiplier);
+    private static void applyAttackSpeedModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
+        double mult = calculateFinalMultiplier(
+                BuffMobsMod.CONFIG.attributes.attackSpeedMultiplier, dimMult.attackSpeed, dayMult);
 
-        if (attackSpeedMult > 1.0) {
-            EntityAttributeInstance attackSpeedAttr = mob.getAttributeInstance(EntityAttributes.ATTACK_SPEED);
-            if (attackSpeedAttr != null) {
-                Identifier attackSpeedId = Identifier.of(BuffMobsMod.MOD_ID, "temp_attack_speed");
-                attackSpeedAttr.removeModifier(attackSpeedId);
-                double cappedAttackMult = Math.min(attackSpeedMult, 2.5);
-                attackSpeedAttr.addTemporaryModifier(new EntityAttributeModifier(
-                        attackSpeedId,
-                        cappedAttackMult - 1.0,
-                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                ));
+        if (mult > 1.0) {
+            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ATTACK_SPEED);
+            if (attr != null) {
+                attr.removeModifier(ATTACK_SPEED_MOD_ID);
+                double cappedMult = Math.min(mult, 2.5);
+                attr.addPersistentModifier(new EntityAttributeModifier(
+                        ATTACK_SPEED_MOD_ID, cappedMult - 1.0,
+                        EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
             }
         }
+    }
 
-        double armorAdd = calculateFinalAddition(
-                BuffMobsMod.CONFIG.attributes.armorAddition,
-                dimMultipliers.armor, dayMultiplier);
+    private static void applyArmorModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
+        double add = calculateFinalAddition(
+                BuffMobsMod.CONFIG.attributes.armorAddition, dimMult.armor, dayMult);
 
-        if (armorAdd > 0.0) {
-            EntityAttributeInstance armorAttr = mob.getAttributeInstance(EntityAttributes.ARMOR);
-            if (armorAttr != null) {
-                Identifier armorId = Identifier.of(BuffMobsMod.MOD_ID, "temp_armor");
-                armorAttr.removeModifier(armorId);
-                armorAttr.addTemporaryModifier(new EntityAttributeModifier(
-                        armorId,
-                        armorAdd,
-                        EntityAttributeModifier.Operation.ADD_VALUE
-                ));
+        if (add > 0.0) {
+            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ARMOR);
+            if (attr != null) {
+                attr.removeModifier(ARMOR_MOD_ID);
+                attr.addPersistentModifier(new EntityAttributeModifier(
+                        ARMOR_MOD_ID, add, EntityAttributeModifier.Operation.ADD_VALUE));
             }
         }
+    }
 
-        double toughnessAdd = calculateFinalAddition(
-                BuffMobsMod.CONFIG.attributes.armorToughnessAddition,
-                dimMultipliers.armorToughness, dayMultiplier);
+    private static void applyToughnessModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
+        double add = calculateFinalAddition(
+                BuffMobsMod.CONFIG.attributes.armorToughnessAddition, dimMult.armorToughness, dayMult);
 
-        if (toughnessAdd > 0.0) {
-            EntityAttributeInstance toughnessAttr = mob.getAttributeInstance(EntityAttributes.ARMOR_TOUGHNESS);
-            if (toughnessAttr != null) {
-                Identifier toughnessId = Identifier.of(BuffMobsMod.MOD_ID, "temp_toughness");
-                toughnessAttr.removeModifier(toughnessId);
-                toughnessAttr.addTemporaryModifier(new EntityAttributeModifier(
-                        toughnessId,
-                        toughnessAdd,
-                        EntityAttributeModifier.Operation.ADD_VALUE
-                ));
+        if (add > 0.0) {
+            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ARMOR_TOUGHNESS);
+            if (attr != null) {
+                attr.removeModifier(TOUGHNESS_MOD_ID);
+                attr.addPersistentModifier(new EntityAttributeModifier(
+                        TOUGHNESS_MOD_ID, add, EntityAttributeModifier.Operation.ADD_VALUE));
             }
         }
     }
@@ -279,15 +292,15 @@ public class MobBuffUtil {
                 StatusEffectInstance.INFINITE : BuffMobsMod.CONFIG.effects.duration * 20;
         boolean showParticles = BuffMobsMod.CONFIG.visualEffects;
 
-        addEffect(mob, StatusEffects.STRENGTH, BuffMobsMod.CONFIG.effects.strengthAmplifier,
-                duration, showParticles);
-        addEffect(mob, StatusEffects.RESISTANCE, BuffMobsMod.CONFIG.effects.resistanceAmplifier,
-                duration, showParticles);
+        addEffect(mob, StatusEffects.STRENGTH,
+                BuffMobsMod.CONFIG.effects.strengthAmplifier, duration, showParticles);
+        addEffect(mob, StatusEffects.RESISTANCE,
+                BuffMobsMod.CONFIG.effects.resistanceAmplifier, duration, showParticles);
 
         if (BuffMobsMod.CONFIG.effects.regenerationAmplifier > 0 &&
                 !mob.getType().isIn(EntityTypeTags.UNDEAD)) {
-            addEffect(mob, StatusEffects.REGENERATION, BuffMobsMod.CONFIG.effects.regenerationAmplifier,
-                    duration, showParticles);
+            addEffect(mob, StatusEffects.REGENERATION,
+                    BuffMobsMod.CONFIG.effects.regenerationAmplifier, duration, showParticles);
         }
     }
 
@@ -298,16 +311,16 @@ public class MobBuffUtil {
         StatusEffectInstance current = mob.getStatusEffect(effect);
         if (current == null || current.getDuration() < 1200) {
             mob.removeStatusEffect(effect);
-            mob.addStatusEffect(new StatusEffectInstance(effect, duration, amplifier - 1,
-                    false, showParticles, true));
+            mob.addStatusEffect(new StatusEffectInstance(
+                    effect, duration, amplifier - 1, false, showParticles, true));
         }
     }
 
     private static void addEffect(MobEntity mob, RegistryEntry<StatusEffect> effect,
                                   int amplifier, int duration, boolean showParticles) {
         if (amplifier > 0) {
-            mob.addStatusEffect(new StatusEffectInstance(effect, duration, amplifier - 1,
-                    false, showParticles, true));
+            mob.addStatusEffect(new StatusEffectInstance(
+                    effect, duration, amplifier - 1, false, showParticles, true));
         }
     }
 
@@ -344,7 +357,8 @@ public class MobBuffUtil {
         return true;
     }
 
-    public static double calculateFinalMultiplier(double baseMultiplier, double dimensionMultiplier,
+    public static double calculateFinalMultiplier(double baseMultiplier,
+                                                  double dimensionMultiplier,
                                                   double dayMultiplier) {
         if (baseMultiplier > 1.0) {
             return baseMultiplier * dimensionMultiplier * dayMultiplier;
@@ -354,7 +368,8 @@ public class MobBuffUtil {
         return 1.0;
     }
 
-    public static double calculateFinalAddition(double baseAddition, double dimensionAddition,
+    public static double calculateFinalAddition(double baseAddition,
+                                                double dimensionAddition,
                                                 double dayMultiplier) {
         if (baseAddition > 0.0) {
             return (baseAddition + dimensionAddition) * dayMultiplier;
