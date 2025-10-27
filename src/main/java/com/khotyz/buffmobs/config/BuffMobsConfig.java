@@ -5,7 +5,9 @@ import me.shedaniel.autoconfig.annotation.Config;
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Config(name = "buffmobs")
 public class BuffMobsConfig implements ConfigData {
@@ -42,6 +44,9 @@ public class BuffMobsConfig implements ConfigData {
 
     @ConfigEntry.Gui.CollapsibleObject
     public RangedMeleeSwitching rangedMeleeSwitching = new RangedMeleeSwitching();
+
+    @ConfigEntry.Gui.CollapsibleObject
+    public MobPresets mobPresets = new MobPresets();
 
     public static class DayScaling {
         @ConfigEntry.Gui.Tooltip(count = 2)
@@ -304,5 +309,77 @@ public class BuffMobsConfig implements ConfigData {
         @ConfigEntry.BoundedDiscrete(min = 1, max = 3)
         @ConfigEntry.Gui.Tooltip(count = 2)
         public int sweepingEdgeMaxLevel = 3;
+    }
+
+    public static class MobPresets {
+        @ConfigEntry.Gui.Tooltip(count = 2)
+        public boolean enabled = false;
+
+        @ConfigEntry.Gui.CollapsibleObject
+        public PresetSlot preset1 = new PresetSlot("default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+
+        @ConfigEntry.Gui.CollapsibleObject
+        public PresetSlot preset2 = new PresetSlot("boss", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
+
+        @ConfigEntry.Gui.CollapsibleObject
+        public PresetSlot preset3 = new PresetSlot("elite", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
+
+        @ConfigEntry.Gui.CollapsibleObject
+        public PresetSlot preset4 = new PresetSlot("weak", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
+
+        @ConfigEntry.Gui.CollapsibleObject
+        public PresetSlot preset5 = new PresetSlot("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+
+        @ConfigEntry.Gui.Tooltip(count = 4)
+        public List<String> mobMapping = List.of(
+                "minecraft:zombie:default",
+                "minecraft:skeleton:default",
+                "minecraft:ender_dragon:boss",
+                "minecraft:wither:boss"
+        );
+
+        public static class PresetSlot {
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public String presetName;
+
+            @ConfigEntry.BoundedDiscrete(min = 1, max = 100)
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public double healthMultiplier;
+
+            @ConfigEntry.BoundedDiscrete(min = 1, max = 100)
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public double damageMultiplier;
+
+            @ConfigEntry.BoundedDiscrete(min = 1, max = 10)
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public double speedMultiplier;
+
+            @ConfigEntry.BoundedDiscrete(min = 1, max = 10)
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public double attackSpeedMultiplier;
+
+            @ConfigEntry.BoundedDiscrete(min = 0, max = 30)
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public double armorAddition;
+
+            @ConfigEntry.BoundedDiscrete(min = 0, max = 20)
+            @ConfigEntry.Gui.Tooltip(count = 2)
+            public double armorToughnessAddition;
+
+            public PresetSlot() {
+                this("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+            }
+
+            public PresetSlot(String name, double health, double damage, double speed,
+                              double attackSpeed, double armor, double toughness) {
+                this.presetName = name;
+                this.healthMultiplier = health;
+                this.damageMultiplier = damage;
+                this.speedMultiplier = speed;
+                this.attackSpeedMultiplier = attackSpeed;
+                this.armorAddition = armor;
+                this.armorToughnessAddition = toughness;
+            }
+        }
     }
 }

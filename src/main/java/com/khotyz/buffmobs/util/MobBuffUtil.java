@@ -34,14 +34,21 @@ public class MobBuffUtil {
         }
 
         double dayMultiplier = getDayMultiplier(mob.getEntityWorld().getTimeOfDay());
-        DimensionMultipliers dimMultipliers = getDimensionMultipliers(mob);
 
-        BuffMobsMod.LOGGER.debug("Applying buffs to {} - Day mult: {}, Dim mult: health={}, damage={}",
-                mob.getType(), dayMultiplier, dimMultipliers.health, dimMultipliers.damage);
+        MobPresetUtil.PresetMultipliers presetMult = MobPresetUtil.getPresetForMob(mob);
 
-        applyAttributeModifiers(mob, dayMultiplier, dimMultipliers);
+        if (presetMult != null) {
+            BuffMobsMod.LOGGER.debug("Applying preset buffs to {} - Day mult: {}, Preset: health={}, damage={}",
+                    mob.getType(), dayMultiplier, presetMult.health, presetMult.damage);
+            applyAttributeModifiersWithPreset(mob, dayMultiplier, presetMult);
+        } else {
+            DimensionMultipliers dimMultipliers = getDimensionMultipliers(mob);
+            BuffMobsMod.LOGGER.debug("Applying standard buffs to {} - Day mult: {}, Dim mult: health={}, damage={}",
+                    mob.getType(), dayMultiplier, dimMultipliers.health, dimMultipliers.damage);
+            applyAttributeModifiers(mob, dayMultiplier, dimMultipliers);
+        }
+
         applyVanillaStatusEffects(mob);
-
         mob.setHealth(mob.getMaxHealth());
     }
 
@@ -186,22 +193,37 @@ public class MobBuffUtil {
 
     private static void applyAttributeModifiers(MobEntity mob, double dayMultiplier,
                                                 DimensionMultipliers dimMultipliers) {
-        applyHealthModifier(mob, dayMultiplier, dimMultipliers);
-        applyDamageModifier(mob, dayMultiplier, dimMultipliers);
-        applySpeedModifier(mob, dayMultiplier, dimMultipliers);
-        applyAttackSpeedModifier(mob, dayMultiplier, dimMultipliers);
-        applyArmorModifier(mob, dayMultiplier, dimMultipliers);
-        applyToughnessModifier(mob, dayMultiplier, dimMultipliers);
+        applyHealthModifier(mob, dayMultiplier, dimMultipliers.health,
+                BuffMobsMod.CONFIG.attributes.healthMultiplier);
+        applyDamageModifier(mob, dayMultiplier, dimMultipliers.damage,
+                BuffMobsMod.CONFIG.attributes.damageMultiplier);
+        applySpeedModifier(mob, dayMultiplier, dimMultipliers.speed,
+                BuffMobsMod.CONFIG.attributes.speedMultiplier);
+        applyAttackSpeedModifier(mob, dayMultiplier, dimMultipliers.attackSpeed,
+                BuffMobsMod.CONFIG.attributes.attackSpeedMultiplier);
+        applyArmorModifier(mob, dayMultiplier, dimMultipliers.armor,
+                BuffMobsMod.CONFIG.attributes.armorAddition);
+        applyToughnessModifier(mob, dayMultiplier, dimMultipliers.armorToughness,
+                BuffMobsMod.CONFIG.attributes.armorToughnessAddition);
     }
 
-    private static void applyHealthModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
-        double mult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.healthMultiplier, dimMult.health, dayMult);
+    private static void applyAttributeModifiersWithPreset(MobEntity mob, double dayMultiplier,
+                                                          MobPresetUtil.PresetMultipliers presetMult) {
+        applyHealthModifier(mob, dayMultiplier, 1.0, presetMult.health);
+        applyDamageModifier(mob, dayMultiplier, 1.0, presetMult.damage);
+        applySpeedModifier(mob, dayMultiplier, 1.0, presetMult.speed);
+        applyAttackSpeedModifier(mob, dayMultiplier, 1.0, presetMult.attackSpeed);
+        applyArmorModifier(mob, dayMultiplier, 0.0, presetMult.armor);
+        applyToughnessModifier(mob, dayMultiplier, 0.0, presetMult.armorToughness);
+    }
 
-        if (mult > 1.0) {
-            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.MAX_HEALTH);
-            if (attr != null) {
-                attr.removeModifier(HEALTH_MOD_ID);
+    private static void applyHealthModifier(MobEntity mob, double dayMult, double dimMult, double baseMult) {
+        double mult = calculateFinalMultiplier(baseMult, dimMult, dayMult);
+
+        EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.MAX_HEALTH);
+        if (attr != null) {
+            attr.removeModifier(HEALTH_MOD_ID);
+            if (mult > 1.0) {
                 attr.addPersistentModifier(new EntityAttributeModifier(
                         HEALTH_MOD_ID, mult - 1.0,
                         EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
@@ -211,14 +233,13 @@ public class MobBuffUtil {
         }
     }
 
-    private static void applyDamageModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
-        double mult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.damageMultiplier, dimMult.damage, dayMult);
+    private static void applyDamageModifier(MobEntity mob, double dayMult, double dimMult, double baseMult) {
+        double mult = calculateFinalMultiplier(baseMult, dimMult, dayMult);
 
-        if (mult > 1.0) {
-            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE);
-            if (attr != null) {
-                attr.removeModifier(DAMAGE_MOD_ID);
+        EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE);
+        if (attr != null) {
+            attr.removeModifier(DAMAGE_MOD_ID);
+            if (mult > 1.0) {
                 attr.addPersistentModifier(new EntityAttributeModifier(
                         DAMAGE_MOD_ID, mult - 1.0,
                         EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE));
@@ -226,14 +247,13 @@ public class MobBuffUtil {
         }
     }
 
-    private static void applySpeedModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
-        double mult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.speedMultiplier, dimMult.speed, dayMult);
+    private static void applySpeedModifier(MobEntity mob, double dayMult, double dimMult, double baseMult) {
+        double mult = calculateFinalMultiplier(baseMult, dimMult, dayMult);
 
-        if (mult > 1.0) {
-            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
-            if (attr != null) {
-                attr.removeModifier(SPEED_MOD_ID);
+        EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+        if (attr != null) {
+            attr.removeModifier(SPEED_MOD_ID);
+            if (mult > 1.0) {
                 double cappedMult = Math.min(mult, 2.0);
                 double bonus = (cappedMult - 1.0) * 0.3;
                 attr.addPersistentModifier(new EntityAttributeModifier(
@@ -243,14 +263,13 @@ public class MobBuffUtil {
         }
     }
 
-    private static void applyAttackSpeedModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
-        double mult = calculateFinalMultiplier(
-                BuffMobsMod.CONFIG.attributes.attackSpeedMultiplier, dimMult.attackSpeed, dayMult);
+    private static void applyAttackSpeedModifier(MobEntity mob, double dayMult, double dimMult, double baseMult) {
+        double mult = calculateFinalMultiplier(baseMult, dimMult, dayMult);
 
-        if (mult > 1.0) {
-            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ATTACK_SPEED);
-            if (attr != null) {
-                attr.removeModifier(ATTACK_SPEED_MOD_ID);
+        EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ATTACK_SPEED);
+        if (attr != null) {
+            attr.removeModifier(ATTACK_SPEED_MOD_ID);
+            if (mult > 1.0) {
                 double cappedMult = Math.min(mult, 2.5);
                 attr.addPersistentModifier(new EntityAttributeModifier(
                         ATTACK_SPEED_MOD_ID, cappedMult - 1.0,
@@ -259,28 +278,26 @@ public class MobBuffUtil {
         }
     }
 
-    private static void applyArmorModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
-        double add = calculateFinalAddition(
-                BuffMobsMod.CONFIG.attributes.armorAddition, dimMult.armor, dayMult);
+    private static void applyArmorModifier(MobEntity mob, double dayMult, double dimAdd, double baseAdd) {
+        double add = calculateFinalAddition(baseAdd, dimAdd, dayMult);
 
-        if (add > 0.0) {
-            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ARMOR);
-            if (attr != null) {
-                attr.removeModifier(ARMOR_MOD_ID);
+        EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ARMOR);
+        if (attr != null) {
+            attr.removeModifier(ARMOR_MOD_ID);
+            if (add > 0.0) {
                 attr.addPersistentModifier(new EntityAttributeModifier(
                         ARMOR_MOD_ID, add, EntityAttributeModifier.Operation.ADD_VALUE));
             }
         }
     }
 
-    private static void applyToughnessModifier(MobEntity mob, double dayMult, DimensionMultipliers dimMult) {
-        double add = calculateFinalAddition(
-                BuffMobsMod.CONFIG.attributes.armorToughnessAddition, dimMult.armorToughness, dayMult);
+    private static void applyToughnessModifier(MobEntity mob, double dayMult, double dimAdd, double baseAdd) {
+        double add = calculateFinalAddition(baseAdd, dimAdd, dayMult);
 
-        if (add > 0.0) {
-            EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ARMOR_TOUGHNESS);
-            if (attr != null) {
-                attr.removeModifier(TOUGHNESS_MOD_ID);
+        EntityAttributeInstance attr = mob.getAttributeInstance(EntityAttributes.ARMOR_TOUGHNESS);
+        if (attr != null) {
+            attr.removeModifier(TOUGHNESS_MOD_ID);
+            if (add > 0.0) {
                 attr.addPersistentModifier(new EntityAttributeModifier(
                         TOUGHNESS_MOD_ID, add, EntityAttributeModifier.Operation.ADD_VALUE));
             }
