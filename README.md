@@ -226,9 +226,6 @@ Contributions are welcome! Please:
 5. Test your changes
 6. Submit a pull request
 
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
@@ -242,16 +239,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - 🐛 **Bug Reports:** [GitHub Issues](https://github.com/Khotyz/buffmobs/issues)
-- 💬 **Discord:** [Join here](#)
+- 💬 **Discord:** [Does Not Exist](#)
 - 📚 **Wiki:** [Documentation](https://github.com/Khotyz/buffmobs/wiki)
-- ☕ **Support:**
+- ☕ **Support:** [Does Not Exist](#)
 
 ## Links
 
 - [CurseForge](https://www.curseforge.com/minecraft/mc-mods/buffmobs)
 - [Modrinth](https://modrinth.com/mod/buffmobs)
 - [GitHub](https://github.com/Khotyz/buffmobs)
-- [Wiki]
+- [Wiki] [Does Not Exist](#)
 
 ---
 
