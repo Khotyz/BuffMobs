@@ -258,10 +258,13 @@ public class RangedMobAIManager {
 
     private static class MobState {
         boolean inMeleeMode = false;
+        boolean inRetreatMode = false;
+        RangedBehaviorMode behaviorMode = RangedBehaviorMode.MELEE;
         ItemStack originalWeapon = ItemStack.EMPTY;
         long lastSwitchTime = 0;
         long lastAttackTime = 0;
         Goal meleeGoal = null;
+        TacticalRetreatGoal retreatGoal = null;
     }
 
     private static class CustomMeleeGoal extends Goal {

@@ -93,8 +93,11 @@ public class BuffMobsConfig {
     // Ranged Melee Switching
     public static class RangedMeleeSwitching {
         public static ModConfigSpec.BooleanValue enabled;
+        public static ModConfigSpec.ConfigValue<String> behaviorMode;
         public static ModConfigSpec.DoubleValue switchDistance;
         public static ModConfigSpec.DoubleValue meleeSpeedMultiplier;
+        public static ModConfigSpec.DoubleValue retreatSpeed;
+        public static ModConfigSpec.IntValue retreatDuration;
         public static ModConfigSpec.ConfigValue<List<? extends String>> customRangedMobs;
 
         public static ModConfigSpec.IntValue stoneSwordUnlockDay;
@@ -211,8 +214,17 @@ public class BuffMobsConfig {
 
         builder.comment("Ranged/Melee Switching System").push("rangedMeleeSwitching");
         RangedMeleeSwitching.enabled = builder.comment("Enable ranged/melee switching").define("enabled", true);
+        RangedMeleeSwitching.behaviorMode = builder
+                .comment("Behavior mode: 'melee' (switch to melee), 'retreat' (back away), 'random' (random choice)")
+                .define("behaviorMode", "melee", obj -> {
+                    if (!(obj instanceof String)) return false;
+                    String str = (String) obj;
+                    return str.equalsIgnoreCase("melee") || str.equalsIgnoreCase("retreat") || str.equalsIgnoreCase("random");
+                });
         RangedMeleeSwitching.switchDistance = builder.comment("Switch distance").defineInRange("switchDistance", 4.0, 1.0, 16.0);
         RangedMeleeSwitching.meleeSpeedMultiplier = builder.comment("Melee speed multiplier").defineInRange("meleeSpeedMultiplier", 0.9, 0.5, 2.0);
+        RangedMeleeSwitching.retreatSpeed = builder.comment("Retreat speed multiplier").defineInRange("retreatSpeed", 1.2, 0.5, 2.0);
+        RangedMeleeSwitching.retreatDuration = builder.comment("Retreat duration in ticks (20 ticks = 1 second)").defineInRange("retreatDuration", 60, 20, 200);
         RangedMeleeSwitching.customRangedMobs = builder.comment("Custom ranged mobs").defineList("customRangedMobs", List.of(), obj -> obj instanceof String);
 
         RangedMeleeSwitching.stoneSwordUnlockDay = builder.defineInRange("stoneSwordUnlockDay", 0, 0, 365);
