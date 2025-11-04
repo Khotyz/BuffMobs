@@ -147,42 +147,66 @@ public class BuffMobsConfig {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
         builder.comment("General Settings").push("general");
-        enabled = builder.comment("Enable the mod").define("enabled", true);
-        visualEffects = builder.comment("Show particle effects on buffed mobs").define("visualEffects", true);
+        enabled = builder.comment("Enable the mod", "Master toggle for the entire mod. When disabled, no mob buffs will be applied.")
+                .define("enabled", true);
+        visualEffects = builder.comment("Show particle effects on buffed mobs", "Disable to reduce visual clutter or improve performance.")
+                .define("visualEffects", true);
         builder.pop();
 
         builder.comment("Day Scaling Configuration").push("dayScaling");
-        DayScaling.enabled = builder.comment("Enable day-based difficulty scaling").define("enabled", false);
-        DayScaling.interval = builder.comment("Days between each scaling increase").defineInRange("interval", 7, 1, 365);
-        DayScaling.multiplier = builder.comment("Multiplier added per interval").defineInRange("multiplier", 0.1, 0.01, 20.0);
-        DayScaling.maxMultiplier = builder.comment("Maximum multiplier cap").defineInRange("maxMultiplier", 5.0, 1.0, 10.0);
-        DayScaling.showNotifications = builder.comment("Show scaling notifications").define("showNotifications", true);
-        DayScaling.notificationMode = builder.comment("When to show notifications").defineEnum("notificationMode", DayScaling.NotificationMode.EVERY_DAY);
+        DayScaling.enabled = builder.comment("Enable day-based difficulty scaling", "Mobs become stronger as time progresses.")
+                .define("enabled", false);
+        DayScaling.interval = builder.comment("Days between each scaling increase", "Lower values = more frequent scaling. Recommended: 7 days.")
+                .defineInRange("interval", 7, 1, 365);
+        DayScaling.multiplier = builder.comment("Multiplier added per interval", "0.1 = 10% increase per interval")
+                .defineInRange("multiplier", 0.1, 0.01, 20.0);
+        DayScaling.maxMultiplier = builder.comment("Maximum multiplier cap", "Prevents infinite scaling to maintain balance")
+                .defineInRange("maxMultiplier", 5.0, 1.0, 10.0);
+        DayScaling.showNotifications = builder.comment("Show scaling notifications")
+                .define("showNotifications", true);
+        DayScaling.notificationMode = builder.comment("When to show notifications", "EVERY_DAY or SCALING_INCREASE_ONLY")
+                .defineEnum("notificationMode", DayScaling.NotificationMode.EVERY_DAY);
         builder.pop();
 
         builder.comment("Attribute Multipliers").push("attributes");
-        Attributes.healthMultiplier = builder.comment("Health multiplier").defineInRange("healthMultiplier", 1.5, 1.0, 10.0);
-        Attributes.damageMultiplier = builder.comment("Damage multiplier").defineInRange("damageMultiplier", 1.5, 1.0, 10.0);
-        Attributes.speedMultiplier = builder.comment("Speed multiplier").defineInRange("speedMultiplier", 1.0, 1.0, 10.0);
-        Attributes.attackSpeedMultiplier = builder.comment("Attack speed multiplier").defineInRange("attackSpeedMultiplier", 1.0, 1.0, 10.0);
-        Attributes.armorAddition = builder.comment("Flat armor addition").defineInRange("armorAddition", 5.0, 0.0, 20.0);
-        Attributes.armorToughnessAddition = builder.comment("Flat armor toughness addition").defineInRange("armorToughnessAddition", 0.0, 0.0, 20.0);
+        Attributes.healthMultiplier = builder.comment("Health multiplier", "2.0 = double health, 1.0 = no change")
+                .defineInRange("healthMultiplier", 1.5, 1.0, 10.0);
+        Attributes.damageMultiplier = builder.comment("Damage multiplier", "1.5 = 50% more damage, 1.0 = no change")
+                .defineInRange("damageMultiplier", 1.5, 1.0, 10.0);
+        Attributes.speedMultiplier = builder.comment("Speed multiplier", "Higher values make mobs faster")
+                .defineInRange("speedMultiplier", 1.0, 1.0, 10.0);
+        Attributes.attackSpeedMultiplier = builder.comment("Attack speed multiplier", "Higher values = more frequent attacks")
+                .defineInRange("attackSpeedMultiplier", 1.0, 1.0, 10.0);
+        Attributes.armorAddition = builder.comment("Flat armor addition", "Each point reduces damage by ~4%")
+                .defineInRange("armorAddition", 5.0, 0.0, 20.0);
+        Attributes.armorToughnessAddition = builder.comment("Flat armor toughness addition", "Reduces effectiveness of high-damage attacks")
+                .defineInRange("armorToughnessAddition", 0.0, 0.0, 20.0);
         builder.pop();
 
         builder.comment("Status Effects").push("effects");
-        Effects.duration = builder.comment("Effect duration in seconds (-1 for infinite)").defineInRange("duration", -1, -1, 7200);
-        Effects.strengthAmplifier = builder.comment("Strength level (0 = disabled)").defineInRange("strengthAmplifier", 0, 0, 10);
-        Effects.speedAmplifier = builder.comment("Speed level (0 = disabled)").defineInRange("speedAmplifier", 0, 0, 10);
-        Effects.resistanceAmplifier = builder.comment("Resistance level (0 = disabled)").defineInRange("resistanceAmplifier", 0, 0, 10);
-        Effects.regenerationAmplifier = builder.comment("Regeneration level (0 = disabled)").defineInRange("regenerationAmplifier", 0, 0, 10);
+        Effects.duration = builder.comment("Effect duration in seconds (-1 for infinite)", "Infinite effects are refreshed periodically")
+                .defineInRange("duration", -1, -1, 7200);
+        Effects.strengthAmplifier = builder.comment("Strength level (0 = disabled)", "Higher = more damage")
+                .defineInRange("strengthAmplifier", 0, 0, 10);
+        Effects.speedAmplifier = builder.comment("Speed level (0 = disabled)", "Higher = faster movement")
+                .defineInRange("speedAmplifier", 0, 0, 10);
+        Effects.resistanceAmplifier = builder.comment("Resistance level (0 = disabled)", "Higher = less damage taken")
+                .defineInRange("resistanceAmplifier", 0, 0, 10);
+        Effects.regenerationAmplifier = builder.comment("Regeneration level (0 = disabled)", "Not applied to undead mobs")
+                .defineInRange("regenerationAmplifier", 0, 0, 10);
         builder.pop();
 
         builder.comment("Harmful Effects on Players").push("harmfulEffects");
-        HarmfulEffects.enabled = builder.comment("Enable harmful effects").define("enabled", true);
-        HarmfulEffects.chance = builder.comment("Chance per hit").defineInRange("chance", 0.15, 0.0, 1.0);
-        HarmfulEffects.poisonDuration = builder.comment("Poison duration (seconds)").defineInRange("poisonDuration", 5, 1, 60);
-        HarmfulEffects.slownessDuration = builder.comment("Slowness duration (seconds)").defineInRange("slownessDuration", 3, 1, 60);
-        HarmfulEffects.witherDuration = builder.comment("Wither duration (seconds)").defineInRange("witherDuration", 3, 1, 60);
+        HarmfulEffects.enabled = builder.comment("Enable harmful effects", "Mobs can inflict random debuffs on players")
+                .define("enabled", true);
+        HarmfulEffects.chance = builder.comment("Chance per hit", "0.15 = 15% chance per hit")
+                .defineInRange("chance", 0.15, 0.0, 1.0);
+        HarmfulEffects.poisonDuration = builder.comment("Poison duration (seconds)")
+                .defineInRange("poisonDuration", 5, 1, 60);
+        HarmfulEffects.slownessDuration = builder.comment("Slowness duration (seconds)", "Reduces player movement speed temporarily")
+                .defineInRange("slownessDuration", 3, 1, 60);
+        HarmfulEffects.witherDuration = builder.comment("Wither duration (seconds)", "Damaging effect similar to poison but stronger")
+                .defineInRange("witherDuration", 3, 1, 60);
         builder.pop();
 
         builder.comment("Dimension-Specific Scaling").push("dimensionScaling");
@@ -194,69 +218,87 @@ public class BuffMobsConfig {
         builder.pop();
 
         builder.comment("Mob Filtering").push("mobFilter");
-        MobFilter.useWhitelist = builder.comment("Use whitelist mode").define("useWhitelist", false);
-        MobFilter.whitelist = builder.comment("Mob whitelist").defineList("whitelist", List.of(), obj -> obj instanceof String);
-        MobFilter.blacklist = builder.comment("Mob blacklist").defineList("blacklist", List.of("minecraft:warden"), obj -> obj instanceof String);
+        MobFilter.useWhitelist = builder.comment("Use whitelist mode", "Only buff mobs in the whitelist")
+                .define("useWhitelist", false);
+        MobFilter.whitelist = builder.comment("Mob whitelist", "Format: minecraft:zombie, minecraft:skeleton")
+                .defineList("whitelist", List.of(), obj -> obj instanceof String);
+        MobFilter.blacklist = builder.comment("Mob blacklist", "Default: minecraft:warden (too overpowered)")
+                .defineList("blacklist", List.of("minecraft:warden"), obj -> obj instanceof String);
         builder.pop();
 
         builder.comment("Mod ID Filtering").push("modidFilter");
-        ModIdFilter.useWhitelist = builder.comment("Use whitelist mode").define("useWhitelist", false);
-        ModIdFilter.whitelist = builder.comment("Mod ID whitelist").defineList("whitelist", List.of(), obj -> obj instanceof String);
-        ModIdFilter.blacklist = builder.comment("Mod ID blacklist").defineList("blacklist", List.of(), obj -> obj instanceof String);
+        ModIdFilter.useWhitelist = builder.comment("Use whitelist mode", "Only buff mobs from whitelisted mods")
+                .define("useWhitelist", false);
+        ModIdFilter.whitelist = builder.comment("Mod ID whitelist", "Format: minecraft, twilightforest")
+                .defineList("whitelist", List.of(), obj -> obj instanceof String);
+        ModIdFilter.blacklist = builder.comment("Mod ID blacklist", "Prevents specific mods from being affected")
+                .defineList("blacklist", List.of(), obj -> obj instanceof String);
         builder.pop();
 
         builder.comment("Dimension Filtering").push("dimensionFilter");
-        DimensionFilter.useWhitelist = builder.comment("Use whitelist mode").define("useWhitelist", false);
-        DimensionFilter.whitelist = builder.comment("Dimension whitelist").defineList("whitelist",
-                List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"), obj -> obj instanceof String);
-        DimensionFilter.blacklist = builder.comment("Dimension blacklist").defineList("blacklist", List.of(), obj -> obj instanceof String);
+        DimensionFilter.useWhitelist = builder.comment("Use whitelist mode", "Only apply buffs in whitelisted dimensions")
+                .define("useWhitelist", false);
+        DimensionFilter.whitelist = builder.comment("Dimension whitelist", "Default includes all three vanilla dimensions")
+                .defineList("whitelist",
+                        List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"), obj -> obj instanceof String);
+        DimensionFilter.blacklist = builder.comment("Dimension blacklist", "Useful for peaceful or creative dimensions")
+                .defineList("blacklist", List.of(), obj -> obj instanceof String);
         builder.pop();
 
         builder.comment("Ranged/Melee Switching System").push("rangedMeleeSwitching");
-        RangedMeleeSwitching.enabled = builder.comment("Enable ranged/melee switching").define("enabled", true);
+        RangedMeleeSwitching.enabled = builder.comment("Enable ranged/melee switching", "Makes ranged mobs more dangerous")
+                .define("enabled", true);
         RangedMeleeSwitching.behaviorMode = builder
-                .comment("Behavior mode: 'melee' (switch to melee), 'retreat' (back away), 'random' (random choice)")
+                .comment("Behavior mode when player gets close",
+                        "'melee' = switch to melee weapon and attack",
+                        "'retreat' = back away tactically while shooting",
+                        "'random' = 50/50 chance between melee and retreat per mob")
                 .define("behaviorMode", "melee", obj -> {
                     if (!(obj instanceof String)) return false;
                     String str = (String) obj;
                     return str.equalsIgnoreCase("melee") || str.equalsIgnoreCase("retreat") || str.equalsIgnoreCase("random");
                 });
-        RangedMeleeSwitching.switchDistance = builder.comment("Switch distance").defineInRange("switchDistance", 4.0, 1.0, 16.0);
-        RangedMeleeSwitching.meleeSpeedMultiplier = builder.comment("Melee speed multiplier").defineInRange("meleeSpeedMultiplier", 0.9, 0.5, 2.0);
-        RangedMeleeSwitching.retreatSpeed = builder.comment("Retreat speed multiplier").defineInRange("retreatSpeed", 1.2, 0.5, 2.0);
-        RangedMeleeSwitching.retreatDuration = builder.comment("Retreat duration in ticks (20 ticks = 1 second)").defineInRange("retreatDuration", 60, 20, 200);
-        RangedMeleeSwitching.customRangedMobs = builder.comment("Custom ranged mobs").defineList("customRangedMobs", List.of(), obj -> obj instanceof String);
+        RangedMeleeSwitching.switchDistance = builder.comment("Switch distance", "Lower values = closer before switching")
+                .defineInRange("switchDistance", 4.0, 1.0, 16.0);
+        RangedMeleeSwitching.meleeSpeedMultiplier = builder.comment("Melee speed multiplier")
+                .defineInRange("meleeSpeedMultiplier", 0.9, 0.5, 2.0);
+        RangedMeleeSwitching.retreatSpeed = builder.comment("Retreat speed multiplier", "Higher = faster retreat")
+                .defineInRange("retreatSpeed", 1.2, 0.5, 2.0);
+        RangedMeleeSwitching.retreatDuration = builder.comment("Retreat duration in ticks", "20 ticks = 1 second, Default: 60 (3 seconds)")
+                .defineInRange("retreatDuration", 60, 20, 200);
+        RangedMeleeSwitching.customRangedMobs = builder.comment("Custom ranged mobs", "Format: modid:mob_name")
+                .defineList("customRangedMobs", List.of(), obj -> obj instanceof String);
 
-        RangedMeleeSwitching.stoneSwordUnlockDay = builder.defineInRange("stoneSwordUnlockDay", 0, 0, 365);
-        RangedMeleeSwitching.ironSwordUnlockDay = builder.defineInRange("ironSwordUnlockDay", 7, 0, 365);
-        RangedMeleeSwitching.diamondSwordUnlockDay = builder.defineInRange("diamondSwordUnlockDay", 21, 0, 365);
-        RangedMeleeSwitching.netheriteSwordUnlockDay = builder.defineInRange("netheriteSwordUnlockDay", 60, 0, 365);
-        RangedMeleeSwitching.goldenAxeUnlockDay = builder.defineInRange("goldenAxeUnlockDay", 0, 0, 365);
-        RangedMeleeSwitching.diamondAxeUnlockDay = builder.defineInRange("diamondAxeUnlockDay", 14, 0, 365);
-        RangedMeleeSwitching.netheriteAxeUnlockDay = builder.defineInRange("netheriteAxeUnlockDay", 45, 0, 365);
+        RangedMeleeSwitching.stoneSwordUnlockDay = builder.comment("Stone sword unlock day", "Overworld/End").defineInRange("stoneSwordUnlockDay", 0, 0, 365);
+        RangedMeleeSwitching.ironSwordUnlockDay = builder.comment("Iron sword unlock day", "Overworld/End").defineInRange("ironSwordUnlockDay", 7, 0, 365);
+        RangedMeleeSwitching.diamondSwordUnlockDay = builder.comment("Diamond sword unlock day", "Overworld/End").defineInRange("diamondSwordUnlockDay", 21, 0, 365);
+        RangedMeleeSwitching.netheriteSwordUnlockDay = builder.comment("Netherite sword unlock day", "End only").defineInRange("netheriteSwordUnlockDay", 60, 0, 365);
+        RangedMeleeSwitching.goldenAxeUnlockDay = builder.comment("Golden axe unlock day", "Nether only").defineInRange("goldenAxeUnlockDay", 0, 0, 365);
+        RangedMeleeSwitching.diamondAxeUnlockDay = builder.comment("Diamond axe unlock day", "Nether only").defineInRange("diamondAxeUnlockDay", 14, 0, 365);
+        RangedMeleeSwitching.netheriteAxeUnlockDay = builder.comment("Netherite axe unlock day", "Nether only").defineInRange("netheriteAxeUnlockDay", 45, 0, 365);
 
-        RangedMeleeSwitching.enchantmentsEnabled = builder.comment("Enable weapon enchantments").define("enchantmentsEnabled", true);
-        RangedMeleeSwitching.maxEnchantmentsPerWeapon = builder.defineInRange("maxEnchantmentsPerWeapon", 2, 1, 4);
-        RangedMeleeSwitching.daysPerEnchantmentLevel = builder.defineInRange("daysPerEnchantmentLevel", 7, 1, 30);
+        RangedMeleeSwitching.enchantmentsEnabled = builder.comment("Enable weapon enchantments", "Makes melee mode more dangerous").define("enchantmentsEnabled", true);
+        RangedMeleeSwitching.maxEnchantmentsPerWeapon = builder.comment("Max enchantments per weapon", "Actual number scales with progression").defineInRange("maxEnchantmentsPerWeapon", 2, 1, 4);
+        RangedMeleeSwitching.daysPerEnchantmentLevel = builder.comment("Days per enchantment level", "Lower = faster progression").defineInRange("daysPerEnchantmentLevel", 7, 1, 30);
 
-        RangedMeleeSwitching.sharpnessUnlockDay = builder.defineInRange("sharpnessUnlockDay", 0, 0, 365);
-        RangedMeleeSwitching.sharpnessMaxLevel = builder.defineInRange("sharpnessMaxLevel", 5, 1, 5);
-        RangedMeleeSwitching.fireAspectUnlockDay = builder.defineInRange("fireAspectUnlockDay", 14, 0, 365);
-        RangedMeleeSwitching.fireAspectMaxLevel = builder.defineInRange("fireAspectMaxLevel", 2, 1, 2);
-        RangedMeleeSwitching.knockbackUnlockDay = builder.defineInRange("knockbackUnlockDay", 7, 0, 365);
-        RangedMeleeSwitching.knockbackMaxLevel = builder.defineInRange("knockbackMaxLevel", 2, 1, 2);
-        RangedMeleeSwitching.sweepingEdgeUnlockDay = builder.defineInRange("sweepingEdgeUnlockDay", 21, 0, 365);
-        RangedMeleeSwitching.sweepingEdgeMaxLevel = builder.defineInRange("sweepingEdgeMaxLevel", 3, 1, 3);
+        RangedMeleeSwitching.sharpnessUnlockDay = builder.comment("Sharpness unlock day").defineInRange("sharpnessUnlockDay", 0, 0, 365);
+        RangedMeleeSwitching.sharpnessMaxLevel = builder.comment("Sharpness max level").defineInRange("sharpnessMaxLevel", 5, 1, 5);
+        RangedMeleeSwitching.fireAspectUnlockDay = builder.comment("Fire Aspect unlock day").defineInRange("fireAspectUnlockDay", 14, 0, 365);
+        RangedMeleeSwitching.fireAspectMaxLevel = builder.comment("Fire Aspect max level").defineInRange("fireAspectMaxLevel", 2, 1, 2);
+        RangedMeleeSwitching.knockbackUnlockDay = builder.comment("Knockback unlock day").defineInRange("knockbackUnlockDay", 7, 0, 365);
+        RangedMeleeSwitching.knockbackMaxLevel = builder.comment("Knockback max level").defineInRange("knockbackMaxLevel", 2, 1, 2);
+        RangedMeleeSwitching.sweepingEdgeUnlockDay = builder.comment("Sweeping Edge unlock day").defineInRange("sweepingEdgeUnlockDay", 21, 0, 365);
+        RangedMeleeSwitching.sweepingEdgeMaxLevel = builder.comment("Sweeping Edge max level").defineInRange("sweepingEdgeMaxLevel", 3, 1, 3);
         builder.pop();
 
         builder.comment("Mob Presets System").push("mobPresets");
-        MobPresets.enabled = builder.comment("Enable mob presets").define("enabled", false);
+        MobPresets.enabled = builder.comment("Enable mob presets", "Overrides dimension/default scaling for mapped mobs").define("enabled", false);
         MobPresets.preset1 = createPresetSlot(builder, "preset1", "default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
         MobPresets.preset2 = createPresetSlot(builder, "preset2", "boss", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
         MobPresets.preset3 = createPresetSlot(builder, "preset3", "elite", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
         MobPresets.preset4 = createPresetSlot(builder, "preset4", "weak", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
         MobPresets.preset5 = createPresetSlot(builder, "preset5", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-        MobPresets.mobMapping = builder.comment("Mob to preset mapping (format: minecraft:zombie:default)")
+        MobPresets.mobMapping = builder.comment("Mob to preset mapping", "Format: minecraft:zombie:default", "Unmapped mobs use dimension/default scaling")
                 .defineList("mobMapping", List.of(
                         "minecraft:zombie:default",
                         "minecraft:skeleton:default",
@@ -269,15 +311,22 @@ public class BuffMobsConfig {
     }
 
     private static DimensionScaling.DimensionSlot createDimensionSlot(ModConfigSpec.Builder builder, String name) {
-        builder.push(name);
+        builder.comment("Dimension slot configuration").push(name);
         DimensionScaling.DimensionSlot slot = new DimensionScaling.DimensionSlot();
-        slot.dimensionName = builder.comment("Dimension ID (e.g., minecraft:the_nether)").define("dimensionName", "");
-        slot.healthMultiplier = builder.comment("Health multiplier %").defineInRange("healthMultiplier", 100, 100, 1000);
-        slot.damageMultiplier = builder.comment("Damage multiplier %").defineInRange("damageMultiplier", 100, 100, 1000);
-        slot.speedMultiplier = builder.comment("Speed multiplier %").defineInRange("speedMultiplier", 100, 100, 500);
-        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier %").defineInRange("attackSpeedMultiplier", 100, 100, 1000);
-        slot.armorAddition = builder.comment("Armor addition").defineInRange("armorAddition", 0, 0, 20);
-        slot.armorToughnessAddition = builder.comment("Armor toughness addition").defineInRange("armorToughnessAddition", 0, 0, 10);
+        slot.dimensionName = builder.comment("Dimension ID", "e.g., minecraft:the_nether. Leave empty to disable")
+                .define("dimensionName", "");
+        slot.healthMultiplier = builder.comment("Health multiplier %", "100 = normal, 200 = double")
+                .defineInRange("healthMultiplier", 100, 100, 1000);
+        slot.damageMultiplier = builder.comment("Damage multiplier %", "150 = 50% more damage")
+                .defineInRange("damageMultiplier", 100, 100, 1000);
+        slot.speedMultiplier = builder.comment("Speed multiplier %", "120 = 20% faster")
+                .defineInRange("speedMultiplier", 100, 100, 500);
+        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier %")
+                .defineInRange("attackSpeedMultiplier", 100, 100, 1000);
+        slot.armorAddition = builder.comment("Armor addition")
+                .defineInRange("armorAddition", 0, 0, 20);
+        slot.armorToughnessAddition = builder.comment("Armor toughness addition")
+                .defineInRange("armorToughnessAddition", 0, 0, 10);
         builder.pop();
         return slot;
     }
@@ -285,15 +334,21 @@ public class BuffMobsConfig {
     private static MobPresets.PresetSlot createPresetSlot(ModConfigSpec.Builder builder, String name, String presetName,
                                                           double health, double damage, double speed, double atkSpeed,
                                                           double armor, double toughness) {
-        builder.push(name);
+        builder.comment("Preset configuration").push(name);
         MobPresets.PresetSlot slot = new MobPresets.PresetSlot();
-        slot.presetName = builder.comment("Preset name").define("presetName", presetName);
-        slot.healthMultiplier = builder.comment("Health multiplier").defineInRange("healthMultiplier", health, 0.1, 100.0);
-        slot.damageMultiplier = builder.comment("Damage multiplier").defineInRange("damageMultiplier", damage, 0.1, 100.0);
-        slot.speedMultiplier = builder.comment("Speed multiplier").defineInRange("speedMultiplier", speed, 0.1, 10.0);
-        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier").defineInRange("attackSpeedMultiplier", atkSpeed, 0.1, 10.0);
-        slot.armorAddition = builder.comment("Armor addition").defineInRange("armorAddition", armor, 0.0, 30.0);
-        slot.armorToughnessAddition = builder.comment("Armor toughness addition").defineInRange("armorToughnessAddition", toughness, 0.0, 20.0);
+        slot.presetName = builder.comment("Preset name", "Used in mobMapping").define("presetName", presetName);
+        slot.healthMultiplier = builder.comment("Health multiplier", "2.0 = double, 0.5 = half")
+                .defineInRange("healthMultiplier", health, 0.1, 100.0);
+        slot.damageMultiplier = builder.comment("Damage multiplier", "1.5 = 50% more")
+                .defineInRange("damageMultiplier", damage, 0.1, 100.0);
+        slot.speedMultiplier = builder.comment("Speed multiplier", "1.2 = 20% faster")
+                .defineInRange("speedMultiplier", speed, 0.1, 10.0);
+        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier")
+                .defineInRange("attackSpeedMultiplier", atkSpeed, 0.1, 10.0);
+        slot.armorAddition = builder.comment("Armor addition", "Each point reduces damage ~4%")
+                .defineInRange("armorAddition", armor, 0.0, 30.0);
+        slot.armorToughnessAddition = builder.comment("Armor toughness addition")
+                .defineInRange("armorToughnessAddition", toughness, 0.0, 20.0);
         builder.pop();
         return slot;
     }
