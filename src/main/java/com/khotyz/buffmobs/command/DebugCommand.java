@@ -5,6 +5,7 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobTickHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
+import com.khotyz.buffmobs.util.RangedMobAIManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
@@ -79,6 +80,21 @@ public class DebugCommand {
 
         if (!isValid) {
             source.sendSuccess(() -> Component.literal("§cMob is filtered out!"), false);
+        }
+
+        source.sendSuccess(() -> Component.literal(""), false);
+        source.sendSuccess(() -> Component.literal("§6=== Ranged/Melee System ==="), false);
+        source.sendSuccess(() -> Component.literal("§eSystem Enabled: §f" +
+                (BuffMobsConfig.RangedMeleeSwitching.enabled.get() ? "§aYES" : "§cNO")), false);
+
+        if (RangedMobAIManager.isRangedMob(mob)) {
+            source.sendSuccess(() -> Component.literal("§eIs Ranged Mob: §aYES"), false);
+            source.sendSuccess(() -> Component.literal("§eBehavior Mode (Config): §f" +
+                    BuffMobsConfig.RangedMeleeSwitching.behaviorMode.get()), false);
+            source.sendSuccess(() -> Component.literal("§eIn Melee Mode: §f" +
+                    (RangedMobAIManager.isInMeleeMode(mob) ? "§aYES" : "§cNO")), false);
+        } else {
+            source.sendSuccess(() -> Component.literal("§eIs Ranged Mob: §cNO"), false);
         }
 
         source.sendSuccess(() -> Component.literal(""), false);
@@ -249,6 +265,10 @@ public class DebugCommand {
                 BuffMobsConfig.DayScaling.enabled.get()), false);
         source.sendSuccess(() -> Component.literal("§ePresets: §f" +
                 BuffMobsConfig.MobPresets.enabled.get()), false);
+        source.sendSuccess(() -> Component.literal("§eRanged/Melee: §f" +
+                BuffMobsConfig.RangedMeleeSwitching.enabled.get()), false);
+        source.sendSuccess(() -> Component.literal("§eBehavior Mode: §f" +
+                BuffMobsConfig.RangedMeleeSwitching.behaviorMode.get()), false);
 
         source.sendSuccess(() -> Component.literal("§eUse whitelist (mobs): §f" +
                 BuffMobsConfig.MobFilter.useWhitelist.get()), false);

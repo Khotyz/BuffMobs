@@ -15,12 +15,8 @@ public enum RangedBehaviorMode {
         return name;
     }
 
-    public static RangedBehaviorMode fromString(String name) {
-        for (RangedBehaviorMode mode : values()) {
-            if (mode.name.equalsIgnoreCase(name)) {
-                return mode;
-            }
-        }
-        return MELEE; // Default fallback
+    @Override
+    public String toString() {
+        return name;
     }
 }

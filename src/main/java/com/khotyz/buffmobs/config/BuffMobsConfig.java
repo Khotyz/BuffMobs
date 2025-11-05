@@ -1,16 +1,15 @@
 package com.khotyz.buffmobs.config;
 
+import com.khotyz.buffmobs.util.RangedBehaviorMode;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import java.util.List;
 
 public class BuffMobsConfig {
     public static final ModConfigSpec SPEC;
 
-    // General
     public static ModConfigSpec.BooleanValue enabled;
     public static ModConfigSpec.BooleanValue visualEffects;
 
-    // Day Scaling
     public static class DayScaling {
         public static ModConfigSpec.BooleanValue enabled;
         public static ModConfigSpec.IntValue interval;
@@ -24,7 +23,6 @@ public class BuffMobsConfig {
         }
     }
 
-    // Attributes
     public static class Attributes {
         public static ModConfigSpec.DoubleValue healthMultiplier;
         public static ModConfigSpec.DoubleValue damageMultiplier;
@@ -34,7 +32,6 @@ public class BuffMobsConfig {
         public static ModConfigSpec.DoubleValue armorToughnessAddition;
     }
 
-    // Effects
     public static class Effects {
         public static ModConfigSpec.IntValue duration;
         public static ModConfigSpec.IntValue strengthAmplifier;
@@ -43,7 +40,6 @@ public class BuffMobsConfig {
         public static ModConfigSpec.IntValue regenerationAmplifier;
     }
 
-    // Harmful Effects
     public static class HarmfulEffects {
         public static ModConfigSpec.BooleanValue enabled;
         public static ModConfigSpec.DoubleValue chance;
@@ -52,7 +48,6 @@ public class BuffMobsConfig {
         public static ModConfigSpec.IntValue witherDuration;
     }
 
-    // Dimension Scaling
     public static class DimensionScaling {
         public static DimensionSlot slot1;
         public static DimensionSlot slot2;
@@ -71,7 +66,6 @@ public class BuffMobsConfig {
         }
     }
 
-    // Filters
     public static class MobFilter {
         public static ModConfigSpec.BooleanValue useWhitelist;
         public static ModConfigSpec.ConfigValue<List<? extends String>> whitelist;
@@ -90,10 +84,9 @@ public class BuffMobsConfig {
         public static ModConfigSpec.ConfigValue<List<? extends String>> blacklist;
     }
 
-    // Ranged Melee Switching
     public static class RangedMeleeSwitching {
         public static ModConfigSpec.BooleanValue enabled;
-        public static ModConfigSpec.ConfigValue<String> behaviorMode;
+        public static ModConfigSpec.EnumValue<RangedBehaviorMode> behaviorMode;
         public static ModConfigSpec.DoubleValue switchDistance;
         public static ModConfigSpec.DoubleValue meleeSpeedMultiplier;
         public static ModConfigSpec.DoubleValue retreatSpeed;
@@ -122,7 +115,6 @@ public class BuffMobsConfig {
         public static ModConfigSpec.IntValue sweepingEdgeMaxLevel;
     }
 
-    // Mob Presets
     public static class MobPresets {
         public static ModConfigSpec.BooleanValue enabled;
         public static PresetSlot preset1;
@@ -250,22 +242,18 @@ public class BuffMobsConfig {
                 .define("enabled", true);
         RangedMeleeSwitching.behaviorMode = builder
                 .comment("Behavior mode when player gets close",
-                        "'melee' = switch to melee weapon and attack",
-                        "'retreat' = back away tactically while shooting",
-                        "'random' = 50/50 chance between melee and retreat per mob")
-                .define("behaviorMode", "melee", obj -> {
-                    if (!(obj instanceof String)) return false;
-                    String str = (String) obj;
-                    return str.equalsIgnoreCase("melee") || str.equalsIgnoreCase("retreat") || str.equalsIgnoreCase("random");
-                });
+                        "MELEE = switch to melee weapon and attack",
+                        "RETREAT = back away tactically while shooting",
+                        "RANDOM = 50/50 chance between melee and retreat per mob")
+                .defineEnum("behaviorMode", RangedBehaviorMode.MELEE);
         RangedMeleeSwitching.switchDistance = builder.comment("Switch distance", "Lower values = closer before switching")
                 .defineInRange("switchDistance", 4.0, 1.0, 16.0);
         RangedMeleeSwitching.meleeSpeedMultiplier = builder.comment("Melee speed multiplier")
                 .defineInRange("meleeSpeedMultiplier", 0.9, 0.5, 2.0);
-        RangedMeleeSwitching.retreatSpeed = builder.comment("Retreat speed multiplier", "Higher = faster retreat")
-                .defineInRange("retreatSpeed", 1.2, 0.5, 2.0);
-        RangedMeleeSwitching.retreatDuration = builder.comment("Retreat duration in ticks", "20 ticks = 1 second, Default: 60 (3 seconds)")
-                .defineInRange("retreatDuration", 60, 20, 200);
+        RangedMeleeSwitching.retreatSpeed = builder.comment("Retreat speed multiplier", "Higher = faster retreat. Recommended: 1.4-1.6 for responsive retreats")
+                .defineInRange("retreatSpeed", 1.5, 0.5, 3.0);
+        RangedMeleeSwitching.retreatDuration = builder.comment("Retreat duration in ticks", "20 ticks = 1 second. Lower = recalculates path more often")
+                .defineInRange("retreatDuration", 40, 10, 200);
         RangedMeleeSwitching.customRangedMobs = builder.comment("Custom ranged mobs", "Format: modid:mob_name")
                 .defineList("customRangedMobs", List.of(), obj -> obj instanceof String);
 

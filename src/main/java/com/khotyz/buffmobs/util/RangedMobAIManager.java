@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.goal.*;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.*;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
@@ -21,7 +20,7 @@ import java.util.*;
 public class RangedMobAIManager {
     private static final Map<UUID, MobState> MOB_STATES = new HashMap<>();
     private static final double MELEE_SPEED_MULTIPLIER = 1.3;
-    private static final int SWITCH_COOLDOWN = 40;
+    private static final int SWITCH_COOLDOWN = 10;
     private static final double MELEE_ATTACK_RANGE = 3.0;
     private static Field goalSelectorField;
     private static Field goalsField;
@@ -45,9 +44,24 @@ public class RangedMobAIManager {
 
         MobState state = new MobState();
         state.originalWeapon = mob.getItemInHand(InteractionHand.MAIN_HAND).copy();
+
+        RangedBehaviorMode configMode = BuffMobsConfig.RangedMeleeSwitching.behaviorMode.get();
+        if (configMode == RangedBehaviorMode.RANDOM) {
+            state.behaviorMode = mob.getRandom().nextBoolean() ? RangedBehaviorMode.MELEE : RangedBehaviorMode.RETREAT;
+        } else {
+            state.behaviorMode = configMode;
+        }
+
         MOB_STATES.put(mob.getUUID(), state);
 
-        disableRangedGoals(mob);
+        if (state.behaviorMode == RangedBehaviorMode.RETREAT) {
+            setupRetreatMode(mob, state);
+        } else {
+            disableRangedGoals(mob);
+        }
+
+        BuffMobsMod.LOGGER.info("Initialized {} with behavior mode: {}",
+                mob.getType(), state.behaviorMode);
     }
 
     public static void updateMobBehavior(Mob mob) {
@@ -72,19 +86,66 @@ public class RangedMobAIManager {
         double switchDistance = BuffMobsConfig.RangedMeleeSwitching.switchDistance.get();
         long currentTime = mob.level().getGameTime();
 
-        if (currentTime - state.lastSwitchTime < SWITCH_COOLDOWN) {
-            if (state.inMeleeMode) {
+        if (state.behaviorMode == RangedBehaviorMode.MELEE) {
+            if (currentTime - state.lastSwitchTime < SWITCH_COOLDOWN) {
+                if (state.inMeleeMode) {
+                    handleMeleeAttack(mob, target, state);
+                }
+                return;
+            }
+
+            if (!state.inMeleeMode && distance <= switchDistance) {
+                switchToMeleeMode(mob, state);
+            } else if (state.inMeleeMode && distance > switchDistance + 2.0) {
+                switchToRangedMode(mob, state);
+            } else if (state.inMeleeMode) {
                 handleMeleeAttack(mob, target, state);
             }
-            return;
+        } else if (state.behaviorMode == RangedBehaviorMode.RETREAT) {
+            if (mob.getTarget() != target) {
+                mob.setTarget(target);
+            }
         }
+    }
 
-        if (!state.inMeleeMode && distance <= switchDistance) {
-            switchToMeleeMode(mob, state);
-        } else if (state.inMeleeMode && distance > switchDistance + 2.0) {
-            switchToRangedMode(mob, state);
-        } else if (state.inMeleeMode) {
-            handleMeleeAttack(mob, target, state);
+    private static void setupRetreatMode(Mob mob, MobState state) {
+        removeMeleeGoals(mob);
+
+        if (state.retreatGoal == null) {
+            double retreatDistance = BuffMobsConfig.RangedMeleeSwitching.switchDistance.get();
+            double retreatSpeed = BuffMobsConfig.RangedMeleeSwitching.retreatSpeed.get();
+            int retreatDuration = BuffMobsConfig.RangedMeleeSwitching.retreatDuration.get();
+
+            state.retreatGoal = new TacticalRetreatGoal(mob, retreatDistance, retreatSpeed, retreatDuration);
+            addGoal(mob, 0, state.retreatGoal);
+
+            BuffMobsMod.LOGGER.info("Added TacticalRetreatGoal to {} (distance: {}, speed: {})",
+                    mob.getType(), retreatDistance, retreatSpeed);
+        }
+    }
+
+    private static void removeMeleeGoals(Mob mob) {
+        try {
+            GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
+            @SuppressWarnings("unchecked")
+            Set<WrappedGoal> goals = (Set<WrappedGoal>) goalsField.get(selector);
+
+            List<Goal> toRemove = new ArrayList<>();
+            for (WrappedGoal prioritizedGoal : goals) {
+                Goal goal = prioritizedGoal.getGoal();
+                if (goal instanceof MeleeAttackGoal ||
+                        goal.getClass().getSimpleName().contains("MeleeAttack")) {
+                    toRemove.add(goal);
+                }
+            }
+
+            for (Goal goal : toRemove) {
+                selector.removeGoal(goal);
+                BuffMobsMod.LOGGER.info("Removed melee goal {} from {}",
+                        goal.getClass().getSimpleName(), mob.getType());
+            }
+        } catch (Exception e) {
+            BuffMobsMod.LOGGER.warn("Failed to remove melee goals", e);
         }
     }
 
@@ -153,6 +214,7 @@ public class RangedMobAIManager {
         }
 
         state.inMeleeMode = true;
+        state.inRetreatMode = false;
         state.lastSwitchTime = mob.level().getGameTime();
         state.lastAttackTime = 0;
 
@@ -174,6 +236,7 @@ public class RangedMobAIManager {
         enableRangedGoals(mob);
 
         state.inMeleeMode = false;
+        state.inRetreatMode = false;
         state.lastSwitchTime = mob.level().getGameTime();
 
         BuffMobsMod.LOGGER.info("Switched {} to RANGED mode", mob.getType());
@@ -210,7 +273,8 @@ public class RangedMobAIManager {
         try {
             GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
             selector.addGoal(priority, goal);
-            BuffMobsMod.LOGGER.debug("Added melee goal to {}", mob.getType());
+            BuffMobsMod.LOGGER.info("Added goal {} with priority {} to {}",
+                    goal.getClass().getSimpleName(), priority, mob.getType());
         } catch (Exception e) {
             BuffMobsMod.LOGGER.warn("Failed to add goal to mob", e);
         }
@@ -220,7 +284,7 @@ public class RangedMobAIManager {
         try {
             GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
             selector.removeGoal(goal);
-            BuffMobsMod.LOGGER.debug("Removed melee goal from {}", mob.getType());
+            BuffMobsMod.LOGGER.debug("Removed goal {} from {}", goal.getClass().getSimpleName(), mob.getType());
         } catch (Exception e) {
             BuffMobsMod.LOGGER.warn("Failed to remove goal from mob", e);
         }
