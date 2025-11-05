@@ -61,7 +61,14 @@ public class TacticalRetreatGoal extends Goal {
         PathNavigation navigation = mob.getNavigation();
         this.retreatPath = navigation.createPath(retreatPos.x, retreatPos.y, retreatPos.z, 0);
 
-        return this.retreatPath != null;
+        boolean canRetreat = this.retreatPath != null;
+
+        if (canRetreat) {
+            com.khotyz.buffmobs.BuffMobsMod.LOGGER.debug("{} activating retreat! Distance: {}, Target: {}",
+                    mob.getType(), Math.sqrt(distanceToTarget), target.getName().getString());
+        }
+
+        return canRetreat;
     }
 
     @Override
