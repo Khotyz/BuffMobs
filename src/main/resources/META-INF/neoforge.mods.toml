@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="buffmobs"
+version="2.5.2"
+displayName="Buff Mobs"
+logoFile="buffmobs.png"
+authors="Khotyz"
+description='''
+Add effects to neutral and hostile mobs.
+'''
+
+[[dependencies.buffmobs]]
+modId="neoforge"
+type="required"
+versionRange="[21.1,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.buffmobs]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1,1.21.2)"
+ordering="NONE"
+side="BOTH"
