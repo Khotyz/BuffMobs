@@ -99,7 +99,7 @@ Fine-tune which mobs are affected:
 
 ## 📦 Installation
 
-1. Download the latest version from [Releases](https://github.com/khotyz/buffmobs/releases)
+1. Download the latest version from [Releases](https://modrinth.com/mod/buff-mobs)
 2. Install [NeoForge 21.1.1+](https://neoforged.net/) for Minecraft 1.21.1
 3. Place the `.jar` file in your `mods` folder
 4. Launch Minecraft
