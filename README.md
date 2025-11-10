@@ -187,11 +187,7 @@ All commands require operator permission (level 2).
 - Works with most mob-adding mods automatically
 
 ### Known Compatible Mods
-- Twilight Forest
-- Alex's Mobs
-- Ice and Fire
-- The Abyss
-- And most others!
+
 
 ## 📊 Performance
 
