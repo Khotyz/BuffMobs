@@ -12,9 +12,11 @@ import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 
@@ -85,6 +87,18 @@ public class DebugCommand {
 
         if (!isValid) {
             source.sendSuccess(() -> Component.literal("§cMob is filtered out!"), false);
+
+            List<? extends String> blacklist = BuffMobsConfig.MobFilter.blacklist.get();
+            if (blacklist.contains(cleanMobId) || blacklist.contains(mobId)) {
+                source.sendSuccess(() -> Component.literal("§cReason: In mob blacklist"), false);
+            }
+
+            if (BuffMobsConfig.MobFilter.useWhitelist.get()) {
+                List<? extends String> whitelist = BuffMobsConfig.MobFilter.whitelist.get();
+                if (!whitelist.contains(cleanMobId) && !whitelist.contains(mobId)) {
+                    source.sendSuccess(() -> Component.literal("§cReason: Not in mob whitelist"), false);
+                }
+            }
         }
 
         source.sendSuccess(() -> Component.literal(""), false);
@@ -259,24 +273,63 @@ public class DebugCommand {
     private static int reloadMobs(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
 
-        source.sendSuccess(() -> Component.literal("§6Reapplying buffs to all mobs..."), false);
+        source.sendSuccess(() -> Component.literal("§6Reloading all mobs..."), false);
 
-        int count = 0;
+        int buffedCount = 0;
+        int removedCount = 0;
+
         for (Entity entity : source.getLevel().getAllEntities()) {
             if (entity instanceof Mob mob) {
                 try {
-                    MobBuffUtil.applyBuffs(mob);
-                    count++;
+                    if (MobBuffUtil.isValidMob(mob)) {
+                        removeAllBuffModifiers(mob);
+                        MobBuffUtil.applyBuffs(mob);
+                        buffedCount++;
+                    } else {
+                        removeAllBuffModifiers(mob);
+                        mob.getActiveEffects().clear();
+                        removedCount++;
+                    }
                 } catch (Exception e) {
-                    BuffMobsMod.LOGGER.error("Failed to buff mob", e);
+                    BuffMobsMod.LOGGER.error("Failed to reload mob", e);
                 }
             }
         }
 
-        final int finalCount = count;
-        source.sendSuccess(() -> Component.literal("§aBuffed " + finalCount + " mobs!"), false);
+        final int finalBuffed = buffedCount;
+        final int finalRemoved = removedCount;
+        source.sendSuccess(() -> Component.literal(String.format(
+                "§aBuffed %d mobs, removed buffs from %d mobs!", finalBuffed, finalRemoved)), false);
 
         return 1;
+    }
+
+    private static void removeAllBuffModifiers(Mob mob) {
+        ResourceLocation healthModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "health");
+        ResourceLocation damageModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "damage");
+        ResourceLocation speedModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "speed");
+        ResourceLocation attackSpeedModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "attack_speed");
+        ResourceLocation armorModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "armor");
+        ResourceLocation toughnessModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "toughness");
+
+        removeModifier(mob, Attributes.MAX_HEALTH, healthModId);
+        removeModifier(mob, Attributes.ATTACK_DAMAGE, damageModId);
+        removeModifier(mob, Attributes.MOVEMENT_SPEED, speedModId);
+        removeModifier(mob, Attributes.ATTACK_SPEED, attackSpeedModId);
+        removeModifier(mob, Attributes.ARMOR, armorModId);
+        removeModifier(mob, Attributes.ARMOR_TOUGHNESS, toughnessModId);
+
+        mob.setHealth(mob.getMaxHealth());
+    }
+
+    private static void removeModifier(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, ResourceLocation modId) {
+        AttributeInstance attr = mob.getAttribute(attribute);
+        if (attr != null) {
+            AttributeModifier existing = attr.getModifier(modId);
+            if (existing != null) {
+                attr.removeModifier(modId);
+            }
+        }
     }
 
     private static int showInfo(CommandContext<CommandSourceStack> context) {

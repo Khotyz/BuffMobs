@@ -147,14 +147,15 @@ public class MobBuffUtil {
             return false;
         }
 
-        String mobId = mob.getType().toString();
-        ResourceLocation mobRL = ResourceLocation.tryParse(mobId);
-        String modId = mobRL != null ? mobRL.getNamespace() : "minecraft";
+        ResourceLocation mobRL = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        String mobId = mobRL.toString();
+        String legacyMobId = mob.getType().toString();
+        String modId = mobRL.getNamespace();
         String dimensionName = mob.level().dimension().location().toString();
 
         boolean validDim = isValidDimension(dimensionName);
         boolean validMod = isValidModId(modId);
-        boolean validMob = isValidMobId(mobId);
+        boolean validMob = isValidMobId(mobId, legacyMobId);
 
         if (!validDim && BuffMobsMod.LOGGER.isDebugEnabled()) {
             BuffMobsMod.LOGGER.debug("Mob {} filtered by dimension: {}", mobId, dimensionName);
@@ -206,7 +207,6 @@ public class MobBuffUtil {
     private static void applyAttributeModifiersWithPreset(Mob mob, double dayMultiplier,
                                                           DimensionMultipliers dimMultipliers,
                                                           MobPresetUtil.PresetMultipliers presetMult) {
-        // Preset combines with general and dimension scaling
         double generalHealth = BuffMobsConfig.Attributes.healthMultiplier.get();
         double generalDamage = BuffMobsConfig.Attributes.damageMultiplier.get();
         double generalSpeed = BuffMobsConfig.Attributes.speedMultiplier.get();
@@ -214,13 +214,11 @@ public class MobBuffUtil {
         double generalArmor = BuffMobsConfig.Attributes.armorAddition.get();
         double generalToughness = BuffMobsConfig.Attributes.armorToughnessAddition.get();
 
-        // Combine: (general * dimension * preset) for multipliers
         applyHealthModifier(mob, dayMultiplier, dimMultipliers.health * presetMult.health, generalHealth);
         applyDamageModifier(mob, dayMultiplier, dimMultipliers.damage * presetMult.damage, generalDamage);
         applySpeedModifier(mob, dayMultiplier, dimMultipliers.speed * presetMult.speed, generalSpeed);
         applyAttackSpeedModifier(mob, dayMultiplier, dimMultipliers.attackSpeed * presetMult.attackSpeed, generalAttackSpeed);
 
-        // Combine: (general + dimension + preset) for additions
         applyArmorModifier(mob, dayMultiplier, dimMultipliers.armor + presetMult.armor, generalArmor);
         applyToughnessModifier(mob, dayMultiplier, dimMultipliers.armorToughness + presetMult.armorToughness, generalToughness);
 
@@ -375,12 +373,15 @@ public class MobBuffUtil {
         return true;
     }
 
-    private static boolean isValidMobId(String mobId) {
+    private static boolean isValidMobId(String mobId, String legacyMobId) {
         List<? extends String> blacklist = BuffMobsConfig.MobFilter.blacklist.get();
-        if (blacklist.contains(mobId)) return false;
+        if (blacklist.contains(mobId) || blacklist.contains(legacyMobId)) {
+            return false;
+        }
 
         if (BuffMobsConfig.MobFilter.useWhitelist.get()) {
-            return BuffMobsConfig.MobFilter.whitelist.get().contains(mobId);
+            List<? extends String> whitelist = BuffMobsConfig.MobFilter.whitelist.get();
+            return whitelist.contains(mobId) || whitelist.contains(legacyMobId);
         }
 
         return true;
@@ -389,14 +390,12 @@ public class MobBuffUtil {
     public static double calculateFinalMultiplier(double baseMultiplier,
                                                   double dimensionMultiplier,
                                                   double dayMultiplier) {
-        // Stacks all multipliers: base * dimension * day
         return baseMultiplier * dimensionMultiplier * dayMultiplier;
     }
 
     public static double calculateFinalAddition(double baseAddition,
                                                 double dimensionAddition,
                                                 double dayMultiplier) {
-        // Stacks additions then applies day multiplier: (base + dimension) * day
         return (baseAddition + dimensionAddition) * dayMultiplier;
     }
 

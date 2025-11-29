@@ -2,10 +2,10 @@ package com.khotyz.buffmobs.config;
 
 import com.khotyz.buffmobs.util.RangedBehaviorMode;
 import net.neoforged.neoforge.common.ModConfigSpec;
-import java.util.Arrays;
 import java.util.List;
 
 public class BuffMobsConfig {
+    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
     public static final ModConfigSpec SPEC;
 
     public static ModConfigSpec.BooleanValue enabled;
@@ -141,146 +141,125 @@ public class BuffMobsConfig {
     }
 
     static {
-        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
+        BUILDER.comment("BuffMobs Configuration").push("general");
+        enabled = BUILDER.comment("Enable or disable the entire mod").define("enabled", true);
+        visualEffects = BUILDER.comment("Show visual particle effects for mob buffs").define("visualEffects", true);
+        BUILDER.pop();
 
-        builder.push("general");
-        enabled = builder.define("enabled", true);
-        visualEffects = builder.define("visualEffects", true);
-        builder.pop();
+        BUILDER.comment("Day-based scaling system").push("dayScaling");
+        DayScaling.enabled = BUILDER.comment("Enable day-based difficulty scaling").define("enabled", false);
+        DayScaling.interval = BUILDER.comment("Days between each scaling increase").defineInRange("interval", 7, 1, 365);
+        DayScaling.multiplier = BUILDER.comment("Multiplier increase per interval").defineInRange("multiplier", 0.1, 0.01, 20.0);
+        DayScaling.maxMultiplier = BUILDER.comment("Maximum multiplier cap").defineInRange("maxMultiplier", 5.0, 1.0, 10.0);
+        DayScaling.showNotifications = BUILDER.comment("Show day scaling notifications").define("showNotifications", true);
+        DayScaling.notificationMode = BUILDER.comment("Notification frequency mode").defineEnum("notificationMode", DayScaling.NotificationMode.EVERY_DAY);
+        BUILDER.pop();
 
-        builder.push("dayScaling");
-        DayScaling.enabled = builder.define("enabled", false);
-        DayScaling.interval = builder.defineInRange("interval", 7, 1, 365);
-        DayScaling.multiplier = builder.defineInRange("multiplier", 0.1, 0.01, 20.0);
-        DayScaling.maxMultiplier = builder.defineInRange("maxMultiplier", 5.0, 1.0, 10.0);
-        DayScaling.showNotifications = builder.define("showNotifications", true);
-        DayScaling.notificationMode = builder.defineEnum("notificationMode", DayScaling.NotificationMode.EVERY_DAY);
-        builder.pop();
+        BUILDER.comment("Base attribute multipliers").push("attributes");
+        Attributes.healthMultiplier = BUILDER.comment("Health multiplier").defineInRange("healthMultiplier", 1.5, 0.1, 10.0);
+        Attributes.damageMultiplier = BUILDER.comment("Damage multiplier").defineInRange("damageMultiplier", 1.5, 0.1, 10.0);
+        Attributes.speedMultiplier = BUILDER.comment("Speed multiplier").defineInRange("speedMultiplier", 1.0, 0.1, 10.0);
+        Attributes.attackSpeedMultiplier = BUILDER.comment("Attack speed multiplier").defineInRange("attackSpeedMultiplier", 1.0, 0.1, 10.0);
+        Attributes.armorAddition = BUILDER.comment("Flat armor points to add").defineInRange("armorAddition", 5.0, 0.0, 20.0);
+        Attributes.armorToughnessAddition = BUILDER.comment("Flat armor toughness to add").defineInRange("armorToughnessAddition", 0.0, 0.0, 20.0);
+        BUILDER.pop();
 
-        builder.push("attributes");
-        Attributes.healthMultiplier = builder.defineInRange("healthMultiplier", 1.5, 0.1, 10.0);
-        Attributes.damageMultiplier = builder.defineInRange("damageMultiplier", 1.5, 0.1, 10.0);
-        Attributes.speedMultiplier = builder.defineInRange("speedMultiplier", 1.0, 0.1, 10.0);
-        Attributes.attackSpeedMultiplier = builder.defineInRange("attackSpeedMultiplier", 1.0, 0.1, 10.0);
-        Attributes.armorAddition = builder.defineInRange("armorAddition", 5.0, 0.0, 20.0);
-        Attributes.armorToughnessAddition = builder.defineInRange("armorToughnessAddition", 0.0, 0.0, 20.0);
-        builder.pop();
+        BUILDER.comment("Status effects applied to mobs").push("effects");
+        Effects.duration = BUILDER.comment("Effect duration in seconds (-1 for infinite)").defineInRange("duration", -1, -1, 7200);
+        Effects.strengthAmplifier = BUILDER.comment("Strength effect level (0 to disable)").defineInRange("strengthAmplifier", 0, 0, 10);
+        Effects.speedAmplifier = BUILDER.comment("Speed effect level (0 to disable)").defineInRange("speedAmplifier", 0, 0, 10);
+        Effects.resistanceAmplifier = BUILDER.comment("Resistance effect level (0 to disable)").defineInRange("resistanceAmplifier", 0, 0, 10);
+        Effects.regenerationAmplifier = BUILDER.comment("Regeneration effect level (0 to disable)").defineInRange("regenerationAmplifier", 0, 0, 10);
+        BUILDER.pop();
 
-        builder.push("effects");
-        Effects.duration = builder.defineInRange("duration", -1, -1, 7200);
-        Effects.strengthAmplifier = builder.defineInRange("strengthAmplifier", 0, 0, 10);
-        Effects.speedAmplifier = builder.defineInRange("speedAmplifier", 0, 0, 10);
-        Effects.resistanceAmplifier = builder.defineInRange("resistanceAmplifier", 0, 0, 10);
-        Effects.regenerationAmplifier = builder.defineInRange("regenerationAmplifier", 0, 0, 10);
-        builder.pop();
+        BUILDER.comment("Harmful effects applied to players").push("harmfulEffects");
+        HarmfulEffects.enabled = BUILDER.comment("Enable harmful effects on players").define("enabled", true);
+        HarmfulEffects.chance = BUILDER.comment("Chance to apply effect per hit").defineInRange("chance", 0.15, 0.0, 1.0);
+        HarmfulEffects.poisonDuration = BUILDER.comment("Poison duration in seconds").defineInRange("poisonDuration", 5, 1, 60);
+        HarmfulEffects.slownessDuration = BUILDER.comment("Slowness duration in seconds").defineInRange("slownessDuration", 3, 1, 60);
+        HarmfulEffects.witherDuration = BUILDER.comment("Wither duration in seconds").defineInRange("witherDuration", 3, 1, 60);
+        BUILDER.pop();
 
-        builder.push("harmfulEffects");
-        HarmfulEffects.enabled = builder.define("enabled", true);
-        HarmfulEffects.chance = builder.defineInRange("chance", 0.15, 0.0, 1.0);
-        HarmfulEffects.poisonDuration = builder.defineInRange("poisonDuration", 5, 1, 60);
-        HarmfulEffects.slownessDuration = builder.defineInRange("slownessDuration", 3, 1, 60);
-        HarmfulEffects.witherDuration = builder.defineInRange("witherDuration", 3, 1, 60);
-        builder.pop();
+        BUILDER.comment("Dimension-specific scaling (use dimension IDs like 'minecraft:overworld')").push("dimensionScaling");
+        DimensionScaling.slot1 = createDimensionSlot(BUILDER, "slot1");
+        DimensionScaling.slot2 = createDimensionSlot(BUILDER, "slot2");
+        DimensionScaling.slot3 = createDimensionSlot(BUILDER, "slot3");
+        DimensionScaling.slot4 = createDimensionSlot(BUILDER, "slot4");
+        DimensionScaling.slot5 = createDimensionSlot(BUILDER, "slot5");
+        BUILDER.pop();
 
-        builder.push("dimensionScaling");
-        builder.comment("Configure dimension-specific scaling. Use dimension IDs like 'minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'");
-        DimensionScaling.slot1 = createDimensionSlot(builder, "slot1");
-        DimensionScaling.slot2 = createDimensionSlot(builder, "slot2");
-        DimensionScaling.slot3 = createDimensionSlot(builder, "slot3");
-        DimensionScaling.slot4 = createDimensionSlot(builder, "slot4");
-        DimensionScaling.slot5 = createDimensionSlot(builder, "slot5");
-        builder.pop();
+        BUILDER.comment("Filter which mobs are affected").push("mobFilter");
+        MobFilter.useWhitelist = BUILDER.comment("Use whitelist instead of blacklist").define("useWhitelist", false);
+        MobFilter.whitelist = BUILDER.comment("Mob whitelist (only these mobs will be buffed if enabled)").defineList("whitelist", List.of(), obj -> obj instanceof String);
+        MobFilter.blacklist = BUILDER.comment("Mob blacklist (these mobs will never be buffed)").defineList("blacklist", List.of("minecraft:warden"), obj -> obj instanceof String);
+        BUILDER.pop();
 
-        builder.push("mobFilter");
-        MobFilter.useWhitelist = builder.define("useWhitelist", false);
-        MobFilter.whitelist = builder.defineList("whitelist", Arrays.asList(), o -> o instanceof String);
-        MobFilter.blacklist = builder.defineList("blacklist", Arrays.asList("minecraft:warden"), o -> o instanceof String);
-        builder.pop();
+        BUILDER.comment("Filter which mod's mobs are affected").push("modidFilter");
+        ModIdFilter.useWhitelist = BUILDER.comment("Use whitelist instead of blacklist").define("useWhitelist", false);
+        ModIdFilter.whitelist = BUILDER.comment("Mod ID whitelist").defineList("whitelist", List.of(), obj -> obj instanceof String);
+        ModIdFilter.blacklist = BUILDER.comment("Mod ID blacklist").defineList("blacklist", List.of(), obj -> obj instanceof String);
+        BUILDER.pop();
 
-        builder.push("modidFilter");
-        ModIdFilter.useWhitelist = builder.define("useWhitelist", false);
-        ModIdFilter.whitelist = builder.defineList("whitelist", Arrays.asList(), o -> o instanceof String);
-        ModIdFilter.blacklist = builder.defineList("blacklist", Arrays.asList(), o -> o instanceof String);
-        builder.pop();
+        BUILDER.comment("Filter which dimensions mobs are affected in").push("dimensionFilter");
+        DimensionFilter.useWhitelist = BUILDER.comment("Use whitelist instead of blacklist").define("useWhitelist", false);
+        DimensionFilter.whitelist = BUILDER.comment("Dimension whitelist").defineList("whitelist", List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"), obj -> obj instanceof String);
+        DimensionFilter.blacklist = BUILDER.comment("Dimension blacklist").defineList("blacklist", List.of(), obj -> obj instanceof String);
+        BUILDER.pop();
 
-        builder.push("dimensionFilter");
-        DimensionFilter.useWhitelist = builder.define("useWhitelist", false);
-        DimensionFilter.whitelist = builder.defineList("whitelist",
-                Arrays.asList("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"), o -> o instanceof String);
-        DimensionFilter.blacklist = builder.defineList("blacklist", Arrays.asList(), o -> o instanceof String);
-        builder.pop();
+        BUILDER.comment("Ranged mob melee switching system").push("rangedMeleeSwitching");
+        RangedMeleeSwitching.enabled = BUILDER.comment("Enable ranged mobs to switch to melee").define("enabled", true);
+        RangedMeleeSwitching.behaviorMode = BUILDER.comment("Behavior mode: MELEE, RETREAT, or RANDOM").defineEnum("behaviorMode", RangedBehaviorMode.MELEE);
+        RangedMeleeSwitching.switchDistance = BUILDER.comment("Distance to switch to melee mode").defineInRange("switchDistance", 4.0, 1.0, 16.0);
+        RangedMeleeSwitching.meleeSpeedMultiplier = BUILDER.comment("Speed multiplier in melee mode").defineInRange("meleeSpeedMultiplier", 0.9, 0.5, 2.0);
+        RangedMeleeSwitching.retreatSpeed = BUILDER.comment("Retreat movement speed").defineInRange("retreatSpeed", 1.5, 0.5, 3.0);
+        RangedMeleeSwitching.retreatDuration = BUILDER.comment("Retreat duration in ticks").defineInRange("retreatDuration", 40, 10, 200);
+        RangedMeleeSwitching.customRangedMobs = BUILDER.comment("Additional ranged mobs to enable switching for").defineList("customRangedMobs", List.of(), obj -> obj instanceof String);
 
-        builder.push("rangedMeleeSwitching");
-        RangedMeleeSwitching.enabled = builder.define("enabled", true);
-        RangedMeleeSwitching.behaviorMode = builder.defineEnum("behaviorMode", RangedBehaviorMode.MELEE);
-        RangedMeleeSwitching.switchDistance = builder.defineInRange("switchDistance", 4.0, 1.0, 16.0);
-        RangedMeleeSwitching.meleeSpeedMultiplier = builder.defineInRange("meleeSpeedMultiplier", 0.9, 0.5, 2.0);
-        RangedMeleeSwitching.retreatSpeed = builder.defineInRange("retreatSpeed", 1.5, 0.5, 3.0);
-        RangedMeleeSwitching.retreatDuration = builder.defineInRange("retreatDuration", 40, 10, 200);
-        RangedMeleeSwitching.customRangedMobs = builder.defineList("customRangedMobs", Arrays.asList(), o -> o instanceof String);
+        RangedMeleeSwitching.stoneSwordUnlockDay = BUILDER.comment("Day stone sword unlocks").defineInRange("stoneSwordUnlockDay", 0, 0, 365);
+        RangedMeleeSwitching.ironSwordUnlockDay = BUILDER.comment("Day iron sword unlocks").defineInRange("ironSwordUnlockDay", 7, 0, 365);
+        RangedMeleeSwitching.diamondSwordUnlockDay = BUILDER.comment("Day diamond sword unlocks").defineInRange("diamondSwordUnlockDay", 21, 0, 365);
+        RangedMeleeSwitching.netheriteSwordUnlockDay = BUILDER.comment("Day netherite sword unlocks").defineInRange("netheriteSwordUnlockDay", 60, 0, 365);
+        RangedMeleeSwitching.goldenAxeUnlockDay = BUILDER.comment("Day golden axe unlocks").defineInRange("goldenAxeUnlockDay", 0, 0, 365);
+        RangedMeleeSwitching.diamondAxeUnlockDay = BUILDER.comment("Day diamond axe unlocks").defineInRange("diamondAxeUnlockDay", 14, 0, 365);
+        RangedMeleeSwitching.netheriteAxeUnlockDay = BUILDER.comment("Day netherite axe unlocks").defineInRange("netheriteAxeUnlockDay", 45, 0, 365);
 
-        RangedMeleeSwitching.stoneSwordUnlockDay = builder.defineInRange("stoneSwordUnlockDay", 0, 0, 365);
-        RangedMeleeSwitching.ironSwordUnlockDay = builder.defineInRange("ironSwordUnlockDay", 7, 0, 365);
-        RangedMeleeSwitching.diamondSwordUnlockDay = builder.defineInRange("diamondSwordUnlockDay", 21, 0, 365);
-        RangedMeleeSwitching.netheriteSwordUnlockDay = builder.defineInRange("netheriteSwordUnlockDay", 60, 0, 365);
-        RangedMeleeSwitching.goldenAxeUnlockDay = builder.defineInRange("goldenAxeUnlockDay", 0, 0, 365);
-        RangedMeleeSwitching.diamondAxeUnlockDay = builder.defineInRange("diamondAxeUnlockDay", 14, 0, 365);
-        RangedMeleeSwitching.netheriteAxeUnlockDay = builder.defineInRange("netheriteAxeUnlockDay", 45, 0, 365);
+        RangedMeleeSwitching.enchantmentsEnabled = BUILDER.comment("Enable enchantments on melee weapons").define("enchantmentsEnabled", true);
+        RangedMeleeSwitching.maxEnchantmentsPerWeapon = BUILDER.comment("Maximum enchantments per weapon").defineInRange("maxEnchantmentsPerWeapon", 2, 1, 4);
+        RangedMeleeSwitching.daysPerEnchantmentLevel = BUILDER.comment("Days required per enchantment level").defineInRange("daysPerEnchantmentLevel", 7, 1, 30);
 
-        RangedMeleeSwitching.enchantmentsEnabled = builder.define("enchantmentsEnabled", true);
-        RangedMeleeSwitching.maxEnchantmentsPerWeapon = builder.defineInRange("maxEnchantmentsPerWeapon", 2, 1, 4);
-        RangedMeleeSwitching.daysPerEnchantmentLevel = builder.defineInRange("daysPerEnchantmentLevel", 7, 1, 30);
+        RangedMeleeSwitching.sharpnessUnlockDay = BUILDER.comment("Day sharpness unlocks").defineInRange("sharpnessUnlockDay", 0, 0, 365);
+        RangedMeleeSwitching.sharpnessMaxLevel = BUILDER.comment("Maximum sharpness level").defineInRange("sharpnessMaxLevel", 5, 1, 5);
+        RangedMeleeSwitching.fireAspectUnlockDay = BUILDER.comment("Day fire aspect unlocks").defineInRange("fireAspectUnlockDay", 14, 0, 365);
+        RangedMeleeSwitching.fireAspectMaxLevel = BUILDER.comment("Maximum fire aspect level").defineInRange("fireAspectMaxLevel", 2, 1, 2);
+        RangedMeleeSwitching.knockbackUnlockDay = BUILDER.comment("Day knockback unlocks").defineInRange("knockbackUnlockDay", 7, 0, 365);
+        RangedMeleeSwitching.knockbackMaxLevel = BUILDER.comment("Maximum knockback level").defineInRange("knockbackMaxLevel", 2, 1, 2);
+        RangedMeleeSwitching.sweepingEdgeUnlockDay = BUILDER.comment("Day sweeping edge unlocks").defineInRange("sweepingEdgeUnlockDay", 21, 0, 365);
+        RangedMeleeSwitching.sweepingEdgeMaxLevel = BUILDER.comment("Maximum sweeping edge level").defineInRange("sweepingEdgeMaxLevel", 3, 1, 3);
+        BUILDER.pop();
 
-        RangedMeleeSwitching.sharpnessUnlockDay = builder.defineInRange("sharpnessUnlockDay", 0, 0, 365);
-        RangedMeleeSwitching.sharpnessMaxLevel = builder.defineInRange("sharpnessMaxLevel", 5, 1, 5);
-        RangedMeleeSwitching.fireAspectUnlockDay = builder.defineInRange("fireAspectUnlockDay", 14, 0, 365);
-        RangedMeleeSwitching.fireAspectMaxLevel = builder.defineInRange("fireAspectMaxLevel", 2, 1, 2);
-        RangedMeleeSwitching.knockbackUnlockDay = builder.defineInRange("knockbackUnlockDay", 7, 0, 365);
-        RangedMeleeSwitching.knockbackMaxLevel = builder.defineInRange("knockbackMaxLevel", 2, 1, 2);
-        RangedMeleeSwitching.sweepingEdgeUnlockDay = builder.defineInRange("sweepingEdgeUnlockDay", 21, 0, 365);
-        RangedMeleeSwitching.sweepingEdgeMaxLevel = builder.defineInRange("sweepingEdgeMaxLevel", 3, 1, 3);
-        builder.pop();
+        BUILDER.comment("Mob preset system - assign custom multipliers to specific mobs").push("mobPresets");
+        MobPresets.enabled = BUILDER.comment("Enable mob presets system").defineEnum("enabled", MobPresets.PresetToggle.DISABLED);
+        MobPresets.preset1 = createPresetSlot(BUILDER, "preset1", "default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        MobPresets.preset2 = createPresetSlot(BUILDER, "preset2", "boss", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
+        MobPresets.preset3 = createPresetSlot(BUILDER, "preset3", "elite", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
+        MobPresets.preset4 = createPresetSlot(BUILDER, "preset4", "weak", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
+        MobPresets.preset5 = createPresetSlot(BUILDER, "preset5", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        MobPresets.mobMapping = BUILDER.comment("Mob to preset mappings (format: namespace:mob_id:preset_name)").defineList("mobMapping", List.of(), obj -> obj instanceof String);
+        BUILDER.pop();
 
-        builder.push("mobPresets");
-        builder.comment("Mob presets allow custom multipliers per mob type. Use format 'namespace:mob_id:preset_name' in mobMapping");
-        MobPresets.enabled = builder.defineEnum("enabled", MobPresets.PresetToggle.DISABLED);
-        MobPresets.preset1 = createPresetSlot(builder, "preset1", "default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-        MobPresets.preset2 = createPresetSlot(builder, "preset2", "boss", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
-        MobPresets.preset3 = createPresetSlot(builder, "preset3", "elite", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
-        MobPresets.preset4 = createPresetSlot(builder, "preset4", "weak", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
-        MobPresets.preset5 = createPresetSlot(builder, "preset5", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-        MobPresets.mobMapping = builder.defineList("mobMapping",
-                Arrays.asList("minecraft:zombie:default", "minecraft:skeleton:default",
-                        "minecraft:ender_dragon:boss", "minecraft:wither:boss"), o -> o instanceof String);
-        builder.pop();
-
-        SPEC = builder.build();
+        SPEC = BUILDER.build();
     }
 
     private static DimensionScaling.DimensionSlot createDimensionSlot(ModConfigSpec.Builder builder, String name) {
         builder.push(name);
         DimensionScaling.DimensionSlot slot = new DimensionScaling.DimensionSlot();
-        slot.dimensionName = builder
-                .comment("Dimension ID (e.g., 'minecraft:overworld', 'minecraft:the_nether')")
-                .define("dimensionName", "", o -> o instanceof String);
-        slot.healthMultiplier = builder
-                .comment("Health multiplier as percentage (100 = no change, 200 = double)")
-                .defineInRange("healthMultiplier", 100, 10, 1000);
-        slot.damageMultiplier = builder
-                .comment("Damage multiplier as percentage (100 = no change, 200 = double)")
-                .defineInRange("damageMultiplier", 100, 10, 1000);
-        slot.speedMultiplier = builder
-                .comment("Speed multiplier as percentage (100 = no change, 150 = 1.5x)")
-                .defineInRange("speedMultiplier", 100, 10, 500);
-        slot.attackSpeedMultiplier = builder
-                .comment("Attack speed multiplier as percentage (100 = no change)")
-                .defineInRange("attackSpeedMultiplier", 100, 10, 1000);
-        slot.armorAddition = builder
-                .comment("Flat armor points to add")
-                .defineInRange("armorAddition", 0, 0, 20);
-        slot.armorToughnessAddition = builder
-                .comment("Flat armor toughness to add")
-                .defineInRange("armorToughnessAddition", 0, 0, 10);
+        slot.dimensionName = builder.comment("Dimension ID (e.g., 'minecraft:overworld')").define("dimensionName", "");
+        slot.healthMultiplier = builder.comment("Health multiplier percentage (100 = no change)").defineInRange("healthMultiplier", 100, 10, 1000);
+        slot.damageMultiplier = builder.comment("Damage multiplier percentage (100 = no change)").defineInRange("damageMultiplier", 100, 10, 1000);
+        slot.speedMultiplier = builder.comment("Speed multiplier percentage (100 = no change)").defineInRange("speedMultiplier", 100, 10, 500);
+        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier percentage (100 = no change)").defineInRange("attackSpeedMultiplier", 100, 10, 1000);
+        slot.armorAddition = builder.comment("Flat armor points to add").defineInRange("armorAddition", 0, 0, 20);
+        slot.armorToughnessAddition = builder.comment("Flat armor toughness to add").defineInRange("armorToughnessAddition", 0, 0, 10);
         builder.pop();
         return slot;
     }
@@ -290,15 +269,13 @@ public class BuffMobsConfig {
                                                           double armor, double toughness) {
         builder.push(name);
         MobPresets.PresetSlot slot = new MobPresets.PresetSlot();
-        slot.presetName = builder
-                .comment("Preset identifier name")
-                .define("presetName", presetName, o -> o instanceof String);
-        slot.healthMultiplier = builder.defineInRange("healthMultiplier", health, 0.1, 100.0);
-        slot.damageMultiplier = builder.defineInRange("damageMultiplier", damage, 0.1, 100.0);
-        slot.speedMultiplier = builder.defineInRange("speedMultiplier", speed, 0.1, 10.0);
-        slot.attackSpeedMultiplier = builder.defineInRange("attackSpeedMultiplier", atkSpeed, 0.1, 10.0);
-        slot.armorAddition = builder.defineInRange("armorAddition", armor, 0.0, 30.0);
-        slot.armorToughnessAddition = builder.defineInRange("armorToughnessAddition", toughness, 0.0, 20.0);
+        slot.presetName = builder.comment("Preset identifier name").define("presetName", presetName);
+        slot.healthMultiplier = builder.comment("Health multiplier").defineInRange("healthMultiplier", health, 0.1, 100.0);
+        slot.damageMultiplier = builder.comment("Damage multiplier").defineInRange("damageMultiplier", damage, 0.1, 100.0);
+        slot.speedMultiplier = builder.comment("Speed multiplier").defineInRange("speedMultiplier", speed, 0.1, 10.0);
+        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier").defineInRange("attackSpeedMultiplier", atkSpeed, 0.1, 10.0);
+        slot.armorAddition = builder.comment("Flat armor addition").defineInRange("armorAddition", armor, 0.0, 30.0);
+        slot.armorToughnessAddition = builder.comment("Flat armor toughness addition").defineInRange("armorToughnessAddition", toughness, 0.0, 20.0);
         builder.pop();
         return slot;
     }

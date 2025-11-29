@@ -8,7 +8,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -22,11 +21,7 @@ public class BuffMobsMod {
     public static final Logger LOGGER = LoggerFactory.getLogger("BuffMobs");
 
     public BuffMobsMod(IEventBus modEventBus, ModContainer modContainer) {
-        modContainer.registerConfig(ModConfig.Type.COMMON, BuffMobsConfig.SPEC);
-
-        // Listen for config changes to prevent resets
-        modEventBus.addListener(this::onConfigLoad);
-        modEventBus.addListener(this::onConfigReload);
+        modContainer.registerConfig(ModConfig.Type.COMMON, BuffMobsConfig.SPEC, "buffmobs-common.toml");
 
         MobEventHandler handler = new MobEventHandler();
         MobTickHandler.register();
@@ -43,18 +38,6 @@ public class BuffMobsMod {
             DebugCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
         });
 
-        LOGGER.info("BuffMobs initialized successfully");
-    }
-
-    private void onConfigLoad(ModConfigEvent.Loading event) {
-        if (event.getConfig().getType() == ModConfig.Type.COMMON) {
-            LOGGER.info("BuffMobs config loaded");
-        }
-    }
-
-    private void onConfigReload(ModConfigEvent.Reloading event) {
-        if (event.getConfig().getType() == ModConfig.Type.COMMON) {
-            LOGGER.info("BuffMobs config reloaded - values preserved");
-        }
+        LOGGER.info("BuffMobs initialized - config file: buffmobs-common.toml");
     }
 }
