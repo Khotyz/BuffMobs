@@ -58,12 +58,12 @@ public class BuffMobsConfig {
 
         public static class DimensionSlot {
             public ModConfigSpec.ConfigValue<String> dimensionName;
-            public ModConfigSpec.IntValue healthMultiplier;
-            public ModConfigSpec.IntValue damageMultiplier;
-            public ModConfigSpec.IntValue speedMultiplier;
-            public ModConfigSpec.IntValue attackSpeedMultiplier;
-            public ModConfigSpec.IntValue armorAddition;
-            public ModConfigSpec.IntValue armorToughnessAddition;
+            public ModConfigSpec.DoubleValue healthMultiplier;
+            public ModConfigSpec.DoubleValue damageMultiplier;
+            public ModConfigSpec.DoubleValue speedMultiplier;
+            public ModConfigSpec.DoubleValue attackSpeedMultiplier;
+            public ModConfigSpec.DoubleValue armorAddition;
+            public ModConfigSpec.DoubleValue armorToughnessAddition;
         }
     }
 
@@ -191,7 +191,7 @@ public class BuffMobsConfig {
         BUILDER.comment("Filter which mobs are affected").push("mobFilter");
         MobFilter.useWhitelist = BUILDER.comment("Use whitelist instead of blacklist").define("useWhitelist", false);
         MobFilter.whitelist = BUILDER.comment("Mob whitelist (only these mobs will be buffed if enabled)").defineList("whitelist", List.of(), obj -> obj instanceof String);
-        MobFilter.blacklist = BUILDER.comment("Mob blacklist (these mobs will never be buffed)").defineList("blacklist", List.of("minecraft:warden"), obj -> obj instanceof String);
+        MobFilter.blacklist = BUILDER.comment("Mob blacklist (these mobs will never be buffed)").defineList("blacklist", List.of(), obj -> obj instanceof String);
         BUILDER.pop();
 
         BUILDER.comment("Filter which mod's mobs are affected").push("modidFilter");
@@ -202,7 +202,7 @@ public class BuffMobsConfig {
 
         BUILDER.comment("Filter which dimensions mobs are affected in").push("dimensionFilter");
         DimensionFilter.useWhitelist = BUILDER.comment("Use whitelist instead of blacklist").define("useWhitelist", false);
-        DimensionFilter.whitelist = BUILDER.comment("Dimension whitelist").defineList("whitelist", List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"), obj -> obj instanceof String);
+        DimensionFilter.whitelist = BUILDER.comment("Dimension whitelist").defineList("whitelist", List.of(), obj -> obj instanceof String);
         DimensionFilter.blacklist = BUILDER.comment("Dimension blacklist").defineList("blacklist", List.of(), obj -> obj instanceof String);
         BUILDER.pop();
 
@@ -239,10 +239,10 @@ public class BuffMobsConfig {
 
         BUILDER.comment("Mob preset system - assign custom multipliers to specific mobs").push("mobPresets");
         MobPresets.enabled = BUILDER.comment("Enable mob presets system").defineEnum("enabled", MobPresets.PresetToggle.DISABLED);
-        MobPresets.preset1 = createPresetSlot(BUILDER, "preset1", "default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-        MobPresets.preset2 = createPresetSlot(BUILDER, "preset2", "boss", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
-        MobPresets.preset3 = createPresetSlot(BUILDER, "preset3", "elite", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
-        MobPresets.preset4 = createPresetSlot(BUILDER, "preset4", "weak", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
+        MobPresets.preset1 = createPresetSlot(BUILDER, "preset1", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        MobPresets.preset2 = createPresetSlot(BUILDER, "preset2", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        MobPresets.preset3 = createPresetSlot(BUILDER, "preset3", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        MobPresets.preset4 = createPresetSlot(BUILDER, "preset4", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
         MobPresets.preset5 = createPresetSlot(BUILDER, "preset5", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
         MobPresets.mobMapping = BUILDER.comment("Mob to preset mappings (format: namespace:mob_id:preset_name)").defineList("mobMapping", List.of(), obj -> obj instanceof String);
         BUILDER.pop();
@@ -254,12 +254,12 @@ public class BuffMobsConfig {
         builder.push(name);
         DimensionScaling.DimensionSlot slot = new DimensionScaling.DimensionSlot();
         slot.dimensionName = builder.comment("Dimension ID (e.g., 'minecraft:overworld')").define("dimensionName", "");
-        slot.healthMultiplier = builder.comment("Health multiplier percentage (100 = no change)").defineInRange("healthMultiplier", 100, 10, 1000);
-        slot.damageMultiplier = builder.comment("Damage multiplier percentage (100 = no change)").defineInRange("damageMultiplier", 100, 10, 1000);
-        slot.speedMultiplier = builder.comment("Speed multiplier percentage (100 = no change)").defineInRange("speedMultiplier", 100, 10, 500);
-        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier percentage (100 = no change)").defineInRange("attackSpeedMultiplier", 100, 10, 1000);
-        slot.armorAddition = builder.comment("Flat armor points to add").defineInRange("armorAddition", 0, 0, 20);
-        slot.armorToughnessAddition = builder.comment("Flat armor toughness to add").defineInRange("armorToughnessAddition", 0, 0, 10);
+        slot.healthMultiplier = builder.comment("Health multiplier (1.0 = no change, 2.0 = double)").defineInRange("healthMultiplier", 1.0, 0.1, 10.0);
+        slot.damageMultiplier = builder.comment("Damage multiplier (1.0 = no change, 2.0 = double)").defineInRange("damageMultiplier", 1.0, 0.1, 10.0);
+        slot.speedMultiplier = builder.comment("Speed multiplier (1.0 = no change, 1.5 = 50% faster)").defineInRange("speedMultiplier", 1.0, 0.1, 5.0);
+        slot.attackSpeedMultiplier = builder.comment("Attack speed multiplier (1.0 = no change)").defineInRange("attackSpeedMultiplier", 1.0, 0.1, 5.0);
+        slot.armorAddition = builder.comment("Flat armor points to add").defineInRange("armorAddition", 0.0, 0.0, 20.0);
+        slot.armorToughnessAddition = builder.comment("Flat armor toughness to add").defineInRange("armorToughnessAddition", 0.0, 0.0, 10.0);
         builder.pop();
         return slot;
     }

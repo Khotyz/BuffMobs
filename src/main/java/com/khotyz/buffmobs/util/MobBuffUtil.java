@@ -75,10 +75,10 @@ public class MobBuffUtil {
             String slotDimName = slot.dimensionName.get();
             if (!slotDimName.isEmpty() && slotDimName.equals(dimensionName)) {
                 DimensionMultipliers multipliers = new DimensionMultipliers(
-                        slot.healthMultiplier.get() / 100.0,
-                        slot.damageMultiplier.get() / 100.0,
-                        slot.speedMultiplier.get() / 100.0,
-                        slot.attackSpeedMultiplier.get() / 100.0,
+                        slot.healthMultiplier.get(),
+                        slot.damageMultiplier.get(),
+                        slot.speedMultiplier.get(),
+                        slot.attackSpeedMultiplier.get(),
                         slot.armorAddition.get(),
                         slot.armorToughnessAddition.get()
                 );
