@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
 
 import java.util.HashSet;
@@ -46,9 +47,9 @@ public class MobTickHandler {
         ServerTickEvents.END_WORLD_TICK.register(MobTickHandler::onWorldTick);
 
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
-            if (entity instanceof MobEntity) {
-                INITIALIZED_MOBS.remove(entity.getUuid());
-                RangedMobAIManager.cleanup((MobEntity) entity);
+            if (entity instanceof MobEntity mob) {
+                INITIALIZED_MOBS.remove(mob.getUuid());
+                RangedMobAIManager.cleanup(mob);
             }
         });
     }
@@ -67,14 +68,14 @@ public class MobTickHandler {
 
                 if (BuffMobsMod.LOGGER.isDebugEnabled()) {
                     BuffMobsMod.LOGGER.debug("Initialized mob: {} ({}) in {}",
-                            net.minecraft.registry.Registries.ENTITY_TYPE.getId(mob.getType()),
+                            Registries.ENTITY_TYPE.getId(mob.getType()),
                             mob.getUuid(),
                             mob.getWorld().getRegistryKey().getValue());
                 }
             } else {
                 if (BuffMobsMod.LOGGER.isDebugEnabled()) {
                     BuffMobsMod.LOGGER.debug("Skipped invalid mob: {} in {}",
-                            net.minecraft.registry.Registries.ENTITY_TYPE.getId(mob.getType()),
+                            Registries.ENTITY_TYPE.getId(mob.getType()),
                             mob.getWorld().getRegistryKey().getValue());
                 }
             }
@@ -96,24 +97,22 @@ public class MobTickHandler {
             }
         }
 
-        if (globalTickCounter % 20 == 0) {
-            world.iterateEntities().forEach(entity -> {
-                if (entity instanceof MobEntity mob && !mob.isRemoved()) {
-                    UUID uuid = mob.getUuid();
+        world.iterateEntities().forEach(entity -> {
+            if (entity instanceof MobEntity mob && !mob.isRemoved()) {
+                UUID uuid = mob.getUuid();
 
-                    if (!INITIALIZED_MOBS.contains(uuid)) {
-                        initializeMob(mob);
-                    } else {
-                        try {
-                            RangedMobAIManager.updateMobBehavior(mob);
-                            MobBuffUtil.refreshInfiniteEffects(mob);
-                        } catch (Exception e) {
-                            BuffMobsMod.LOGGER.warn("Error updating mob behavior", e);
-                        }
+                if (!INITIALIZED_MOBS.contains(uuid)) {
+                    initializeMob(mob);
+                } else {
+                    try {
+                        RangedMobAIManager.updateMobBehavior(mob);
+                        MobBuffUtil.refreshInfiniteEffects(mob);
+                    } catch (Exception e) {
+                        BuffMobsMod.LOGGER.warn("Error updating mob behavior", e);
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     public static int getInitializedCount() {

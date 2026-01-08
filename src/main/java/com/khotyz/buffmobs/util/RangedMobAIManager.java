@@ -1,42 +1,29 @@
 package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
+import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.goal.*;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.mob.*;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.item.RangedWeaponItem;
 import net.minecraft.registry.Registries;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class RangedMobAIManager {
     private static final Map<UUID, MobState> MOB_STATES = new HashMap<>();
     private static final double MELEE_SPEED_MULTIPLIER = 1.3;
-    private static final int SWITCH_COOLDOWN = 40;
     private static final double MELEE_ATTACK_RANGE = 3.0;
-    private static Field goalSelectorField;
-    private static Field goalsField;
-
-    static {
-        try {
-            goalSelectorField = MobEntity.class.getDeclaredField("goalSelector");
-            goalSelectorField.setAccessible(true);
-
-            goalsField = GoalSelector.class.getDeclaredField("goals");
-            goalsField.setAccessible(true);
-        } catch (NoSuchFieldException e) {
-            BuffMobsMod.LOGGER.error("Failed to access goalSelector field", e);
-        }
-    }
 
     public static void initializeMob(MobEntity mob) {
         if (!BuffMobsMod.CONFIG.rangedMeleeSwitching.enabled) return;
@@ -45,9 +32,27 @@ public class RangedMobAIManager {
 
         MobState state = new MobState();
         state.originalWeapon = mob.getStackInHand(Hand.MAIN_HAND).copy();
+        state.behaviorMode = determineBehaviorMode();
+
+        EntityAttributeInstance speedAttr = mob.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            state.baseSpeed = speedAttr.getBaseValue();
+        }
+
         MOB_STATES.put(mob.getUuid(), state);
 
-        disableRangedGoals(mob);
+        BuffMobsMod.LOGGER.info("Initialized {} with behavior: {}", mob.getType(), state.behaviorMode);
+    }
+
+    private static BehaviorMode determineBehaviorMode() {
+        var mode = BuffMobsMod.CONFIG.rangedMeleeSwitching.behaviorMode;
+
+        return switch (mode) {
+            case MELEE_ONLY -> BehaviorMode.MELEE_ONLY;
+            case RANGED_ONLY -> BehaviorMode.RANGED_ONLY;
+            case RANDOM -> Math.random() < 0.5 ? BehaviorMode.MELEE_ONLY : BehaviorMode.RANGED_ONLY;
+            default -> BehaviorMode.ADAPTIVE;
+        };
     }
 
     public static void updateMobBehavior(MobEntity mob) {
@@ -57,13 +62,14 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUuid());
         if (state == null) {
             initializeMob(mob);
-            return;
+            state = MOB_STATES.get(mob.getUuid());
+            if (state == null) return;
         }
 
         PlayerEntity target = mob.getWorld().getClosestPlayer(mob, 32.0);
         if (target == null || target.isSpectator() || target.isCreative() || !target.isAlive()) {
-            if (state.inMeleeMode) {
-                switchToRangedMode(mob, state);
+            if (state.isRetreating || state.inMeleeMode) {
+                resetState(mob, state);
             }
             return;
         }
@@ -72,9 +78,57 @@ public class RangedMobAIManager {
         double switchDistance = BuffMobsMod.CONFIG.rangedMeleeSwitching.switchDistance;
         long currentTime = mob.getWorld().getTime();
 
-        if (currentTime - state.lastSwitchTime < SWITCH_COOLDOWN) {
+        switch (state.behaviorMode) {
+            case MELEE_ONLY -> handleMeleeOnly(mob, state, target, distance, switchDistance, currentTime);
+            case RANGED_ONLY -> handleRangedOnly(mob, state, target, distance);
+            case ADAPTIVE -> handleAdaptive(mob, state, target, distance, switchDistance, currentTime);
+        }
+    }
+
+    private static void handleMeleeOnly(MobEntity mob, MobState state, PlayerEntity target,
+                                        double distance, double switchDistance, long currentTime) {
+        if (!state.inMeleeMode) {
+            switchToMeleeMode(mob, state);
+        }
+        handleMeleeAttack(mob, target, state, distance, currentTime);
+    }
+
+    private static void handleRangedOnly(MobEntity mob, MobState state, PlayerEntity target, double distance) {
+        if (state.inMeleeMode) {
+            switchToRangedMode(mob, state);
+        }
+
+        if (!BuffMobsMod.CONFIG.rangedMeleeSwitching.tacticalMovement.enabled) {
+            if (mob.getTarget() != target) {
+                mob.setTarget(target);
+            }
+            return;
+        }
+
+        var config = BuffMobsMod.CONFIG.rangedMeleeSwitching.tacticalMovement;
+        double maintainDist = config.maintainDistance;
+
+        boolean tooClose = distance < maintainDist * 0.7;
+        boolean shouldMaintain = distance < maintainDist && distance >= maintainDist * 0.7;
+
+        if (tooClose || (shouldMaintain && state.isRetreating)) {
+            handleTacticalRetreat(mob, state, target, distance);
+        } else {
+            if (state.isRetreating) {
+                stopRetreating(mob, state);
+            }
+
+            if (mob.getTarget() != target) {
+                mob.setTarget(target);
+            }
+        }
+    }
+
+    private static void handleAdaptive(MobEntity mob, MobState state, PlayerEntity target,
+                                       double distance, double switchDistance, long currentTime) {
+        if (currentTime - state.lastSwitchTime < 60) {
             if (state.inMeleeMode) {
-                handleMeleeAttack(mob, target, state);
+                handleMeleeAttack(mob, target, state, distance, currentTime);
             }
             return;
         }
@@ -84,26 +138,112 @@ public class RangedMobAIManager {
         } else if (state.inMeleeMode && distance > switchDistance + 2.0) {
             switchToRangedMode(mob, state);
         } else if (state.inMeleeMode) {
-            handleMeleeAttack(mob, target, state);
+            handleMeleeAttack(mob, target, state, distance, currentTime);
+        } else {
+            handleRangedOnly(mob, state, target, distance);
         }
     }
 
-    private static void handleMeleeAttack(MobEntity mob, PlayerEntity target, MobState state) {
+    private static void handleTacticalRetreat(MobEntity mob, MobState state, PlayerEntity target, double distance) {
+        if (!state.isRetreating) {
+            state.isRetreating = true;
+            state.retreatStartDistance = distance;
+            state.strafeDirection = mob.getRandom().nextBoolean() ? 1 : -1;
+            state.isRunningAway = false;
+            BuffMobsMod.LOGGER.debug("{} started tactical retreat", mob.getType());
+        }
+
+        var config = BuffMobsMod.CONFIG.rangedMeleeSwitching.tacticalMovement;
+        double maintainDist = config.maintainDistance;
+        boolean isPanicking = distance <= config.panicDistance;
+        boolean tooClose = distance < maintainDist * 0.7;
+        boolean atSafeDistance = distance >= maintainDist * 0.9;
+
+        // If too close, run away without shooting
+        if (tooClose) {
+            if (!state.isRunningAway) {
+                state.isRunningAway = true;
+                BuffMobsMod.LOGGER.debug("{} too close, running away", mob.getType());
+            }
+
+            mob.stopUsingItem();
+            mob.clearActiveItem();
+            mob.setTarget(null);
+
+            double speedMult = isPanicking ? config.panicSpeed : config.retreatSpeed;
+
+            Vec3d mobPos = mob.getPos();
+            Vec3d targetPos = target.getPos();
+            Vec3d retreatDir = mobPos.subtract(targetPos).normalize();
+            Vec3d retreatTarget = mobPos.add(retreatDir.multiply(6.0));
+
+            mob.getNavigation().startMovingTo(retreatTarget.x, retreatTarget.y, retreatTarget.z, speedMult);
+            mob.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
+
+            return;
+        }
+
+        // At safe distance - stop running and start shooting
+        if (state.isRunningAway && atSafeDistance) {
+            state.isRunningAway = false;
+            mob.getNavigation().stop();
+            BuffMobsMod.LOGGER.debug("{} reached safe distance", mob.getType());
+        }
+
+        // Safe distance behavior
+        if (!state.isRunningAway) {
+            if (mob.getTarget() != target) {
+                mob.setTarget(target);
+            }
+
+            // Kiting enabled - move and shoot
+            if (config.enableStrafing) {
+                state.strafeTicks++;
+                if (state.strafeTicks >= config.strafeInterval) {
+                    state.strafeTicks = 0;
+                    state.strafeDirection *= -1;
+                }
+
+                Vec3d mobPos = mob.getPos();
+                Vec3d targetPos = target.getPos();
+                Vec3d retreatDir = mobPos.subtract(targetPos).normalize();
+                Vec3d strafeDir = new Vec3d(-retreatDir.z, 0, retreatDir.x).multiply(state.strafeDirection);
+
+                Vec3d kiteTarget = mobPos.add(retreatDir.multiply(1.5)).add(strafeDir.multiply(2.5));
+
+                mob.getNavigation().startMovingTo(kiteTarget.x, kiteTarget.y, kiteTarget.z, config.retreatSpeed * 0.6);
+            } else {
+                // No kiting - stand still
+                mob.getNavigation().stop();
+            }
+
+            mob.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
+
+            // Shoot
+            state.retreatTicks++;
+            if (state.retreatTicks >= state.nextShootTick) {
+                if (tryShootArrow(mob, target, distance)) {
+                    state.nextShootTick = state.retreatTicks + (30 + mob.getRandom().nextInt(20));
+                }
+            }
+        }
+    }
+
+    private static void handleMeleeAttack(MobEntity mob, PlayerEntity target, MobState state,
+                                          double distance, long currentTime) {
         if (mob.getTarget() != target) {
             mob.setTarget(target);
         }
-
-        double distance = mob.distanceTo(target);
 
         if (distance > MELEE_ATTACK_RANGE) {
             mob.getNavigation().startMovingTo(target, MELEE_SPEED_MULTIPLIER);
         } else {
             mob.getNavigation().stop();
 
-            mob.lookAt(net.minecraft.command.argument.EntityAnchorArgumentType.EntityAnchor.EYES, target.getPos());
+            Vec3d targetPos = new Vec3d(target.getX(), target.getEyeY(), target.getZ());
+            mob.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
             mob.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
 
-            long currentTime = mob.getWorld().getTime();
             if (currentTime - state.lastAttackTime >= 20) {
                 performMeleeAttack(mob, target);
                 state.lastAttackTime = currentTime;
@@ -112,16 +252,9 @@ public class RangedMobAIManager {
     }
 
     private static void performMeleeAttack(MobEntity mob, LivingEntity target) {
-        if (!mob.getWorld().isClient && mob.getWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-            Vec3d vec3d = target.getPos().subtract(mob.getPos()).normalize();
-            mob.setVelocity(vec3d.x * 0.1, 0.1, vec3d.z * 0.1);
-            mob.velocityModified = true;
-
+        if (mob.getWorld() instanceof ServerWorld serverWorld) {
             mob.tryAttack(serverWorld, target);
             mob.swingHand(Hand.MAIN_HAND, true);
-
-            BuffMobsMod.LOGGER.debug("{} performed melee attack on {}",
-                    mob.getType(), target.getName().getString());
         }
     }
 
@@ -131,28 +264,17 @@ public class RangedMobAIManager {
         mob.equipStack(EquipmentSlot.MAINHAND, meleeWeapon);
         mob.setStackInHand(Hand.MAIN_HAND, meleeWeapon);
 
-        disableRangedGoals(mob);
-
-        if (state.meleeGoal == null) {
-            if (mob instanceof PathAwareEntity pathAware) {
-                state.meleeGoal = new MeleeAttackGoal(pathAware, MELEE_SPEED_MULTIPLIER, false);
-                addGoal(mob, 0, state.meleeGoal);
-            } else {
-                state.meleeGoal = new CustomMeleeGoal(mob);
-                addGoal(mob, 0, state.meleeGoal);
-            }
-        }
-
         PlayerEntity target = mob.getWorld().getClosestPlayer(mob, 32.0);
         if (target != null) {
             mob.setTarget(target);
         }
 
         state.inMeleeMode = true;
+        state.isRetreating = false;
         state.lastSwitchTime = mob.getWorld().getTime();
         state.lastAttackTime = 0;
 
-        BuffMobsMod.LOGGER.info("Switched {} to MELEE mode", mob.getType());
+        BuffMobsMod.LOGGER.debug("{} switched to MELEE mode", mob.getType());
     }
 
     private static void switchToRangedMode(MobEntity mob, MobState state) {
@@ -162,65 +284,79 @@ public class RangedMobAIManager {
         mob.equipStack(EquipmentSlot.MAINHAND, rangedWeapon);
         mob.setStackInHand(Hand.MAIN_HAND, rangedWeapon);
 
-        if (state.meleeGoal != null) {
-            removeGoal(mob, state.meleeGoal);
-            state.meleeGoal = null;
-        }
-
-        enableRangedGoals(mob);
-
         state.inMeleeMode = false;
         state.lastSwitchTime = mob.getWorld().getTime();
 
-        BuffMobsMod.LOGGER.info("Switched {} to RANGED mode", mob.getType());
+        BuffMobsMod.LOGGER.debug("{} switched to RANGED mode", mob.getType());
     }
 
-    private static void disableRangedGoals(MobEntity mob) {
-        try {
-            GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
-            @SuppressWarnings("unchecked")
-            Set<PrioritizedGoal> goals = (Set<PrioritizedGoal>) goalsField.get(selector);
+    private static void stopRetreating(MobEntity mob, MobState state) {
+        state.isRetreating = false;
+        state.isRunningAway = false;
+        state.retreatTicks = 0;
+        state.nextShootTick = 0;
+        state.strafeTicks = 0;
 
-            for (PrioritizedGoal prioritizedGoal : goals) {
-                Goal goal = prioritizedGoal.getGoal();
-                if (goal instanceof BowAttackGoal ||
-                        goal instanceof CrossbowAttackGoal ||
-                        goal instanceof ProjectileAttackGoal) {
-                    prioritizedGoal.stop();
-                }
+        mob.getNavigation().stop();
+
+        BuffMobsMod.LOGGER.debug("{} stopped retreating", mob.getType());
+    }
+
+    private static void resetState(MobEntity mob, MobState state) {
+        if (state.inMeleeMode) {
+            switchToRangedMode(mob, state);
+        }
+        stopRetreating(mob, state);
+    }
+
+    private static boolean tryShootArrow(MobEntity mob, PlayerEntity target, double distance) {
+        ItemStack weapon = mob.getMainHandStack();
+        if (!(weapon.getItem() instanceof RangedWeaponItem)) return false;
+        if (!(mob.getWorld() instanceof ServerWorld world)) return false;
+
+        mob.setCurrentHand(Hand.MAIN_HAND);
+
+        world.getServer().execute(() -> {
+            if (mob.isRemoved() || !mob.isAlive()) return;
+
+            mob.clearActiveItem();
+
+            PersistentProjectileEntity arrow = new net.minecraft.entity.projectile.ArrowEntity(world, mob, weapon, null);
+
+            if (mob instanceof WitherSkeletonEntity) {
+                arrow.setDamage(2.5);
+            } else {
+                arrow.setDamage(2.0);
             }
-        } catch (Exception e) {
-            BuffMobsMod.LOGGER.warn("Failed to disable ranged goals", e);
-        }
-    }
 
-    private static void enableRangedGoals(MobEntity mob) {
-        try {
-            GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
-            selector.tick();
-        } catch (Exception e) {
-            BuffMobsMod.LOGGER.warn("Failed to enable ranged goals", e);
-        }
-    }
+            double dx = target.getX() - mob.getX();
+            double dy = target.getBodyY(0.3333333333333333) - arrow.getY();
+            double dz = target.getZ() - mob.getZ();
+            double horizontalDist = Math.sqrt(dx * dx + dz * dz);
 
-    private static void addGoal(MobEntity mob, int priority, Goal goal) {
-        try {
-            GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
-            selector.add(priority, goal);
-            BuffMobsMod.LOGGER.debug("Added melee goal to {}", mob.getType());
-        } catch (Exception e) {
-            BuffMobsMod.LOGGER.warn("Failed to add goal to mob", e);
-        }
-    }
+            float power = 1.6F;
+            float divergence = 12.0F;
 
-    private static void removeGoal(MobEntity mob, Goal goal) {
-        try {
-            GoalSelector selector = (GoalSelector) goalSelectorField.get(mob);
-            selector.remove(goal);
-            BuffMobsMod.LOGGER.debug("Removed melee goal from {}", mob.getType());
-        } catch (Exception e) {
-            BuffMobsMod.LOGGER.warn("Failed to remove goal from mob", e);
-        }
+            if (distance > 10.0) {
+                power = 2.0F;
+                divergence = 10.0F;
+            }
+
+            arrow.setVelocity(dx, dy + horizontalDist * 0.2, dz, power, divergence);
+
+            if (mob instanceof SkeletonEntity || mob instanceof WitherSkeletonEntity || mob instanceof StrayEntity) {
+                mob.playSound(net.minecraft.sound.SoundEvents.ENTITY_SKELETON_SHOOT, 1.0F, 1.0F);
+            } else {
+                mob.playSound(net.minecraft.sound.SoundEvents.ITEM_CROSSBOW_SHOOT, 1.0F, 1.0F);
+            }
+
+            world.spawnEntity(arrow);
+            mob.swingHand(Hand.MAIN_HAND);
+
+            BuffMobsMod.LOGGER.debug("{} shot arrow (dist: {})", mob.getType(), String.format("%.1f", distance));
+        });
+
+        return true;
     }
 
     private static ItemStack getDefaultRangedWeapon(MobEntity mob) {
@@ -231,6 +367,11 @@ public class RangedMobAIManager {
             return new ItemStack(Items.CROSSBOW);
         }
         return ItemStack.EMPTY;
+    }
+
+    public static boolean shouldCancelRangedAttack(MobEntity mob) {
+        MobState state = MOB_STATES.get(mob.getUuid());
+        return state != null && state.isRetreating;
     }
 
     public static boolean isRangedMob(MobEntity mob) {
@@ -256,50 +397,27 @@ public class RangedMobAIManager {
         MOB_STATES.remove(mob.getUuid());
     }
 
-    private static class MobState {
-        boolean inMeleeMode = false;
-        ItemStack originalWeapon = ItemStack.EMPTY;
-        long lastSwitchTime = 0;
-        long lastAttackTime = 0;
-        Goal meleeGoal = null;
+    private enum BehaviorMode {
+        ADAPTIVE,
+        MELEE_ONLY,
+        RANGED_ONLY
     }
 
-    private static class CustomMeleeGoal extends Goal {
-        private final MobEntity mob;
+    private static class MobState {
+        BehaviorMode behaviorMode = BehaviorMode.ADAPTIVE;
+        boolean inMeleeMode = false;
+        boolean isRetreating = false;
+        boolean isRunningAway = false;
+        ItemStack originalWeapon = ItemStack.EMPTY;
+        double baseSpeed = 0.25;
 
-        public CustomMeleeGoal(MobEntity mob) {
-            this.mob = mob;
-        }
+        long lastSwitchTime = 0;
+        long lastAttackTime = 0;
 
-        @Override
-        public boolean canStart() {
-            LivingEntity target = mob.getTarget();
-            return target != null && target.isAlive() &&
-                    mob.distanceTo(target) <= MELEE_ATTACK_RANGE + 5.0;
-        }
-
-        @Override
-        public boolean shouldContinue() {
-            return canStart();
-        }
-
-        @Override
-        public void tick() {
-            LivingEntity target = mob.getTarget();
-            if (target != null && mob.getWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
-                mob.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
-
-                double distance = mob.distanceTo(target);
-                if (distance > MELEE_ATTACK_RANGE) {
-                    mob.getNavigation().startMovingTo(target, MELEE_SPEED_MULTIPLIER);
-                } else {
-                    mob.getNavigation().stop();
-                    if (mob.age % 20 == 0) {
-                        mob.tryAttack(serverWorld, target);
-                        mob.swingHand(Hand.MAIN_HAND, true);
-                    }
-                }
-            }
-        }
+        int retreatTicks = 0;
+        int nextShootTick = 0;
+        int strafeTicks = 0;
+        int strafeDirection = 1;
+        double retreatStartDistance = 0;
     }
 }
