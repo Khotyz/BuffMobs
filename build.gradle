@@ -9,7 +9,7 @@ tasks.named('wrapper', Wrapper).configure {
     distributionType = Wrapper.DistributionType.BIN
 }
 
-def full_version = "${mod_version}mc${minecraft_version}"
+def full_version = "${mod_version}+mc${minecraft_version}-neoforge"
 
 version = full_version
 group = mod_group_id
