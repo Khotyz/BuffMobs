@@ -21,7 +21,14 @@ base {
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 repositories {
-
+    maven {
+        name = "Cloth Config Maven"
+        url = "https://maven.shedaniel.me/"
+    }
+    maven {
+        name = "Configured Maven"
+        url = "https://maven.blamejared.com"
+    }
 }
 
 neoForge {
@@ -60,7 +67,12 @@ configurations {
 }
 
 dependencies {
+    // Cloth Config — optional at runtime, required to compile ClothConfigScreen
+    compileOnly "me.shedaniel.cloth:cloth-config-neoforge:21.11.153"
+    localRuntime "me.shedaniel.cloth:cloth-config-neoforge:21.11.153"
 
+    // Configured — optional GUI mod; add jar manually to run/test locally if needed
+    // compileOnly "com.blamejared.configured:Configured-neoforge-1.21.11:<version>"
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
@@ -71,7 +83,6 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,
-            // Passa a versão completa para o .toml — é isso que aparece no jogo
             mod_version            : full_version,
     ]
     inputs.properties replaceProperties
@@ -88,8 +99,9 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
         exclude "**/*.txt"
     }
 
-    into "build/generated/sources/modMetadata"
+    into layout.buildDirectory.dir("generated/sources/modMetadata")
 }
+
 sourceSets.main.resources.srcDir generateModMetadata
 neoForge.ideSyncTask generateModMetadata
 
