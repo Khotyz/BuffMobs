@@ -1,8 +1,6 @@
 package com.khotyz.buffmobs.util;
 
-import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -11,230 +9,131 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
+
 public class MeleeWeaponManager {
     private static final RandomSource RANDOM = RandomSource.create();
 
     public static ItemStack generateMeleeWeapon(Mob mob) {
-        Level world = mob.level();
-        String dimensionName = world.dimension().location().toString();
-        double dayMultiplier = MobBuffUtil.getDayMultiplier(world.getDayTime());
+        Level level = mob.level();
+        String dim      = getDimensionId(level);
+        long   worldDays = level.getDayTime() / 24000L;
 
-        ItemStack weapon = createWeaponForDimension(dimensionName, dayMultiplier);
-
-        if (BuffMobsConfig.RangedMeleeSwitching.enchantmentsEnabled.get()) {
-            applyEnchantments(weapon, dayMultiplier, world);
+        ItemStack weapon = createWeapon(dim, worldDays);
+        if (BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enchantmentsEnabled.get()) {
+            applyEnchantments(weapon, worldDays, level);
         }
-
         return weapon;
     }
 
-    private static ItemStack createWeaponForDimension(String dimension, double dayMultiplier) {
-        List<WeaponTier> availableTiers = getAvailableTiers(dimension, dayMultiplier);
+    private static ItemStack createWeapon(String dim, long days) {
+        List<WeaponTier> tiers = getAvailableTiers(dim, days);
+        if (tiers.isEmpty()) return new ItemStack(Items.STONE_SWORD);
 
-        if (availableTiers.isEmpty()) {
-            return new ItemStack(Items.STONE_SWORD);
+        double total = tiers.stream().mapToDouble(t -> t.weight).sum();
+        double roll  = RANDOM.nextDouble() * total;
+        double cur   = 0;
+        for (WeaponTier tier : tiers) {
+            cur += tier.weight;
+            if (roll <= cur) return new ItemStack(tier.item);
         }
-
-        double totalWeight = availableTiers.stream().mapToDouble(t -> t.weight).sum();
-        double roll = RANDOM.nextDouble() * totalWeight;
-        double current = 0;
-
-        for (WeaponTier tier : availableTiers) {
-            current += tier.weight;
-            if (roll <= current) {
-                return new ItemStack(tier.item);
-            }
-        }
-
-        return new ItemStack(availableTiers.get(0).item);
+        return new ItemStack(tiers.get(0).item);
     }
 
-    private static List<WeaponTier> getAvailableTiers(String dimension, double dayMultiplier) {
-        List<WeaponTier> tiers = new ArrayList<>();
-        long worldDays = calculateWorldDays(dayMultiplier);
+    private static List<WeaponTier> getAvailableTiers(String dim, long days) {
+        List<WeaponTier> t = new ArrayList<>();
+        BuffMobsConfig.RangedMeleeSwitching c = BuffMobsConfig.INSTANCE.rangedMeleeSwitching;
 
-        if (dimension.equals("minecraft:the_nether")) {
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.goldenAxeUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.GOLDEN_AXE, 50.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.diamondAxeUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.DIAMOND_AXE, 10.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.netheriteAxeUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.NETHERITE_AXE, 1.0));
-            }
-        } else if (dimension.equals("minecraft:overworld")) {
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.stoneSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.STONE_SWORD, 50.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.ironSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.IRON_SWORD, 30.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.diamondSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.DIAMOND_SWORD, 5.0));
-            }
-        } else if (dimension.equals("minecraft:the_end")) {
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.stoneSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.STONE_SWORD, 40.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.ironSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.IRON_SWORD, 30.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.diamondSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.DIAMOND_SWORD, 15.0));
-            }
-            if (worldDays >= BuffMobsConfig.RangedMeleeSwitching.netheriteSwordUnlockDay.get()) {
-                tiers.add(new WeaponTier(Items.NETHERITE_SWORD, 1.0));
-            }
+        if (dim.equals("minecraft:the_nether")) {
+            if (days >= c.goldenAxeUnlockDay.get())    t.add(new WeaponTier(Items.GOLDEN_AXE,    50.0));
+            if (days >= c.diamondAxeUnlockDay.get())   t.add(new WeaponTier(Items.DIAMOND_AXE,   10.0));
+            if (days >= c.netheriteAxeUnlockDay.get()) t.add(new WeaponTier(Items.NETHERITE_AXE,  1.0));
+        } else if (dim.equals("minecraft:overworld")) {
+            if (days >= c.stoneSwordUnlockDay.get())   t.add(new WeaponTier(Items.STONE_SWORD,   50.0));
+            if (days >= c.ironSwordUnlockDay.get())    t.add(new WeaponTier(Items.IRON_SWORD,    30.0));
+            if (days >= c.diamondSwordUnlockDay.get()) t.add(new WeaponTier(Items.DIAMOND_SWORD,  5.0));
+        } else if (dim.equals("minecraft:the_end")) {
+            if (days >= c.stoneSwordUnlockDay.get())      t.add(new WeaponTier(Items.STONE_SWORD,    40.0));
+            if (days >= c.ironSwordUnlockDay.get())       t.add(new WeaponTier(Items.IRON_SWORD,     30.0));
+            if (days >= c.diamondSwordUnlockDay.get())    t.add(new WeaponTier(Items.DIAMOND_SWORD,  15.0));
+            if (days >= c.netheriteSwordUnlockDay.get())  t.add(new WeaponTier(Items.NETHERITE_SWORD, 1.0));
         } else {
-            tiers.add(new WeaponTier(Items.STONE_SWORD, 60.0));
-            tiers.add(new WeaponTier(Items.IRON_SWORD, 40.0));
+            t.add(new WeaponTier(Items.STONE_SWORD, 60.0));
+            t.add(new WeaponTier(Items.IRON_SWORD,  40.0));
         }
-
-        return tiers;
+        return t;
     }
 
-    private static void applyEnchantments(ItemStack weapon, double dayMultiplier, Level world) {
-        int maxEnchantments = calculateMaxEnchantments(dayMultiplier);
-        long worldDays = calculateWorldDays(dayMultiplier);
+    private static void applyEnchantments(ItemStack weapon, long days, Level level) {
+        var reg  = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        int maxE = calcMaxEnchants(days);
+        List<EnchantTier> avail = new ArrayList<>();
 
-        List<EnchantmentTier> availableEnchantments = new ArrayList<>();
-        var enchantmentRegistry = world.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+        BuffMobsConfig.RangedMeleeSwitching c = BuffMobsConfig.INSTANCE.rangedMeleeSwitching;
+        addIfUnlocked(avail, days, c.sharpnessUnlockDay.get(),    c.sharpnessMaxLevel.get(),    Enchantments.SHARPNESS,     40.0);
+        addIfUnlocked(avail, days, c.fireAspectUnlockDay.get(),   c.fireAspectMaxLevel.get(),   Enchantments.FIRE_ASPECT,   25.0);
+        addIfUnlocked(avail, days, c.knockbackUnlockDay.get(),    c.knockbackMaxLevel.get(),    Enchantments.KNOCKBACK,     20.0);
+        addIfUnlocked(avail, days, c.sweepingEdgeUnlockDay.get(), c.sweepingEdgeMaxLevel.get(), Enchantments.SWEEPING_EDGE, 15.0);
 
-        addEnchantmentIfUnlocked(availableEnchantments, enchantmentRegistry,
-                Enchantments.SHARPNESS, worldDays,
-                BuffMobsConfig.RangedMeleeSwitching.sharpnessUnlockDay.get(),
-                BuffMobsConfig.RangedMeleeSwitching.sharpnessMaxLevel.get(),
-                40.0, dayMultiplier);
-
-        addEnchantmentIfUnlocked(availableEnchantments, enchantmentRegistry,
-                Enchantments.FIRE_ASPECT, worldDays,
-                BuffMobsConfig.RangedMeleeSwitching.fireAspectUnlockDay.get(),
-                BuffMobsConfig.RangedMeleeSwitching.fireAspectMaxLevel.get(),
-                25.0, dayMultiplier);
-
-        addEnchantmentIfUnlocked(availableEnchantments, enchantmentRegistry,
-                Enchantments.KNOCKBACK, worldDays,
-                BuffMobsConfig.RangedMeleeSwitching.knockbackUnlockDay.get(),
-                BuffMobsConfig.RangedMeleeSwitching.knockbackMaxLevel.get(),
-                20.0, dayMultiplier);
-
-        addEnchantmentIfUnlocked(availableEnchantments, enchantmentRegistry,
-                Enchantments.SWEEPING_EDGE, worldDays,
-                BuffMobsConfig.RangedMeleeSwitching.sweepingEdgeUnlockDay.get(),
-                BuffMobsConfig.RangedMeleeSwitching.sweepingEdgeMaxLevel.get(),
-                15.0, dayMultiplier);
-
-        applyRandomEnchantments(weapon, availableEnchantments, maxEnchantments, world);
-    }
-
-    private static void addEnchantmentIfUnlocked(
-            List<EnchantmentTier> list,
-            net.minecraft.core.Registry<Enchantment> registry,
-            ResourceKey<Enchantment> key,
-            long worldDays,
-            int unlockDay,
-            int maxLevel,
-            double weight,
-            double dayMultiplier
-    ) {
-        if (worldDays >= unlockDay) {
-            int level = calculateEnchantmentLevel(maxLevel, unlockDay, dayMultiplier);
-            var enchantment = registry.getHolder(key).orElse(null);
-            if (enchantment != null) {
-                list.add(new EnchantmentTier(enchantment, level, weight));
-            }
-        }
-    }
-
-    private static void applyRandomEnchantments(
-            ItemStack weapon,
-            List<EnchantmentTier> available,
-            int maxCount,
-            Level world
-    ) {
-        int toApply = Math.min(maxCount, available.size());
-        List<EnchantmentTier> remaining = new ArrayList<>(available);
-
-        ItemEnchantments.Mutable enchantments = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
+        List<EnchantTier> remaining = new ArrayList<>(avail);
+        int toApply = Math.min(maxE, remaining.size());
 
         for (int i = 0; i < toApply && !remaining.isEmpty(); i++) {
-            double totalWeight = remaining.stream().mapToDouble(e -> e.weight).sum();
-            double roll = RANDOM.nextDouble() * totalWeight;
-            double current = 0;
-
-            EnchantmentTier selected = null;
-            for (EnchantmentTier ench : remaining) {
-                current += ench.weight;
-                if (roll <= current) {
-                    selected = ench;
-                    break;
-                }
-            }
-
-            if (selected != null) {
-                enchantments.set(selected.enchantment, selected.level);
-                remaining.remove(selected);
+            double total = remaining.stream().mapToDouble(e -> e.weight).sum();
+            double roll  = RANDOM.nextDouble() * total;
+            double cur   = 0;
+            EnchantTier sel = null;
+            for (EnchantTier e : remaining) { cur += e.weight; if (roll <= cur) { sel = e; break; } }
+            if (sel != null) {
+                final EnchantTier finalSel = sel;
+                reg.get(finalSel.key).ifPresent(entry -> weapon.enchant(entry, finalSel.level));
+                remaining.remove(sel);
             }
         }
-
-        EnchantmentHelper.setEnchantments(weapon, enchantments.toImmutable());
     }
 
-    private static int calculateMaxEnchantments(double dayMultiplier) {
-        int baseMax = BuffMobsConfig.RangedMeleeSwitching.maxEnchantmentsPerWeapon.get();
-
-        if (dayMultiplier >= 3.0) return Math.min(4, baseMax);
-        if (dayMultiplier >= 2.0) return Math.min(3, baseMax);
-        if (dayMultiplier >= 1.5) return Math.min(2, baseMax);
-
-        return Math.min(1, baseMax);
+    private static void addIfUnlocked(List<EnchantTier> list, long days, int unlockDay,
+                                      int maxLevel, ResourceKey<Enchantment> key, double weight) {
+        if (days >= unlockDay) {
+            int level = calcEnchantLevel(maxLevel, unlockDay, days);
+            list.add(new EnchantTier(key, level, weight));
+        }
     }
 
-    private static int calculateEnchantmentLevel(int maxLevel, int unlockDay, double dayMultiplier) {
+    private static int calcMaxEnchants(long days) {
+        int max      = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.maxEnchantmentsPerWeapon.get();
+        int interval = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+        if (days >= interval * 20L) return Math.min(4, max);
+        if (days >= interval * 10L) return Math.min(3, max);
+        if (days >= interval * 5L)  return Math.min(2, max);
+        return Math.min(1, max);
+    }
+
+    private static int calcEnchantLevel(int maxLevel, int unlockDay, long days) {
         if (maxLevel <= 1) return 1;
-
-        long worldDays = calculateWorldDays(dayMultiplier);
-        long daysAfterUnlock = Math.max(0, worldDays - unlockDay);
-        int daysPerLevel = BuffMobsConfig.RangedMeleeSwitching.daysPerEnchantmentLevel.get();
-
-        int level = 1 + (int) (daysAfterUnlock / daysPerLevel);
-        return Math.min(level, maxLevel);
-    }
-
-    private static long calculateWorldDays(double dayMultiplier) {
-        if (dayMultiplier <= 1.0) return 0;
-        return (long) ((dayMultiplier - 1.0) / BuffMobsConfig.DayScaling.multiplier.get())
-                * BuffMobsConfig.DayScaling.interval.get();
+        long after   = Math.max(0, days - unlockDay);
+        int perLevel = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.daysPerEnchantmentLevel.get();
+        return Math.min(1 + (int)(after / perLevel), maxLevel);
     }
 
     private static class WeaponTier {
         final net.minecraft.world.item.Item item;
         final double weight;
-
-        WeaponTier(net.minecraft.world.item.Item item, double weight) {
-            this.item = item;
-            this.weight = weight;
-        }
+        WeaponTier(net.minecraft.world.item.Item item, double weight) { this.item = item; this.weight = weight; }
     }
 
-    private static class EnchantmentTier {
-        final Holder<Enchantment> enchantment;
+    private static class EnchantTier {
+        final ResourceKey<Enchantment> key;
         final int level;
         final double weight;
-
-        EnchantmentTier(Holder<Enchantment> enchantment, int level, double weight) {
-            this.enchantment = enchantment;
-            this.level = level;
-            this.weight = weight;
+        EnchantTier(ResourceKey<Enchantment> key, int level, double weight) {
+            this.key = key; this.level = level; this.weight = weight;
         }
     }
 }

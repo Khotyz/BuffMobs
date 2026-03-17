@@ -9,9 +9,6 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,24 +17,13 @@ public class BuffMobsMod {
     public static final String MOD_ID = "buffmobs";
     public static final Logger LOGGER = LoggerFactory.getLogger("BuffMobs");
 
-    public BuffMobsMod(IEventBus modEventBus, ModContainer modContainer) {
-        modContainer.registerConfig(ModConfig.Type.COMMON, BuffMobsConfig.SPEC, "buffmobs-common.toml");
+    public BuffMobsMod(IEventBus modBus, ModContainer container) {
+        container.registerConfig(ModConfig.Type.COMMON, BuffMobsConfig.SPEC, "buffmobs.toml");
 
-        MobEventHandler handler = new MobEventHandler();
-        MobTickHandler.register();
+        NeoForge.EVENT_BUS.register(new MobEventHandler());
+        NeoForge.EVENT_BUS.register(new MobTickHandler());
+        NeoForge.EVENT_BUS.register(DebugCommand.class);
 
-        NeoForge.EVENT_BUS.addListener((LivingDamageEvent.Post event) -> {
-            handler.onLivingDamage(event.getEntity(), event.getSource(), event.getNewDamage());
-        });
-
-        NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> {
-            event.getServer().getAllLevels().forEach(handler::onWorldTick);
-        });
-
-        NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> {
-            DebugCommand.register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
-        });
-
-        LOGGER.info("BuffMobs initialized - config file: buffmobs-common.toml");
+        LOGGER.info("BuffMobs initialized successfully");
     }
 }

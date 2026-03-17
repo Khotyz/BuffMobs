@@ -1,118 +1,105 @@
 package com.khotyz.buffmobs.event;
 
-import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.util.RandomSource;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
+
 public class MobEventHandler {
     private final Map<String, Long> lastDayCheck = new HashMap<>();
-    private final RandomSource random = RandomSource.create();
+    private final net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create();
 
-    public void onLivingDamage(LivingEntity entity, DamageSource source, float damageTaken) {
-        if (!BuffMobsConfig.enabled.get() || !BuffMobsConfig.HarmfulEffects.enabled.get()) return;
+    @SubscribeEvent
+    public void onLivingDamage(LivingDamageEvent.Post event) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get() || !BuffMobsConfig.INSTANCE.harmfulEffects.enabled.get()) return;
+        if (!(event.getEntity() instanceof Player player)) return;
 
-        if (entity instanceof Player player) {
-            Entity attacker = source.getEntity();
-            Entity directEntity = source.getDirectEntity();
+        Entity attacker = event.getSource().getEntity();
+        Entity direct   = event.getSource().getDirectEntity();
 
-            Mob attackingMob = null;
+        Mob attackingMob = null;
+        if (attacker instanceof Mob mob && MobBuffUtil.isValidMob(mob)) {
+            attackingMob = mob;
+        } else if (direct instanceof Projectile proj && proj.getOwner() instanceof Mob mob && MobBuffUtil.isValidMob(mob)) {
+            attackingMob = mob;
+        }
 
-            if (attacker instanceof Mob mob && MobBuffUtil.isValidMob(mob)) {
-                attackingMob = mob;
-            } else if (directEntity instanceof Projectile projectile &&
-                    projectile.getOwner() instanceof Mob mob &&
-                    MobBuffUtil.isValidMob(mob)) {
-                attackingMob = mob;
-            }
-
-            if (attackingMob != null &&
-                    random.nextFloat() < BuffMobsConfig.HarmfulEffects.chance.get()) {
-                applyRandomHarmfulEffect(player);
-            }
+        if (attackingMob != null && random.nextFloat() < BuffMobsConfig.INSTANCE.harmfulEffects.chance.get()) {
+            applyRandomHarmfulEffect(player);
         }
     }
 
-    public void onWorldTick(ServerLevel world) {
-        if (!BuffMobsConfig.enabled.get()) return;
-        handleDayScaling(world);
+    @SubscribeEvent
+    public void onWorldTick(LevelTickEvent.Post event) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) return;
+        if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
+        handleDayScaling(serverLevel);
     }
 
     private void handleDayScaling(ServerLevel world) {
-        if (!BuffMobsConfig.DayScaling.enabled.get() ||
-                !BuffMobsConfig.DayScaling.showNotifications.get() ||
-                world.players().isEmpty()) return;
+        if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()
+                || !BuffMobsConfig.INSTANCE.dayScaling.showNotifications.get()
+                || world.players().isEmpty()) return;
 
         long currentTime = world.getDayTime();
-        long currentDay = currentTime / 24000L;
-        String worldKey = world.dimension().location().toString();
+        long currentDay  = currentTime / 24000L;
+        String worldKey  = getDimensionId(world);
 
-        Long lastCheckedDay = lastDayCheck.get(worldKey);
-
-        if (lastCheckedDay == null || currentDay > lastCheckedDay) {
+        Long lastChecked = lastDayCheck.get(worldKey);
+        if (lastChecked == null || currentDay > lastChecked) {
             lastDayCheck.put(worldKey, currentDay);
 
-            if (lastCheckedDay != null && currentDay > 0) {
-                boolean shouldNotify = false;
-                int scalingInterval = BuffMobsConfig.DayScaling.interval.get();
+            if (lastChecked != null && currentDay > 0) {
+                boolean notify     = false;
+                int scalingInt     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
 
-                switch (BuffMobsConfig.DayScaling.notificationMode.get()) {
-                    case EVERY_DAY -> shouldNotify = true;
-                    case SCALING_INCREASE_ONLY -> shouldNotify = currentDay % scalingInterval == 0;
+                switch (BuffMobsConfig.INSTANCE.dayScaling.notificationMode.get()) {
+                    case EVERY_DAY             -> notify = true;
+                    case SCALING_INCREASE_ONLY -> notify = currentDay % scalingInt == 0;
                 }
 
-                if (shouldNotify) {
-                    sendDayScalingNotification(world, currentDay);
-                }
+                if (notify) sendDayScalingNotification(world, currentDay);
             }
         }
     }
 
     private void sendDayScalingNotification(ServerLevel world, long currentDay) {
-        double currentMultiplier = MobBuffUtil.getDayMultiplier(world.getDayTime());
-        double maxMultiplier = BuffMobsConfig.DayScaling.maxMultiplier.get();
-        int scalingInterval = BuffMobsConfig.DayScaling.interval.get();
+        double mult      = MobBuffUtil.getDayMultiplier(world.getDayTime());
+        double maxMult   = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
+        int    interval  = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+        long   daysUntil = interval - (currentDay % interval);
+        if (daysUntil == interval) daysUntil = 0;
 
-        long daysUntilNextScaling = scalingInterval - (currentDay % scalingInterval);
-        if (daysUntilNextScaling == scalingInterval) daysUntilNextScaling = 0;
-
-        boolean isMaxed = currentMultiplier >= maxMultiplier;
-
-        Component message;
-        if (isMaxed) {
-            message = Component.literal(String.format(
-                    "Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, currentMultiplier));
+        final Component msg;
+        if (mult >= maxMult) {
+            msg = Component.literal(String.format("Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, mult));
         } else {
-            message = Component.literal(String.format(
+            final long du = daysUntil;
+            msg = Component.literal(String.format(
                     "Day %d - Mob Scaling: %.1fx | Next increase in %d day%s",
-                    currentDay, currentMultiplier, daysUntilNextScaling,
-                    daysUntilNextScaling != 1 ? "s" : ""));
+                    currentDay, mult, du, du != 1 ? "s" : ""));
         }
 
-        world.players().forEach(player -> player.sendSystemMessage(message));
+        world.players().forEach(p -> p.sendSystemMessage(msg));
     }
 
     private void applyRandomHarmfulEffect(Player player) {
-        int effectType = random.nextInt(3);
-
-        switch (effectType) {
-            case 0 -> MobBuffUtil.applyPoisonToPlayer(player,
-                    BuffMobsConfig.HarmfulEffects.poisonDuration.get());
-            case 1 -> MobBuffUtil.applySlownessToPlayer(player,
-                    BuffMobsConfig.HarmfulEffects.slownessDuration.get());
-            case 2 -> MobBuffUtil.applyWitherToPlayer(player,
-                    BuffMobsConfig.HarmfulEffects.witherDuration.get());
+        switch (random.nextInt(3)) {
+            case 0 -> MobBuffUtil.applyPoisonToPlayer  (player, BuffMobsConfig.INSTANCE.harmfulEffects.poisonDuration.get());
+            case 1 -> MobBuffUtil.applySlownessToPlayer(player, BuffMobsConfig.INSTANCE.harmfulEffects.slownessDuration.get());
+            case 2 -> MobBuffUtil.applyWitherToPlayer  (player, BuffMobsConfig.INSTANCE.harmfulEffects.witherDuration.get());
         }
     }
 }

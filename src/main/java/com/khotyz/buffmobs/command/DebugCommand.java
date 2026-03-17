@@ -5,430 +5,185 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobTickHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
-import com.khotyz.buffmobs.util.RangedMobAIManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.List;
 
+import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
+
 public class DebugCommand {
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
-                                CommandBuildContext registryAccess,
-                                Commands.CommandSelection environment) {
-        dispatcher.register(Commands.literal("buffmobs")
-                .requires(source -> source.hasPermission(2))
-                .then(Commands.literal("debug")
-                        .executes(DebugCommand::debugNearestMob))
-                .then(Commands.literal("reload")
-                        .executes(DebugCommand::reloadMobs))
-                .then(Commands.literal("info")
-                        .executes(DebugCommand::showInfo))
-                .then(Commands.literal("presets")
-                        .executes(DebugCommand::showPresets))
-                .then(Commands.literal("testpreset")
-                        .executes(DebugCommand::testPresetSystem)));
+    @SubscribeEvent
+    public static void onRegisterCommands(RegisterCommandsEvent event) {
+        register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
     }
 
-    private static int debugNearestMob(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
+                                CommandBuildContext context, Commands.CommandSelection selection) {
+        dispatcher.register(Commands.literal("buffmobs")
+                .then(Commands.literal("debug")  .executes(DebugCommand::debugNearestMob))
+                .then(Commands.literal("reload")  .executes(DebugCommand::reloadMobs))
+                .then(Commands.literal("info")    .executes(DebugCommand::showInfo))
+                .then(Commands.literal("presets") .executes(DebugCommand::showPresets)));
+    }
 
-        if (source.getPlayer() == null) {
-            source.sendFailure(Component.literal("Must be executed by a player!"));
-            return 0;
-        }
+    private static int debugNearestMob(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        if (src.getPlayer() == null) { src.sendFailure(Component.literal("Must be a player!")); return 0; }
 
-        AABB searchBox = source.getPlayer().getBoundingBox().inflate(5.0);
-        List<Mob> nearbyMobs = source.getLevel().getEntitiesOfClass(
-                Mob.class, searchBox, mob -> true);
+        AABB box = src.getPlayer().getBoundingBox().inflate(5.0);
+        List<Mob> nearby = src.getLevel().getEntitiesOfClass(Mob.class, box, m -> true);
+        if (nearby.isEmpty()) { src.sendFailure(Component.literal("No mobs nearby!")); return 0; }
 
-        if (nearbyMobs.isEmpty()) {
-            source.sendFailure(Component.literal("No mobs nearby! Get closer."));
-            return 0;
-        }
+        Mob closest = nearby.get(0);
+        double cd = src.getPlayer().distanceToSqr(closest);
+        for (Mob m : nearby) { double d = src.getPlayer().distanceToSqr(m); if (d < cd) { cd = d; closest = m; } }
 
-        Mob closestMob = nearbyMobs.get(0);
-        double closestDist = source.getPlayer().distanceToSqr(closestMob);
+        final Mob mob = closest;
+        final String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        final String modNs = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
+        final String dimId = getDimensionId(mob.level());
 
-        for (Mob mob : nearbyMobs) {
-            double dist = source.getPlayer().distanceToSqr(mob);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestMob = mob;
-            }
-        }
-
-        Mob mob = closestMob;
-        String mobId = mob.getType().toString();
-
-        net.minecraft.resources.ResourceLocation mobRL = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
-        String cleanMobId = mobRL.toString();
-
-        source.sendSuccess(() -> Component.literal("§6=== BuffMobs Debug ==="), false);
-        source.sendSuccess(() -> Component.literal("§eMob: §f" + mob.getType().toString()), false);
-        source.sendSuccess(() -> Component.literal("§eMob ID: §f" + cleanMobId), false);
-        source.sendSuccess(() -> Component.literal("§eDimension: §f" +
-                mob.level().dimension().location()), false);
+        src.sendSuccess(() -> Component.literal("§6=== BuffMobs Debug ==="), false);
+        src.sendSuccess(() -> Component.literal("§eMob ID: §f"    + mobId), false);
+        src.sendSuccess(() -> Component.literal("§eMod ID: §f"    + modNs), false);
+        src.sendSuccess(() -> Component.literal("§eDimension: §f" + dimId), false);
 
         boolean isValid = MobBuffUtil.isValidMob(mob);
-        source.sendSuccess(() -> Component.literal("§eValid for buffs: §f" +
-                (isValid ? "§aYES" : "§cNO")), false);
+        src.sendSuccess(() -> Component.literal("§eValid: §f" + (isValid ? "§aYES" : "§cNO")), false);
 
-        if (!isValid) {
-            source.sendSuccess(() -> Component.literal("§cMob is filtered out!"), false);
+        src.sendSuccess(() -> Component.literal("§6=== Preset System ==="), false);
+        boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
+        src.sendSuccess(() -> Component.literal("§ePresets Enabled: §f" + (presetsOn ? "§aYES" : "§cNO")), false);
 
-            List<? extends String> blacklist = BuffMobsConfig.MobFilter.blacklist.get();
-            if (blacklist.contains(cleanMobId) || blacklist.contains(mobId)) {
-                source.sendSuccess(() -> Component.literal("§cReason: In mob blacklist"), false);
-            }
-
-            if (BuffMobsConfig.MobFilter.useWhitelist.get()) {
-                List<? extends String> whitelist = BuffMobsConfig.MobFilter.whitelist.get();
-                if (!whitelist.contains(cleanMobId) && !whitelist.contains(mobId)) {
-                    source.sendSuccess(() -> Component.literal("§cReason: Not in mob whitelist"), false);
-                }
-            }
-        }
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§6=== Ranged/Melee System ==="), false);
-        source.sendSuccess(() -> Component.literal("§eSystem Enabled: §f" +
-                (BuffMobsConfig.RangedMeleeSwitching.enabled.get() ? "§aYES" : "§cNO")), false);
-
-        if (RangedMobAIManager.isRangedMob(mob)) {
-            source.sendSuccess(() -> Component.literal("§eIs Ranged Mob: §aYES"), false);
-            source.sendSuccess(() -> Component.literal("§eBehavior Mode (Config): §f" +
-                    BuffMobsConfig.RangedMeleeSwitching.behaviorMode.get()), false);
-            source.sendSuccess(() -> Component.literal("§eIn Melee Mode: §f" +
-                    (RangedMobAIManager.isInMeleeMode(mob) ? "§aYES" : "§cNO")), false);
-        } else {
-            source.sendSuccess(() -> Component.literal("§eIs Ranged Mob: §cNO"), false);
-        }
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§6=== Preset System ==="), false);
-        source.sendSuccess(() -> Component.literal("§ePresets Enabled: §f" +
-                (BuffMobsConfig.MobPresets.enabled.get() == BuffMobsConfig.MobPresets.PresetToggle.ENABLED ? "§aYES" : "§cNO")), false);
-
-        if (BuffMobsConfig.MobPresets.enabled.get() == BuffMobsConfig.MobPresets.PresetToggle.ENABLED) {
+        if (presetsOn) {
             MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
-
             if (preset != null) {
-                source.sendSuccess(() -> Component.literal("§ePreset Found: §aYES"), false);
-                source.sendSuccess(() -> Component.literal("§ePreset Health: §f" + preset.health + "x"), false);
-                source.sendSuccess(() -> Component.literal("§ePreset Damage: §f" + preset.damage + "x"), false);
-                source.sendSuccess(() -> Component.literal("§ePreset Speed: §f" + preset.speed + "x"), false);
-                source.sendSuccess(() -> Component.literal("§ePreset Attack Speed: §f" + preset.attackSpeed + "x"), false);
-                source.sendSuccess(() -> Component.literal("§ePreset Armor: §f+" + preset.armor), false);
-                source.sendSuccess(() -> Component.literal("§ePreset Toughness: §f+" + preset.armorToughness), false);
+                src.sendSuccess(() -> Component.literal("§ePreset Found: §aYES"),                                    false);
+                src.sendSuccess(() -> Component.literal("§eHP: §f"   + preset.health      + "x"),                   false);
+                src.sendSuccess(() -> Component.literal("§eDMG: §f"  + preset.damage      + "x"),                   false);
+                src.sendSuccess(() -> Component.literal("§eSPD: §f"  + preset.speed       + "x"),                   false);
+                src.sendSuccess(() -> Component.literal("§eASPD: §f" + preset.attackSpeed + "x"),                   false);
+                src.sendSuccess(() -> Component.literal("§eArmor: §f+"     + preset.armor),                         false);
+                src.sendSuccess(() -> Component.literal("§eToughness: §f+" + preset.armorToughness),                false);
             } else {
-                source.sendSuccess(() -> Component.literal("§ePreset Found: §cNO"), false);
-                source.sendSuccess(() -> Component.literal("§7Using dimension/default scaling"), false);
-
-                source.sendSuccess(() -> Component.literal(""), false);
-                source.sendSuccess(() -> Component.literal("§7Available mappings:"), false);
-                for (String mapping : BuffMobsConfig.MobPresets.mobMapping.get()) {
-                    source.sendSuccess(() -> Component.literal("§7  - " + mapping), false);
+                src.sendSuccess(() -> Component.literal("§ePreset Found: §cNO — using dimension/default"), false);
+                for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping.get()) {
+                    src.sendSuccess(() -> Component.literal("§7  - " + mapping), false);
                 }
-
-                source.sendSuccess(() -> Component.literal(""), false);
-                source.sendSuccess(() -> Component.literal("§7To add this mob, use format:"), false);
-                source.sendSuccess(() -> Component.literal("§7  " + mobId + ":preset_name"), false);
-                source.sendSuccess(() -> Component.literal("§7Example: " + mobId + ":weak"), false);
+                src.sendSuccess(() -> Component.literal("§7To add: " + mobId + ":preset_name"), false);
             }
         }
 
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§6=== Scaling ==="), false);
+        src.sendSuccess(() -> Component.literal("§6=== Scaling ==="), false);
+        final double dayMult = MobBuffUtil.getDayMultiplier(mob.level().getDayTime());
+        src.sendSuccess(() -> Component.literal("§eDay Mult: §f" + String.format("%.2f", dayMult)), false);
+        final MobBuffUtil.DimensionMultipliers dm = MobBuffUtil.getDimensionMultipliers(mob);
+        src.sendSuccess(() -> Component.literal("§eDim HP Mult: §f"  + dm.health), false);
+        src.sendSuccess(() -> Component.literal("§eDim DMG Mult: §f" + dm.damage), false);
 
-        double dayMult = MobBuffUtil.getDayMultiplier(mob.level().getDayTime());
-        source.sendSuccess(() -> Component.literal("§eDay Multiplier: §f" +
-                String.format("%.2f", dayMult)), false);
-
-        var dimMult = MobBuffUtil.getDimensionMultipliers(mob);
-        source.sendSuccess(() -> Component.literal("§eDim Health Mult: §f" + dimMult.health), false);
-        source.sendSuccess(() -> Component.literal("§eDim Damage Mult: §f" + dimMult.damage), false);
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§6=== Current Stats ==="), false);
-
-        AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
-        if (health != null) {
-            source.sendSuccess(() -> Component.literal("§eHealth: §f" +
-                    String.format("%.1f / %.1f", mob.getHealth(), health.getValue())), false);
-            source.sendSuccess(() -> Component.literal("§eBase Health: §f" +
-                    String.format("%.1f", health.getBaseValue())), false);
+        src.sendSuccess(() -> Component.literal("§6=== Current Stats ==="), false);
+        AttributeInstance hp = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (hp != null) {
+            src.sendSuccess(() -> Component.literal("§eHealth: §f" +
+                    String.format("%.1f / %.1f (base %.1f)", mob.getHealth(), hp.getValue(), hp.getBaseValue())), false);
         }
-
-        AttributeInstance damage = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (damage != null) {
-            source.sendSuccess(() -> Component.literal("§eAttack Damage: §f" +
-                    String.format("%.1f (base: %.1f)", damage.getValue(), damage.getBaseValue())), false);
+        AttributeInstance dmg = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmg != null) {
+            src.sendSuccess(() -> Component.literal("§eDamage: §f" +
+                    String.format("%.1f (base %.1f)", dmg.getValue(), dmg.getBaseValue())), false);
         }
-
-        source.sendSuccess(() -> Component.literal("§eActive Effects: §f" +
-                mob.getActiveEffects().size()), false);
-
-        mob.getActiveEffects().forEach(effect -> {
-            source.sendSuccess(() -> Component.literal("  §7- " +
-                    effect.getEffect().value().getDisplayName().getString() +
-                    " " + (effect.getAmplifier() + 1)), false);
-        });
+        src.sendSuccess(() -> Component.literal("§eEffects: §f" + mob.getActiveEffects().size()), false);
+        mob.getActiveEffects().forEach(eff ->
+                src.sendSuccess(() -> Component.literal("  §7- " +
+                        eff.getEffect().value().getDescriptionId() + " " + (eff.getAmplifier() + 1)), false));
 
         return 1;
     }
 
-    private static int showPresets(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-
-        source.sendSuccess(() -> Component.literal("§6=== BuffMobs Presets ==="), false);
-        source.sendSuccess(() -> Component.literal("§eEnabled: §f" +
-                (BuffMobsConfig.MobPresets.enabled.get() == BuffMobsConfig.MobPresets.PresetToggle.ENABLED ? "§aYES" : "§cNO")), false);
-
-        if (BuffMobsConfig.MobPresets.enabled.get() != BuffMobsConfig.MobPresets.PresetToggle.ENABLED) {
-            source.sendSuccess(() -> Component.literal("§cPresets are disabled in config!"), false);
-            source.sendSuccess(() -> Component.literal("§7Enable in config/buffmobs-common.toml"), false);
-            return 1;
-        }
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§6=== Available Presets ==="), false);
+    private static int showPresets(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        src.sendSuccess(() -> Component.literal("§6=== BuffMobs Presets ==="), false);
+        boolean on = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
+        src.sendSuccess(() -> Component.literal("§eEnabled: §f" + (on ? "§aYES" : "§cNO")), false);
+        if (!on) return 1;
 
         BuffMobsConfig.MobPresets.PresetSlot[] presets = {
-                BuffMobsConfig.MobPresets.preset1,
-                BuffMobsConfig.MobPresets.preset2,
-                BuffMobsConfig.MobPresets.preset3,
-                BuffMobsConfig.MobPresets.preset4,
-                BuffMobsConfig.MobPresets.preset5
+                BuffMobsConfig.INSTANCE.mobPresets.preset1, BuffMobsConfig.INSTANCE.mobPresets.preset2,
+                BuffMobsConfig.INSTANCE.mobPresets.preset3, BuffMobsConfig.INSTANCE.mobPresets.preset4,
+                BuffMobsConfig.INSTANCE.mobPresets.preset5
         };
-
-        int presetNum = 1;
-        int validPresets = 0;
-        for (BuffMobsConfig.MobPresets.PresetSlot preset : presets) {
-            String name = preset.presetName.get();
-            if (!name.isEmpty()) {
-                int num = presetNum;
-                source.sendSuccess(() -> Component.literal(String.format(
-                        "§e%d. §f%s §7(HP: %.1fx, DMG: %.1fx, SPD: %.1fx, ASPD: %.1fx, ARM: +%.0f, TOUGH: +%.0f)",
-                        num, preset.presetName.get(), preset.healthMultiplier.get(), preset.damageMultiplier.get(),
-                        preset.speedMultiplier.get(), preset.attackSpeedMultiplier.get(),
-                        preset.armorAddition.get(), preset.armorToughnessAddition.get())), false);
-                validPresets++;
-            } else {
-                int num = presetNum;
-                source.sendSuccess(() -> Component.literal(String.format(
-                        "§e%d. §7(empty slot)", num)), false);
+        int[] n = {1};
+        for (BuffMobsConfig.MobPresets.PresetSlot p : presets) {
+            if (!p.presetName.get().isEmpty()) {
+                int num = n[0];
+                src.sendSuccess(() -> Component.literal(String.format(
+                        "§e%d. §f%s §7(HP:%.1fx DMG:%.1fx SPD:%.1fx ASPD:%.1fx ARM:+%.0f TOUGH:+%.0f)",
+                        num, p.presetName.get(), p.healthMultiplier.get(), p.damageMultiplier.get(),
+                        p.speedMultiplier.get(), p.attackSpeedMultiplier.get(),
+                        p.armorAddition.get(), p.armorToughnessAddition.get())), false);
             }
-            presetNum++;
+            n[0]++;
         }
 
-        if (validPresets == 0) {
-            source.sendSuccess(() -> Component.literal("§cNo presets configured! All slots are empty."), false);
-        }
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§6=== Mob Mappings ==="), false);
-        source.sendSuccess(() -> Component.literal("§7Total mappings: §f" +
-                BuffMobsConfig.MobPresets.mobMapping.get().size()), false);
-
-        if (BuffMobsConfig.MobPresets.mobMapping.get().isEmpty()) {
-            source.sendSuccess(() -> Component.literal("§cNo mappings configured!"), false);
-            source.sendSuccess(() -> Component.literal("§7Add mappings in config/buffmobs-common.toml"), false);
-        } else {
-            int count = 0;
-            for (String mapping : BuffMobsConfig.MobPresets.mobMapping.get()) {
-                count++;
-                final int num = count;
-                String cleanMapping = mapping.startsWith("entity.") ? mapping.substring(7) : mapping;
-                String[] parts = cleanMapping.split(":");
-                if (parts.length >= 3) {
-                    String mobId = parts[0] + ":" + parts[1];
-                    String presetName = parts[2];
-                    source.sendSuccess(() -> Component.literal(String.format(
-                            "§7%d. §f%s §7→ §e%s", num, mobId, presetName)), false);
-                } else {
-                    source.sendSuccess(() -> Component.literal(String.format(
-                            "§7%d. §c[INVALID] %s", num, mapping)), false);
-                }
-            }
-        }
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§7Use §e/buffmobs debug §7near a mob to check its preset"), false);
-
-        return 1;
-    }
-
-    private static int reloadMobs(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-
-        source.sendSuccess(() -> Component.literal("§6Reloading all mobs..."), false);
-
-        int buffedCount = 0;
-        int removedCount = 0;
-
-        for (Entity entity : source.getLevel().getAllEntities()) {
-            if (entity instanceof Mob mob) {
-                try {
-                    if (MobBuffUtil.isValidMob(mob)) {
-                        removeAllBuffModifiers(mob);
-                        MobBuffUtil.applyBuffs(mob);
-                        buffedCount++;
-                    } else {
-                        removeAllBuffModifiers(mob);
-                        mob.getActiveEffects().clear();
-                        removedCount++;
-                    }
-                } catch (Exception e) {
-                    BuffMobsMod.LOGGER.error("Failed to reload mob", e);
-                }
-            }
-        }
-
-        final int finalBuffed = buffedCount;
-        final int finalRemoved = removedCount;
-        source.sendSuccess(() -> Component.literal(String.format(
-                "§aBuffed %d mobs, removed buffs from %d mobs!", finalBuffed, finalRemoved)), false);
-
-        return 1;
-    }
-
-    private static void removeAllBuffModifiers(Mob mob) {
-        ResourceLocation healthModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "health");
-        ResourceLocation damageModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "damage");
-        ResourceLocation speedModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "speed");
-        ResourceLocation attackSpeedModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "attack_speed");
-        ResourceLocation armorModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "armor");
-        ResourceLocation toughnessModId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "toughness");
-
-        removeModifier(mob, Attributes.MAX_HEALTH, healthModId);
-        removeModifier(mob, Attributes.ATTACK_DAMAGE, damageModId);
-        removeModifier(mob, Attributes.MOVEMENT_SPEED, speedModId);
-        removeModifier(mob, Attributes.ATTACK_SPEED, attackSpeedModId);
-        removeModifier(mob, Attributes.ARMOR, armorModId);
-        removeModifier(mob, Attributes.ARMOR_TOUGHNESS, toughnessModId);
-
-        mob.setHealth(mob.getMaxHealth());
-    }
-
-    private static void removeModifier(Mob mob, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, ResourceLocation modId) {
-        AttributeInstance attr = mob.getAttribute(attribute);
-        if (attr != null) {
-            AttributeModifier existing = attr.getModifier(modId);
-            if (existing != null) {
-                attr.removeModifier(modId);
-            }
-        }
-    }
-
-    private static int showInfo(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-
-        source.sendSuccess(() -> Component.literal("§6=== BuffMobs Info ==="), false);
-        source.sendSuccess(() -> Component.literal("§eEnabled: §f" +
-                BuffMobsConfig.enabled.get()), false);
-        source.sendSuccess(() -> Component.literal("§eInitialized Mobs: §f" +
-                MobTickHandler.getInitializedCount()), false);
-        source.sendSuccess(() -> Component.literal("§eHealth Mult: §f" +
-                BuffMobsConfig.Attributes.healthMultiplier.get()), false);
-        source.sendSuccess(() -> Component.literal("§eDamage Mult: §f" +
-                BuffMobsConfig.Attributes.damageMultiplier.get()), false);
-        source.sendSuccess(() -> Component.literal("§eDay Scaling: §f" +
-                BuffMobsConfig.DayScaling.enabled.get()), false);
-        source.sendSuccess(() -> Component.literal("§ePresets: §f" +
-                BuffMobsConfig.MobPresets.enabled.get()), false);
-        source.sendSuccess(() -> Component.literal("§eRanged/Melee: §f" +
-                BuffMobsConfig.RangedMeleeSwitching.enabled.get()), false);
-        source.sendSuccess(() -> Component.literal("§eBehavior Mode: §f" +
-                BuffMobsConfig.RangedMeleeSwitching.behaviorMode.get()), false);
-
-        source.sendSuccess(() -> Component.literal("§eUse whitelist (mobs): §f" +
-                BuffMobsConfig.MobFilter.useWhitelist.get()), false);
-        source.sendSuccess(() -> Component.literal("§eUse whitelist (mods): §f" +
-                BuffMobsConfig.ModIdFilter.useWhitelist.get()), false);
-        source.sendSuccess(() -> Component.literal("§eUse whitelist (dims): §f" +
-                BuffMobsConfig.DimensionFilter.useWhitelist.get()), false);
-
-        return 1;
-    }
-
-    private static int testPresetSystem(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-
-        source.sendSuccess(() -> Component.literal("§6=== Testing Preset System ==="), false);
-
-        source.sendSuccess(() -> Component.literal("§ePresets Enabled: §f" +
-                (BuffMobsConfig.MobPresets.enabled.get() == BuffMobsConfig.MobPresets.PresetToggle.ENABLED ? "§aYES" : "§cNO")), false);
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§eChecking all preset slots:"), false);
-
-        testPresetSlot(source, "preset1", BuffMobsConfig.MobPresets.preset1);
-        testPresetSlot(source, "preset2", BuffMobsConfig.MobPresets.preset2);
-        testPresetSlot(source, "preset3", BuffMobsConfig.MobPresets.preset3);
-        testPresetSlot(source, "preset4", BuffMobsConfig.MobPresets.preset4);
-        testPresetSlot(source, "preset5", BuffMobsConfig.MobPresets.preset5);
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§eMob Mappings (" +
-                BuffMobsConfig.MobPresets.mobMapping.get().size() + " total):"), false);
-
-        if (BuffMobsConfig.MobPresets.mobMapping.get().isEmpty()) {
-            source.sendSuccess(() -> Component.literal("  §c(none configured)"), false);
-        } else {
-            for (String mapping : BuffMobsConfig.MobPresets.mobMapping.get()) {
-                source.sendSuccess(() -> Component.literal("  §7" + mapping), false);
-            }
-        }
-
-        source.sendSuccess(() -> Component.literal(""), false);
-        source.sendSuccess(() -> Component.literal("§eTest getPresetByName:"), false);
-
-        for (String mapping : BuffMobsConfig.MobPresets.mobMapping.get()) {
+        src.sendSuccess(() -> Component.literal("§6=== Mob Mappings ==="), false);
+        for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping.get()) {
             String[] parts = mapping.split(":");
             if (parts.length >= 3) {
-                String mobId = parts[0] + ":" + parts[1];
-                String presetName = parts[2];
-
-                var preset = MobPresetUtil.getPresetByName(presetName);
-                if (preset != null) {
-                    source.sendSuccess(() -> Component.literal(String.format(
-                            "  §a✓ §f%s §7-> §e%s §7(HP: %.1fx)",
-                            mobId, presetName, preset.health)), false);
-                } else {
-                    source.sendSuccess(() -> Component.literal(String.format(
-                            "  §c✗ §f%s §7-> §e%s §c(NOT FOUND)",
-                            mobId, presetName)), false);
-                }
+                final String mid = parts[0] + ":" + parts[1];
+                final String pn  = parts[2];
+                src.sendSuccess(() -> Component.literal("§7- §f" + mid + " §7-> §e" + pn), false);
+            } else {
+                src.sendSuccess(() -> Component.literal("§c- Invalid: " + mapping), false);
             }
         }
-
         return 1;
     }
 
-    private static void testPresetSlot(CommandSourceStack source, String slotName,
-                                       BuffMobsConfig.MobPresets.PresetSlot slot) {
-        String name = slot.presetName.get();
-        if (name != null && !name.isEmpty()) {
-            source.sendSuccess(() -> Component.literal(String.format(
-                    "  §a✓ §e%s: §f'%s' §7(HP: %.1fx, DMG: %.1fx)",
-                    slotName, name,
-                    slot.healthMultiplier.get(),
-                    slot.damageMultiplier.get())), false);
-        } else {
-            source.sendSuccess(() -> Component.literal(String.format(
-                    "  §7○ §e%s: §7(empty)", slotName)), false);
+    private static int reloadMobs(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        src.sendSuccess(() -> Component.literal("§6Reapplying buffs to all mobs..."), false);
+        int count = 0;
+        MobTickHandler.forceReinitAll();
+        for (Entity e : src.getLevel().getAllEntities()) {
+            if (e instanceof Mob mob) {
+                try {
+                    MobBuffUtil.removeAllModifiers(mob);
+                    MobBuffUtil.removeAllBuffEffects(mob);
+                    MobBuffUtil.applyBuffs(mob);
+                    count++;
+                } catch (Exception ex) {
+                    BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
+                }
+            }
         }
+        final int fc = count;
+        src.sendSuccess(() -> Component.literal("§aBuffed " + fc + " mobs!"), false);
+        return 1;
+    }
+
+    private static int showInfo(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        src.sendSuccess(() -> Component.literal("§6=== BuffMobs Info ==="), false);
+        src.sendSuccess(() -> Component.literal("§eEnabled: §f"          + BuffMobsConfig.INSTANCE.enabled.get()), false);
+        src.sendSuccess(() -> Component.literal("§eInitialized Mobs: §f" + MobTickHandler.getInitializedCount()), false);
+        src.sendSuccess(() -> Component.literal("§eHealth Mult: §f"      + BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get()), false);
+        src.sendSuccess(() -> Component.literal("§eDamage Mult: §f"      + BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()), false);
+        src.sendSuccess(() -> Component.literal("§eDay Scaling: §f"      + BuffMobsConfig.INSTANCE.dayScaling.enabled.get()), false);
+        src.sendSuccess(() -> Component.literal("§ePresets: §f"          + BuffMobsConfig.INSTANCE.mobPresets.enabled.get()), false);
+        return 1;
     }
 }

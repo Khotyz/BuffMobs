@@ -1,25 +1,68 @@
+# BuffMobs
 
-Installation information
-=======
+**BuffMobs** makes hostile and neutral mobs significantly more dangerous, with progressive difficulty scaling, smarter AI behavior, and deep per-mob customization.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+---
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## ✨ Features
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+- **Attribute Buffs** — Increase mob health, damage, speed, attack speed, armor, and armor toughness globally.
+- **Status Effects** — Grant mobs permanent Strength, Speed, Resistance, Regeneration, and Absorption.
+- **Harmful Effects** — Mobs have a configurable chance to inflict Poison, Slowness, or Wither on hit.
+- **Day Scaling** — Mob difficulty automatically increases as in-game days pass, up to a configurable cap.
+- **Dimension Scaling** — Configure separate multipliers for up to 5 different dimensions.
+- **Mob Presets** — Assign custom stat profiles to specific mobs. Define up to 5 named presets and map any mob ID to one.
+- **Ranged/Melee Switching** — Ranged mobs react when a player gets close: switch to a melee weapon, or kite away to maintain distance. Behavior is randomly assigned per mob on spawn, or forced to one mode.
+- **Weapon Progression** — Mobs switch to generated melee weapons whose tier and enchantments scale with the number of in-game days elapsed.
+- **CombatDraft** — Mobs drink a regeneration potion when they fall below a health threshold. Living mobs receive Regeneration; undead mobs receive Absorption and a direct heal.
+- **Flexible Filtering** — Whitelist or blacklist mobs by entity ID, mod ID, or dimension.
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+---
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+## 🔧 Requirements
+
+| Dependency | Version | Side |
+|---|---|---|
+| Minecraft | 1.21.1 | Both |
+| NeoForge | 21.1.x | Both |
+| [Cloth Config](https://modrinth.com/mod/cloth-config) | 15.x | Client (optional) |
+
+Cloth Config is optional but recommended — it enables the in-game configuration GUI.
+
+---
+
+## ⚙️ Configuration
+
+All settings are stored in `config/buffmobs.toml`. The easiest way to configure the mod is through the in-game GUI via the Cloth Config screen, accessible from the mod list.
+
+For a full breakdown of every option, see the **[How To Use guide](HOW%20TO%20USE.MD)**.
+
+---
+
+## 🛠 Commands
+
+| Command | Description |
+|---|---|
+| `/buffmobs info` | Show current config status and initialized mob count |
+| `/buffmobs debug` | Inspect the nearest mob's buff status, preset, and current stats |
+| `/buffmobs reload` | Remove and reapply all buffs using the current config |
+| `/buffmobs presets` | List all configured presets and mob mappings |
+
+---
+
+## 📦 Download
+
+- [Modrinth](https://modrinth.com/mod/buff-mobs)
+- [GitHub Releases](https://github.com/Khotyz/BuffMobs/releases)
+
+---
+
+## 🐛 Issues & Feedback
+
+Found a bug or have a suggestion? [Open an issue on GitHub](https://github.com/Khotyz/BuffMobs/issues).
+
+---
+
+## 📄 License
+
+MIT

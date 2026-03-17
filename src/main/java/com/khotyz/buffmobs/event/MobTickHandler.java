@@ -2,125 +2,120 @@ package com.khotyz.buffmobs.event;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-@EventBusSubscriber(modid = BuffMobsMod.MOD_ID)
 public class MobTickHandler {
     private static final Set<UUID> INITIALIZED_MOBS = new HashSet<>();
-    private static int globalTickCounter = 0;
-    private static boolean initialScanDone = false;
-
-    public static void register() {
-    }
+    private static final Set<UUID> PENDING_INIT     = new HashSet<>();
+    private static int     globalTickCounter = 0;
+    private static boolean initialScanDone   = false;
 
     @SubscribeEvent
-    public static void onServerStarted(ServerStartedEvent event) {
-        BuffMobsMod.LOGGER.info("Server started - scanning for existing mobs...");
+    public void onServerStarted(ServerStartedEvent event) {
+        INITIALIZED_MOBS.clear();
+        PENDING_INIT.clear();
+        initialScanDone = false;
         int count = 0;
         for (ServerLevel world : event.getServer().getAllLevels()) {
             for (Entity entity : world.getAllEntities()) {
-                if (entity instanceof Mob mob) {
-                    initializeMob(mob);
-                    count++;
-                }
+                if (entity instanceof Mob mob) { initializeMob(mob, true); count++; }
             }
         }
-        BuffMobsMod.LOGGER.info("Initialized {} existing mobs", count);
+        BuffMobsMod.LOGGER.info("[BuffMobs] Initialized {} existing mobs on startup", count);
         initialScanDone = true;
     }
 
     @SubscribeEvent
-    public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
-        if (event.getEntity() instanceof Mob mob && !event.getLevel().isClientSide()) {
-            if (!INITIALIZED_MOBS.contains(mob.getUUID())) {
-                initializeMob(mob);
-            }
-        }
+    public void onEntityJoin(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide()) return;
+        if (!(event.getEntity() instanceof Mob mob)) return;
+        if (!INITIALIZED_MOBS.contains(mob.getUUID())) PENDING_INIT.add(mob.getUUID());
     }
 
     @SubscribeEvent
-    public static void onServerTick(ServerTickEvent.Post event) {
-        if (!BuffMobsConfig.enabled.get()) return;
+    public void onEntityLeave(EntityLeaveLevelEvent event) {
+        if (!(event.getEntity() instanceof Mob mob)) return;
+        UUID uuid = mob.getUUID();
+        INITIALIZED_MOBS.remove(uuid);
+        PENDING_INIT.remove(uuid);
+        RangedMobAIManager.cleanup(mob);
+        CombatDraftHandler.onMobRemoved(mob);
+    }
+
+    @SubscribeEvent
+    public void onWorldTick(LevelTickEvent.Post event) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) return;
+        if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
 
         globalTickCounter++;
 
-        for (ServerLevel level : event.getServer().getAllLevels()) {
-            if (globalTickCounter % 100 == 0 && !initialScanDone) {
-                for (Entity entity : level.getAllEntities()) {
-                    if (entity instanceof Mob mob && !INITIALIZED_MOBS.contains(mob.getUUID())) {
-                        initializeMob(mob);
+        if (!PENDING_INIT.isEmpty()) {
+            for (Entity e : serverLevel.getAllEntities()) {
+                if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
+                if (PENDING_INIT.contains(mob.getUUID())) {
+                    PENDING_INIT.remove(mob.getUUID());
+                    initializeMob(mob, false);
+                }
+            }
+            PENDING_INIT.clear();
+        }
+
+        if (globalTickCounter % 20 == 0) {
+            for (Entity e : serverLevel.getAllEntities()) {
+                if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
+                UUID uuid = mob.getUUID();
+                if (!INITIALIZED_MOBS.contains(uuid)) {
+                    initializeMob(mob, false);
+                } else {
+                    try {
+                        RangedMobAIManager.updateMobBehavior(mob);
+                        MobBuffUtil.refreshInfiniteEffects(mob);
+                        CombatDraftHandler.tick(mob);
+                    } catch (Exception ex) {
+                        BuffMobsMod.LOGGER.warn("[BuffMobs] Error updating mob behavior", ex);
                     }
                 }
             }
-
-            if (globalTickCounter % 20 == 0) {
-                level.getAllEntities().forEach(entity -> {
-                    if (entity instanceof Mob mob && !mob.isRemoved()) {
-                        UUID uuid = mob.getUUID();
-
-                        if (!INITIALIZED_MOBS.contains(uuid)) {
-                            initializeMob(mob);
-                        } else {
-                            try {
-                                RangedMobAIManager.updateMobBehavior(mob);
-                                MobBuffUtil.refreshInfiniteEffects(mob);
-                            } catch (Exception e) {
-                                BuffMobsMod.LOGGER.warn("Error updating mob behavior", e);
-                            }
-                        }
-                    }
-                });
-            }
         }
     }
 
-    @SubscribeEvent
-    public static void onEntityLeaveLevel(EntityLeaveLevelEvent event) {
-        if (event.getEntity() instanceof Mob mob) {
-            INITIALIZED_MOBS.remove(mob.getUUID());
-            RangedMobAIManager.cleanup(mob);
-        }
-    }
-
-    private static void initializeMob(Mob mob) {
-        if (!BuffMobsConfig.enabled.get()) return;
-
+    private static void initializeMob(Mob mob, boolean forceReapply) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) { MobBuffUtil.removeAllModifiers(mob); return; }
         UUID uuid = mob.getUUID();
-        if (INITIALIZED_MOBS.contains(uuid)) return;
-
+        if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
             if (MobBuffUtil.isValidMob(mob)) {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
+                CombatDraftHandler.onMobInitialized(mob);
                 INITIALIZED_MOBS.add(uuid);
-
-                if (BuffMobsMod.LOGGER.isDebugEnabled()) {
-                    BuffMobsMod.LOGGER.debug("Initialized mob: {} ({}) in {}",
-                            mob.getType().toString(),
-                            mob.getUUID(),
-                            mob.level().dimension().location());
-                }
+                BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
+            } else {
+                MobBuffUtil.removeAllModifiers(mob);
             }
         } catch (Exception e) {
-            BuffMobsMod.LOGGER.error("Failed to initialize mob: {}", mob.getType(), e);
+            BuffMobsMod.LOGGER.error("[BuffMobs] Failed to initialize mob: {}", mob.getType(), e);
         }
     }
 
-    public static int getInitializedCount() {
-        return INITIALIZED_MOBS.size();
+    public static int getInitializedCount() { return INITIALIZED_MOBS.size(); }
+
+    public static void forceReinitAll() {
+        INITIALIZED_MOBS.clear();
+        PENDING_INIT.clear();
     }
 }
