@@ -9,8 +9,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.TamableAnimal;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -40,25 +38,35 @@ public class CombatDraftHandler {
         STATES.remove(mob.getUUID());
     }
 
+    // Called every tick to handle the drink animation restore with correct timing
+    public static void tickRestore(Mob mob) {
+        MobDraftState state = STATES.get(mob.getUUID());
+        if (state == null || state.pendingRestore == null) return;
+        long now = mob.level().getGameTime();
+        if (now >= state.restoreAtTick) {
+            mob.stopUsingItem();
+            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            state.pendingRestore = null;
+        }
+    }
+
     public static void tick(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.combatDraft.enabled.get()) return;
-        if (!isEligible(mob)) return;
 
-        MobDraftState state = STATES.computeIfAbsent(mob.getUUID(), k -> new MobDraftState());
+        // Only process mobs that were properly initialized
+        MobDraftState state = STATES.get(mob.getUUID());
+        if (state == null) return;
+
+        if (!mob.isAlive() || mob.isRemoved()) return;
 
         int maxUses = BuffMobsConfig.INSTANCE.combatDraft.maxUses.get();
         if (maxUses > 0 && state.useCount >= maxUses) return;
 
         long now = mob.level().getGameTime();
-
-        if (state.pendingRestore != null && now >= state.restoreAtTick) {
-            mob.stopUsingItem();
-            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
-            state.pendingRestore = null;
-        }
-
         if (now - state.lastUseTick < BuffMobsConfig.INSTANCE.combatDraft.cooldownTicks.get()) return;
-        if (mob.getHealth() > mob.getMaxHealth() * BuffMobsConfig.INSTANCE.combatDraft.healthThreshold.get()) return;
+
+        float healthPct = mob.getHealth() / mob.getMaxHealth();
+        if (healthPct > (float)(double) BuffMobsConfig.INSTANCE.combatDraft.healthThreshold.get()) return;
 
         useDraft(mob, state, now);
     }
@@ -112,15 +120,7 @@ public class CombatDraftHandler {
     }
 
     private static boolean isEligible(Mob mob) {
-        if (mob.isRemoved() || !mob.isAlive()) return false;
-        if (mob instanceof TamableAnimal t && t.isTame()) return false;
-
-        boolean hostile = mob instanceof Enemy
-                || mob.getType().is(EntityTypeTags.RAIDERS)
-                || mob.getType().is(EntityTypeTags.SKELETONS)
-                || mob.getType().is(EntityTypeTags.ZOMBIES)
-                || isNeutral(mob);
-        if (!hostile) return false;
+        if (!MobBuffUtil.isValidMob(mob)) return false;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         BuffMobsConfig.CombatDraft cfg = BuffMobsConfig.INSTANCE.combatDraft;
@@ -129,18 +129,6 @@ public class CombatDraftHandler {
         if (cfg.blacklist.get().contains(mobId)) return false;
         if (cfg.useWhitelist.get()) return cfg.whitelist.get().contains(mobId);
         return true;
-    }
-
-    private static boolean isNeutral(Mob mob) {
-        String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        return switch (id) {
-            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
-                 "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
-                 "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
-                 "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
-                 "minecraft:trader_llama" -> true;
-            default -> false;
-        };
     }
 
     private static class MobDraftState {
