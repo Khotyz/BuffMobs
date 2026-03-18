@@ -1,0 +1,65 @@
+{
+  "buffmobs.config.title": "BuffMobs Configuration",
+
+  "buffmobs.config.general": "General",
+  "buffmobs.config.general.enabled": "Enable Mod",
+  "buffmobs.config.general.visualEffects": "Visual Effects",
+
+  "buffmobs.config.attributes": "Attributes",
+  "buffmobs.config.attributes.healthMultiplier": "Health Multiplier",
+  "buffmobs.config.attributes.damageMultiplier": "Damage Multiplier",
+  "buffmobs.config.attributes.speedMultiplier": "Speed Multiplier",
+  "buffmobs.config.attributes.attackSpeedMultiplier": "Attack Speed Multiplier",
+  "buffmobs.config.attributes.armorAddition": "Armor Addition",
+  "buffmobs.config.attributes.armorToughnessAddition": "Armor Toughness Addition",
+
+  "buffmobs.config.effects": "Status Effects",
+  "buffmobs.config.effects.duration": "Effect Duration (seconds, -1 = infinite)",
+  "buffmobs.config.effects.strengthAmplifier": "Strength Level",
+  "buffmobs.config.effects.speedAmplifier": "Speed Level",
+  "buffmobs.config.effects.resistanceAmplifier": "Resistance Level",
+  "buffmobs.config.effects.regenerationAmplifier": "Regeneration Level",
+
+  "buffmobs.config.harmfulEffects": "Harmful Effects",
+  "buffmobs.config.harmfulEffects.enabled": "Enable Harmful Effects",
+  "buffmobs.config.harmfulEffects.chance": "Chance",
+  "buffmobs.config.harmfulEffects.poisonDuration": "Poison Duration (s)",
+  "buffmobs.config.harmfulEffects.slownessDuration": "Slowness Duration (s)",
+  "buffmobs.config.harmfulEffects.witherDuration": "Wither Duration (s)",
+
+  "buffmobs.config.dayScaling": "Day Scaling",
+  "buffmobs.config.dayScaling.enabled": "Enable Day Scaling",
+  "buffmobs.config.dayScaling.interval": "Scaling Interval (days)",
+  "buffmobs.config.dayScaling.multiplier": "Scaling Multiplier",
+  "buffmobs.config.dayScaling.maxMultiplier": "Max Multiplier",
+  "buffmobs.config.dayScaling.showNotifications": "Show Notifications",
+
+  "buffmobs.config.dimensionScaling": "Dimension Scaling",
+
+  "buffmobs.config.mobFilter": "Mob Filter",
+  "buffmobs.config.mobFilter.useWhitelist": "Use Whitelist",
+  "buffmobs.config.mobFilter.whitelist": "Whitelist",
+  "buffmobs.config.mobFilter.blacklist": "Blacklist",
+
+  "buffmobs.config.modidFilter": "Mod ID Filter",
+  "buffmobs.config.modidFilter.useWhitelist": "Use Whitelist",
+  "buffmobs.config.modidFilter.whitelist": "Whitelist",
+  "buffmobs.config.modidFilter.blacklist": "Blacklist",
+
+  "buffmobs.config.dimensionFilter": "Dimension Filter",
+  "buffmobs.config.dimensionFilter.useWhitelist": "Use Whitelist",
+  "buffmobs.config.dimensionFilter.whitelist": "Whitelist",
+  "buffmobs.config.dimensionFilter.blacklist": "Blacklist",
+
+  "buffmobs.config.rangedMeleeSwitching": "Ranged/Melee Switching",
+  "buffmobs.config.rangedMeleeSwitching.enabled": "Enable Switching",
+  "buffmobs.config.rangedMeleeSwitching.switchDistance": "Switch Distance",
+  "buffmobs.config.rangedMeleeSwitching.meleeSpeedMultiplier": "Melee Speed Multiplier",
+  "buffmobs.config.rangedMeleeSwitching.enchantmentsEnabled": "Enable Enchantments",
+  "buffmobs.config.rangedMeleeSwitching.maxEnchantmentsPerWeapon": "Max Enchantments Per Weapon",
+  "buffmobs.config.rangedMeleeSwitching.daysPerEnchantmentLevel": "Days Per Enchantment Level",
+
+  "buffmobs.config.mobPresets": "Mob Presets",
+  "buffmobs.config.mobPresets.enabled": "Enable Presets",
+  "buffmobs.config.mobPresets.mobMapping": "Mob Mapping"
+}
