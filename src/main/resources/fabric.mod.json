@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "buffmobs",
+  "version": "${version}",
+  "name": "BuffMobs",
+  "description": "Makes hostile and neutral mobs stronger, faster, and more challenging with progressive difficulty scaling.",
+  "authors": ["Khotyz"],
+  "contact": {
+    "homepage": "https://github.com/Khotyz/BuffMobs",
+    "sources": "https://github.com/Khotyz/BuffMobs",
+    "issues": "https://github.com/Khotyz/BuffMobs/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/buffmobs/buffmobs.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.khotyz.buffmobs.BuffMobsMod"],
+    "client": ["com.khotyz.buffmobs.BuffMobsClient"],
+    "modmenu": ["com.khotyz.buffmobs.config.ModMenuIntegration"]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11"
+  },
+  "suggests": {
+    "cloth-config": ">=21.11.0",
+    "modmenu": ">=17.0.0"
+  }
+}
