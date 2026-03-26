@@ -14,17 +14,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MobTickHandler {
 
-    private static final Set<UUID> INITIALIZED_MOBS = new HashSet<>();
-    private static final Map<UUID, ResourceKey<Level>> PENDING_INIT = new HashMap<>();
-    private static final Map<ResourceKey<Level>, Integer> DIM_TICK = new HashMap<>();
+    private static final Set<UUID> INITIALIZED_MOBS = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentHashMap<UUID, ResourceKey<Level>> PENDING_INIT = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<ResourceKey<Level>, Integer> DIM_TICK = new ConcurrentHashMap<>();
 
     public static void register() {
         // Re-initialize all mobs on server start
@@ -68,8 +66,8 @@ public class MobTickHandler {
 
             // Process pending inits for this dimension
             if (!PENDING_INIT.isEmpty()) {
-                Set<UUID> toInit = new HashSet<>();
-                for (Map.Entry<UUID, ResourceKey<Level>> entry : PENDING_INIT.entrySet()) {
+                Set<UUID> toInit = ConcurrentHashMap.newKeySet();
+                for (ConcurrentHashMap.Entry<UUID, ResourceKey<Level>> entry : PENDING_INIT.entrySet()) {
                     if (entry.getValue().equals(dimKey)) toInit.add(entry.getKey());
                 }
                 if (!toInit.isEmpty()) {
