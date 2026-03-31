@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -28,6 +29,10 @@ public class MeleeWeaponManager {
         if (BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enchantmentsEnabled.get()) {
             applyEnchantments(weapon, worldDays, level);
         }
+
+        // Prevent the weapon from being dropped on death
+        mob.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
+
         return weapon;
     }
 

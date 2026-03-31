@@ -65,7 +65,21 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        // For mobs with conditional hostility (e.g. Piglin respects gold armor), only use the
+        // mob's existing vanilla target — never resolve a player ourselves.
+        // For always-hostile mobs (Skeleton, Pillager), fall back to nearest player.
+        Player target;
+        if (hasConditionalHostility(mob)) {
+            if (!(mob.getTarget() instanceof Player p)) {
+                if (state.active) exitActiveMode(mob, state);
+                return;
+            }
+            target = p;
+        } else {
+            target = mob.getTarget() instanceof Player p ? p
+                    : mob.level().getNearestPlayer(mob, 32.0);
+        }
+
         if (target == null || target.isSpectator() || target.isCreative() || !target.isAlive()) {
             if (state.active) exitActiveMode(mob, state);
             return;
@@ -103,6 +117,14 @@ public class RangedMobAIManager {
                 || mob instanceof Piglin || mob instanceof Pillager;
     }
 
+    /**
+     * Mobs whose hostility toward a player depends on conditions managed entirely by vanilla AI.
+     * These must never have their target forced by this mod.
+     */
+    private static boolean hasConditionalHostility(Mob mob) {
+        return mob instanceof Piglin;
+    }
+
     public static boolean isInMeleeMode(Mob mob) {
         MobState s = MOB_STATES.get(mob.getUUID());
         return s != null && s.active && s.usesMelee;
@@ -123,7 +145,11 @@ public class RangedMobAIManager {
                     : new FallbackMeleeGoal(mob);
             mob.goalSelector.addGoal(0, state.meleeGoal);
         }
-        mob.setTarget(target);
+        // Only force-set target for always-hostile mobs.
+        // Conditional mobs (Piglin) already have the correct target from vanilla AI.
+        if (!hasConditionalHostility(mob)) {
+            mob.setTarget(target);
+        }
         state.active         = true;
         state.lastSwitchTime = now;
         state.lastAttackTime = 0;
@@ -131,7 +157,11 @@ public class RangedMobAIManager {
     }
 
     private static void driveMeleeAttack(Mob mob, Player target, MobState state, long now) {
-        if (mob.getTarget() != target) mob.setTarget(target);
+        // Exit melee if the mob lost its target (e.g. Piglin pacified by gold).
+        if (mob.getTarget() != target) {
+            exitActiveMode(mob, state);
+            return;
+        }
         if (mob.distanceTo(target) > MELEE_ATTACK_REACH) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
         } else {
@@ -205,7 +235,13 @@ public class RangedMobAIManager {
 
         @Override
         public boolean canUse() {
-            target = mob.level().getNearestPlayer(mob, 32.0);
+            if (hasConditionalHostility(mob)) {
+                if (!(mob.getTarget() instanceof Player p)) return false;
+                target = p;
+            } else {
+                target = mob.getTarget() instanceof Player p ? p
+                        : mob.level().getNearestPlayer(mob, 32.0);
+            }
             if (target == null || target.isSpectator() || target.isCreative()) return false;
             return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get();
         }
@@ -213,6 +249,7 @@ public class RangedMobAIManager {
         @Override
         public boolean canContinueToUse() {
             if (target == null || !target.isAlive()) return false;
+            if (hasConditionalHostility(mob) && mob.getTarget() != target) return false;
             return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get() + HYSTERESIS;
         }
 

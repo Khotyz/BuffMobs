@@ -21,7 +21,6 @@ import java.util.UUID;
 
 public class CombatDraftHandler {
 
-    // Duração da animação de beber do Minecraft vanilla (Items do tipo DRINK = 32 ticks)
     private static final int DRINK_ANIMATION_TICKS = 32;
 
     private static final Map<UUID, MobDraftState> STATES = new HashMap<>();
@@ -38,7 +37,12 @@ public class CombatDraftHandler {
     }
 
     public static void onMobRemoved(Mob mob) {
-        STATES.remove(mob.getUUID());
+        MobDraftState state = STATES.remove(mob.getUUID());
+        if (state != null && state.pendingRestore != null) {
+            mob.stopUsingItem();
+            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            state.pendingRestore = null;
+        }
     }
 
     public static void tick(Mob mob) {
@@ -52,10 +56,11 @@ public class CombatDraftHandler {
 
         long now = mob.level().getGameTime();
 
-        // Processar restauração da offhand quando a animação terminar
         if (state.pendingRestore != null && now >= state.restoreAtTick) {
             mob.stopUsingItem();
             mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            // Keep drop chance at 0 — vanilla loot tables control the original item's drops
+            mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
             state.pendingRestore = null;
         }
 
@@ -70,25 +75,23 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration.get() * 20;
         boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
 
-        // Guardar offhand atual e colocar a poção
         state.pendingRestore = mob.getOffhandItem().copy();
         state.restoreAtTick  = now + DRINK_ANIMATION_TICKS;
-        mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
 
-        // Disparar animação nativa de beber (levanta o braço exatamente como o player)
+        mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
+        // Prevent the potion from dropping if the mob dies during the animation
+        mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
+
         mob.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
 
-        // Som de beber idêntico ao do player
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
                 1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
 
-        // Efeito de cura: undead não se beneficia de Regeneration — usar Absorption + heal direto
         if (isUndead) {
             mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, amp, false, true, true));
-            // Cura imediata proporcional ao amplifier para complementar a absorção
             float healAmount = (amp + 1) * 4.0f;
             mob.heal(healAmount);
         } else {

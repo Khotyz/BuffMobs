@@ -9,7 +9,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
@@ -62,11 +61,11 @@ public class MobEventHandler {
             lastDayCheck.put(worldKey, currentDay);
 
             if (lastChecked != null && currentDay > 0) {
-                boolean notify       = false;
-                int     scalingInt   = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+                boolean notify     = false;
+                int scalingInt     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
 
                 switch (BuffMobsConfig.INSTANCE.dayScaling.notificationMode.get()) {
-                    case EVERY_DAY           -> notify = true;
+                    case EVERY_DAY             -> notify = true;
                     case SCALING_INCREASE_ONLY -> notify = currentDay % scalingInt == 0;
                 }
 
@@ -76,22 +75,16 @@ public class MobEventHandler {
     }
 
     private void sendDayScalingNotification(ServerLevel world, long currentDay) {
-        double mult        = MobBuffUtil.getDayMultiplier(world.getDayTime());
-        double maxMult     = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
-        int    interval    = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
-        long   daysUntil   = interval - (currentDay % interval);
+        double mult      = MobBuffUtil.getDayMultiplier(world.getDayTime());
+        double maxMult   = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
+        int interval     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+        long daysUntil   = interval - (currentDay % interval);
         if (daysUntil == interval) daysUntil = 0;
 
-        // Build Component before lambda to satisfy effectively-final requirement
-        final Component msg;
-        if (mult >= maxMult) {
-            msg = Component.literal(String.format("Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, mult));
-        } else {
-            final long du = daysUntil;
-            msg = Component.literal(String.format(
-                    "Day %d - Mob Scaling: %.1fx | Next increase in %d day%s",
-                    currentDay, mult, du, du != 1 ? "s" : ""));
-        }
+        final long du = daysUntil;
+        final Component msg = (mult >= maxMult)
+                ? Component.translatable("buffmobs.notify.day_scaling.max", currentDay, mult)
+                : Component.translatable("buffmobs.notify.day_scaling", currentDay, mult, du, du != 1 ? "s" : "");
 
         world.players().forEach(p -> p.sendSystemMessage(msg));
     }
