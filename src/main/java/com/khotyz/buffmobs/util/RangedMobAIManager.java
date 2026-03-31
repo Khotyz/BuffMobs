@@ -67,7 +67,7 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null || !state.active) return;
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        Player target = resolveTarget(mob);
         if (target == null || !target.isAlive() || target.isSpectator() || target.isCreative()) return;
 
         if (state.usesMelee) {
@@ -85,7 +85,7 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        Player target = resolveTarget(mob);
         if (target == null || target.isSpectator() || target.isCreative() || !target.isAlive()) {
             if (state.active) exitActiveMode(mob, state);
             return;
@@ -132,9 +132,22 @@ public class RangedMobAIManager {
         removeMeleeSpeedModifier(mob);
     }
 
+    private static boolean hasConditionalHostility(Mob mob) {
+        return mob instanceof Piglin;
+    }
+
+    private static Player resolveTarget(Mob mob) {
+        if (hasConditionalHostility(mob)) {
+            return mob.getTarget() instanceof Player p ? p : null;
+        }
+        return mob.getTarget() instanceof Player p ? p
+                : mob.level().getNearestPlayer(mob, 32.0);
+    }
+
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
         mob.setItemSlot(EquipmentSlot.MAINHAND, MeleeWeaponManager.generateMeleeWeapon(mob));
-        mob.setTarget(target);
+        // Prevent the mod-generated weapon from dropping on death
+        mob.setDropChance(EquipmentSlot.MAINHAND, 0f);
 
         double meleeSpeedMult = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.meleeSpeedMultiplier;
         AttributeInstance speedAttr = mob.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -147,6 +160,10 @@ public class RangedMobAIManager {
             }
         }
 
+        if (!hasConditionalHostility(mob)) {
+            mob.setTarget(target);
+        }
+
         state.active         = true;
         state.lastSwitchTime = now;
         state.lastAttackTime = 0;
@@ -154,6 +171,10 @@ public class RangedMobAIManager {
     }
 
     private static void driveMeleeAttack(Mob mob, Player target, MobState state, long now) {
+        if (hasConditionalHostility(mob) && mob.getTarget() != target) {
+            exitActiveMode(mob, state);
+            return;
+        }
         if (mob.getTarget() != target) mob.setTarget(target);
         double dist = mob.distanceTo(target);
         if (dist > MELEE_ATTACK_REACH) {
@@ -198,6 +219,8 @@ public class RangedMobAIManager {
                 ? state.originalWeapon.copy()
                 : getDefaultRangedWeapon(mob);
         mob.setItemSlot(EquipmentSlot.MAINHAND, rangedWeapon);
+        // Restore original drop chance now that the mod-generated weapon is gone
+        mob.setDropChance(EquipmentSlot.MAINHAND, state.originalMainHandDropChance);
         removeMeleeSpeedModifier(mob);
         mob.setTarget(null);
         mob.getNavigation().stop();
@@ -218,10 +241,11 @@ public class RangedMobAIManager {
     }
 
     private static class MobState {
-        boolean   usesMelee      = true;
-        boolean   active         = false;
-        ItemStack originalWeapon = ItemStack.EMPTY;
-        long      lastSwitchTime = 0;
-        long      lastAttackTime = 0;
+        boolean   usesMelee                  = true;
+        boolean   active                     = false;
+        ItemStack originalWeapon             = ItemStack.EMPTY;
+        float     originalMainHandDropChance = 0f;
+        long      lastSwitchTime             = 0;
+        long      lastAttackTime             = 0;
     }
 }

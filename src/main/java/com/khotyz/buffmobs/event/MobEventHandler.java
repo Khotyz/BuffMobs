@@ -89,12 +89,13 @@ public class MobEventHandler {
 
         final Component msg;
         if (mult >= maxMult) {
-            msg = Component.literal(String.format("Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, mult));
+            // Uses "buffmobs.notify.day_scaling.max" — args: day, multiplier
+            msg = Component.translatable("buffmobs.notify.day_scaling.max", currentDay, mult);
         } else {
             final long du = daysUntil;
-            msg = Component.literal(String.format(
-                    "Day %d - Mob Scaling: %.1fx | Next increase in %d day%s",
-                    currentDay, mult, du, du != 1 ? "s" : ""));
+            // Uses "buffmobs.notify.day_scaling" — args: day, multiplier, daysUntilNext, plural suffix
+            msg = Component.translatable("buffmobs.notify.day_scaling",
+                    currentDay, mult, du, du != 1 ? "s" : "");
         }
 
         world.players().forEach(p -> p.sendSystemMessage(msg));

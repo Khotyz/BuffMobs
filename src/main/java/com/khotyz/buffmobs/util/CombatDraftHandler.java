@@ -2,15 +2,14 @@ package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,8 +17,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public class CombatDraftHandler {
-
-    private static final int DRINK_ANIMATION_TICKS = 32;
 
     private static final Map<UUID, MobDraftState> STATES = new HashMap<>();
 
@@ -39,23 +36,14 @@ public class CombatDraftHandler {
     }
 
     public static void tickRestore(Mob mob) {
-        MobDraftState state = STATES.get(mob.getUUID());
-        if (state == null || state.pendingRestore == null) return;
-        long now = mob.level().getGameTime();
-        if (now >= state.restoreAtTick) {
-            mob.stopUsingItem();
-            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
-            state.pendingRestore = null;
-        }
+        // no-op: kept for compatibility with MobTickHandler call sites
     }
 
     public static void tick(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.combatDraft.enabled) return;
 
         MobDraftState state = STATES.get(mob.getUUID());
-        if (state == null) return;
-
-        if (!mob.isAlive() || mob.isRemoved()) return;
+        if (state == null || !mob.isAlive() || mob.isRemoved()) return;
 
         int maxUses = BuffMobsConfig.INSTANCE.combatDraft.maxUses;
         if (maxUses > 0 && state.useCount >= maxUses) return;
@@ -74,32 +62,32 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration * 20;
         boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
 
-        state.pendingRestore = mob.getOffhandItem().copy();
-        state.restoreAtTick  = now + DRINK_ANIMATION_TICKS;
-        mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
-
-        mob.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
-
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
                 1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
 
+        if (mob.level() instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.8, mob.getZ(),
+                    8, 0.3, 0.3, 0.3, 0.0);
+        }
+
         if (isUndead) {
             int existingAbs = 0;
             MobEffectInstance cur = mob.getEffect(MobEffects.ABSORPTION);
             if (cur != null) existingAbs = cur.getAmplifier() + 1;
-            int totalAmp = existingAbs + draftAmp;
-            mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, totalAmp - 1, false, true, true));
+            mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration,
+                    existingAbs + draftAmp - 1, false, true, true));
             mob.setAbsorptionAmount(mob.getAbsorptionAmount() + draftAmp * 4.0f);
             mob.heal(draftAmp * 4.0f);
         } else {
             int existingRegen = 0;
             MobEffectInstance cur = mob.getEffect(MobEffects.REGENERATION);
             if (cur != null) existingRegen = cur.getAmplifier() + 1;
-            int totalAmp = existingRegen + draftAmp;
-            mob.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration, totalAmp - 1, false, true, true));
+            mob.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration,
+                    existingRegen + draftAmp - 1, false, true, true));
         }
 
         state.useCount++;
@@ -127,9 +115,7 @@ public class CombatDraftHandler {
     }
 
     private static class MobDraftState {
-        long      lastUseTick    = -99999;
-        int       useCount       = 0;
-        ItemStack pendingRestore = null;
-        long      restoreAtTick  = 0;
+        long lastUseTick = -99999;
+        int  useCount    = 0;
     }
 }

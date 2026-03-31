@@ -4,6 +4,7 @@ import com.khotyz.buffmobs.command.DebugCommand;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobEventHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
+import com.khotyz.buffmobs.util.CombatDraftHandler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
