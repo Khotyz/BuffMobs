@@ -1,0 +1,42 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "${mod_license}"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${mod_version}+mc${minecraft_version}-neoforge"
+displayName = "${mod_name}"
+description = '''
+Makes hostile and neutral mobs stronger, faster, and more challenging with progressive difficulty scaling.
+'''
+logoFile = "buffmobs.png"
+displayURL = "https://github.com/Khotyz/BuffMobs"
+issueTrackerURL = "https://github.com/Khotyz/BuffMobs/issues"
+
+[[dependencies.${mod_id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "configured"
+type = "optional"
+versionRange = "[2.6.0,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.${mod_id}]]
+modId = "cloth_config"
+type = "optional"
+versionRange = "[15.0.128,)"
+ordering = "NONE"
+side = "CLIENT"
