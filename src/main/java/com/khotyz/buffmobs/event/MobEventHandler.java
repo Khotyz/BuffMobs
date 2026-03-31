@@ -62,8 +62,8 @@ public class MobEventHandler {
             lastDayCheck.put(worldKey, currentDay);
 
             if (lastChecked != null && currentDay > 0) {
-                boolean notify     = false;
-                int scalingInt     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+                boolean notify  = false;
+                int scalingInt  = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
 
                 switch (BuffMobsConfig.INSTANCE.dayScaling.notificationMode.get()) {
                     case EVERY_DAY             -> notify = true;
@@ -84,12 +84,10 @@ public class MobEventHandler {
 
         final Component msg;
         if (mult >= maxMult) {
-            msg = Component.literal(String.format("Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, mult));
+            msg = Component.translatable("buffmobs.notify.day_scaling.max", currentDay, mult);
         } else {
             final long du = daysUntil;
-            msg = Component.literal(String.format(
-                    "Day %d - Mob Scaling: %.1fx | Next increase in %d day%s",
-                    currentDay, mult, du, du != 1 ? "s" : ""));
+            msg = Component.translatable("buffmobs.notify.day_scaling", currentDay, mult, du, du != 1 ? "s" : "");
         }
 
         world.players().forEach(p -> p.sendSystemMessage(msg));

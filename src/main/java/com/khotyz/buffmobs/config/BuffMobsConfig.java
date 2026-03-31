@@ -323,10 +323,10 @@ public class BuffMobsConfig {
         MobPresets(ModConfigSpec.Builder builder) {
             builder.push("mobPresets");
             enabled = builder.comment("Enable per-mob stat presets").define("enabled", false);
-            preset1 = new PresetSlot(builder, "preset1", "default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-            preset2 = new PresetSlot(builder, "preset2", "boss", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
-            preset3 = new PresetSlot(builder, "preset3", "elite", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
-            preset4 = new PresetSlot(builder, "preset4", "weak", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
+            preset1 = new PresetSlot(builder, "preset1", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+            preset2 = new PresetSlot(builder, "preset2", "", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
+            preset3 = new PresetSlot(builder, "preset3", "", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
+            preset4 = new PresetSlot(builder, "preset4", "", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
             preset5 = new PresetSlot(builder, "preset5", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
             mobMapping = builder.comment("Mob-to-preset mapping, format: modid:mob_id:preset_name")
                     .defineListAllowEmpty("mobMapping", List.of(
