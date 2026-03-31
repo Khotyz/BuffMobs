@@ -15,6 +15,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
@@ -50,7 +51,6 @@ public class MobBuffUtil {
         applyStatusEffects(mob);
         mob.setHealth(mob.getMaxHealth());
 
-        // Set absorption amount after setHealth to ensure it isn't reset
         int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
         if (absAmp > 0) mob.setAbsorptionAmount(absAmp * 4.0f);
     }
@@ -127,7 +127,6 @@ public class MobBuffUtil {
         if (absAmp > 0) {
             if (undead) {
                 MobEffectInstance cur = mob.getEffect(MobEffects.ABSORPTION);
-                // Don't overwrite if CombatDraft applied a higher amplifier — let it expire naturally
                 if (cur == null || (cur.getAmplifier() <= absAmp - 1 && cur.getDuration() < 1200)) {
                     mob.removeEffect(MobEffects.ABSORPTION);
                     mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, -1, absAmp - 1, false, show, true));
@@ -146,13 +145,13 @@ public class MobBuffUtil {
     }
 
     public static void applyPoisonToPlayer(Player player, int duration) {
-        player.addEffect(new MobEffectInstance(MobEffects.POISON,   duration * 20, 0));
+        player.addEffect(new MobEffectInstance(MobEffects.POISON,           duration * 20, 0));
     }
     public static void applySlownessToPlayer(Player player, int duration) {
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration * 20, 0));
     }
     public static void applyWitherToPlayer(Player player, int duration) {
-        player.addEffect(new MobEffectInstance(MobEffects.WITHER,   duration * 20, 0));
+        player.addEffect(new MobEffectInstance(MobEffects.WITHER,            duration * 20, 0));
     }
 
     public static boolean isValidMob(Mob mob) {
@@ -163,7 +162,7 @@ public class MobBuffUtil {
                 || mob.getType().is(EntityTypeTags.RAIDERS)
                 || mob.getType().is(EntityTypeTags.SKELETONS)
                 || mob.getType().is(EntityTypeTags.ZOMBIES)
-                || isNeutralMob(mob);
+                || isNeutralHostile(mob);
 
         if (!hostile) return false;
 
@@ -182,14 +181,20 @@ public class MobBuffUtil {
         return validDim && validMod && validMob;
     }
 
-    private static boolean isNeutralMob(Mob mob) {
+    /**
+     * Returns true for neutral mobs that should be treated as hostile.
+     * Piglins are only counted as hostile when they actually have a target (i.e. not pacified by gold armor).
+     */
+    private static boolean isNeutralHostile(Mob mob) {
         String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         return switch (id) {
-            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
+            case "minecraft:enderman", "minecraft:zombified_piglin",
                  "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
                  "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
                  "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
                  "minecraft:trader_llama", "minecraft:slime", "minecraft:magma_cube" -> true;
+            // Piglin is only hostile when vanilla AI has given it a target (no gold armor on player)
+            case "minecraft:piglin" -> mob instanceof Piglin piglin && piglin.getTarget() != null;
             default -> false;
         };
     }
@@ -267,7 +272,6 @@ public class MobBuffUtil {
         int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
         if (absAmp > 0) {
             if (undead) {
-                // Undead can't benefit from Regeneration — give Absorption instead
                 AttributeInstance absAttr = mob.getAttribute(Attributes.MAX_ABSORPTION);
                 if (absAttr != null) {
                     ResourceLocation absId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "absorption");
@@ -288,8 +292,6 @@ public class MobBuffUtil {
     private static void refreshEffect(Mob mob, Holder<MobEffect> effect, int amp, boolean show) {
         if (amp <= 0) return;
         MobEffectInstance cur = mob.getEffect(effect);
-        // Don't overwrite if the current effect has a higher amplifier (e.g. CombatDraft boost)
-        // Let it expire naturally, then restore the default
         if (cur != null && cur.getAmplifier() >= amp - 1 && cur.getDuration() >= 1200) return;
         if (cur != null && cur.getAmplifier() > amp - 1) return;
         mob.removeEffect(effect);

@@ -35,10 +35,16 @@ public class CombatDraftHandler {
     }
 
     public static void onMobRemoved(Mob mob) {
-        STATES.remove(mob.getUUID());
+        MobDraftState state = STATES.remove(mob.getUUID());
+        // Restore the real offhand item if the mob dies mid-animation, preventing the potion from dropping
+        if (state != null && state.pendingRestore != null) {
+            mob.stopUsingItem();
+            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            mob.setDropChance(EquipmentSlot.OFFHAND, 0f);
+            state.pendingRestore = null;
+        }
     }
 
-    // Called every tick to handle the drink animation restore with correct timing
     public static void tickRestore(Mob mob) {
         MobDraftState state = STATES.get(mob.getUUID());
         if (state == null || state.pendingRestore == null) return;
@@ -46,6 +52,7 @@ public class CombatDraftHandler {
         if (now >= state.restoreAtTick) {
             mob.stopUsingItem();
             mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            mob.setDropChance(EquipmentSlot.OFFHAND, 0f);
             state.pendingRestore = null;
         }
     }
@@ -53,7 +60,6 @@ public class CombatDraftHandler {
     public static void tick(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.combatDraft.enabled.get()) return;
 
-        // Only process mobs that were properly initialized
         MobDraftState state = STATES.get(mob.getUUID());
         if (state == null) return;
 
@@ -79,6 +85,7 @@ public class CombatDraftHandler {
         state.pendingRestore = mob.getOffhandItem().copy();
         state.restoreAtTick  = now + DRINK_ANIMATION_TICKS;
         mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
+        mob.setDropChance(EquipmentSlot.OFFHAND, 0f);
 
         mob.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
 
@@ -89,17 +96,14 @@ public class CombatDraftHandler {
                 1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
 
         if (isUndead) {
-            // Stack on top of existing absorption level
             int existingAbs = 0;
             MobEffectInstance cur = mob.getEffect(MobEffects.ABSORPTION);
             if (cur != null) existingAbs = cur.getAmplifier() + 1;
             int totalAmp = existingAbs + draftAmp;
             mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, totalAmp - 1, false, true, true));
             mob.setAbsorptionAmount(mob.getAbsorptionAmount() + draftAmp * 4.0f);
-            // Direct heal since Regeneration harms undead
             mob.heal(draftAmp * 4.0f);
         } else {
-            // Stack on top of existing regeneration level
             int existingRegen = 0;
             MobEffectInstance cur = mob.getEffect(MobEffects.REGENERATION);
             if (cur != null) existingRegen = cur.getAmplifier() + 1;

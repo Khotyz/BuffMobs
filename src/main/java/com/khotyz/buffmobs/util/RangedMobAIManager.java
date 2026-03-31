@@ -35,7 +35,6 @@ public class RangedMobAIManager {
     private static final double MELEE_ATTACK_REACH = 2.5;
     private static final double HYSTERESIS         = 2.5;
 
-    // Speed boost modifier applied during melee mode
     private static final ResourceLocation MELEE_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "melee_speed");
 
@@ -69,13 +68,12 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null || !state.active) return;
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        Player target = resolveTarget(mob);
         if (target == null || !target.isAlive() || target.isSpectator() || target.isCreative()) return;
 
         if (state.usesMelee) {
             driveMeleeAttack(mob, target, state, mob.level().getGameTime());
         } else {
-            // Kite: flee every 10 ticks or when navigation is done
             if (mob.tickCount % 10 == 0 || mob.getNavigation().isDone()) {
                 driveKite(mob, target);
             }
@@ -88,7 +86,7 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        Player target = resolveTarget(mob);
         if (target == null || target.isSpectator() || target.isCreative() || !target.isAlive()) {
             if (state.active) exitActiveMode(mob, state);
             return;
@@ -124,6 +122,21 @@ public class RangedMobAIManager {
                 || mob instanceof Piglin || mob instanceof Pillager;
     }
 
+    // Mobs whose hostility depends on conditions managed entirely by vanilla AI.
+    private static boolean hasConditionalHostility(Mob mob) {
+        return mob instanceof Piglin;
+    }
+
+    // For conditional-hostility mobs, only use the vanilla-assigned target.
+    // For always-hostile mobs, fall back to nearest player.
+    private static Player resolveTarget(Mob mob) {
+        if (hasConditionalHostility(mob)) {
+            return mob.getTarget() instanceof Player p ? p : null;
+        }
+        return mob.getTarget() instanceof Player p ? p
+                : mob.level().getNearestPlayer(mob, 32.0);
+    }
+
     public static boolean isInMeleeMode(Mob mob) {
         MobState s = MOB_STATES.get(mob.getUUID());
         return s != null && s.active && s.usesMelee;
@@ -137,9 +150,13 @@ public class RangedMobAIManager {
 
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
         mob.setItemSlot(EquipmentSlot.MAINHAND, MeleeWeaponManager.generateMeleeWeapon(mob));
-        mob.setTarget(target);
+        mob.setDropChance(EquipmentSlot.MAINHAND, 0f);
 
-        // Apply speed modifier so the mob is visibly faster while chasing
+        // Only force-set target for always-hostile mobs.
+        if (!hasConditionalHostility(mob)) {
+            mob.setTarget(target);
+        }
+
         double meleeSpeedMult = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.meleeSpeedMultiplier.get();
         AttributeInstance speedAttr = mob.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speedAttr != null) {
@@ -158,7 +175,14 @@ public class RangedMobAIManager {
     }
 
     private static void driveMeleeAttack(Mob mob, Player target, MobState state, long now) {
-        if (mob.getTarget() != target) mob.setTarget(target);
+        // Exit melee if a conditional-hostility mob lost its vanilla target (e.g. Piglin pacified by gold).
+        if (hasConditionalHostility(mob) && mob.getTarget() != target) {
+            exitActiveMode(mob, state);
+            return;
+        }
+        if (!hasConditionalHostility(mob) && mob.getTarget() != target) {
+            mob.setTarget(target);
+        }
         double dist = mob.distanceTo(target);
         if (dist > MELEE_ATTACK_REACH) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
@@ -202,8 +226,9 @@ public class RangedMobAIManager {
                 ? state.originalWeapon.copy()
                 : getDefaultRangedWeapon(mob);
         mob.setItemSlot(EquipmentSlot.MAINHAND, rangedWeapon);
+        mob.setDropChance(EquipmentSlot.MAINHAND, 0f);
         removeMeleeSpeedModifier(mob);
-        mob.setTarget(null);
+        if (!hasConditionalHostility(mob)) mob.setTarget(null);
         mob.getNavigation().stop();
         state.active         = false;
         state.lastSwitchTime = mob.level().getGameTime();
