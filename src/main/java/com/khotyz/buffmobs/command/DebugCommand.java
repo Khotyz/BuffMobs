@@ -35,11 +35,17 @@ public class DebugCommand {
 
     private static int debugNearestMob(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
-        if (src.getPlayer() == null) { src.sendFailure(Component.literal("Must be a player!")); return 0; }
+        if (src.getPlayer() == null) {
+            src.sendFailure(Component.translatable("buffmobs.command.debug.error.player_only"));
+            return 0;
+        }
 
         AABB box = src.getPlayer().getBoundingBox().inflate(5.0);
         List<Mob> nearby = src.getLevel().getEntitiesOfClass(Mob.class, box, m -> true);
-        if (nearby.isEmpty()) { src.sendFailure(Component.literal("No mobs nearby!")); return 0; }
+        if (nearby.isEmpty()) {
+            src.sendFailure(Component.translatable("buffmobs.command.debug.error.no_mobs"));
+            return 0;
+        }
 
         Mob closest = nearby.get(0);
         double cd = src.getPlayer().distanceToSqr(closest);
@@ -50,68 +56,72 @@ public class DebugCommand {
         final String modNs = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
         final String dimId = getDimensionId(mob.level());
 
-        src.sendSuccess(() -> Component.literal("§6=== BuffMobs Debug ==="), false);
-        src.sendSuccess(() -> Component.literal("§eMob ID: §f"    + mobId), false);
-        src.sendSuccess(() -> Component.literal("§eMod ID: §f"    + modNs), false);
-        src.sendSuccess(() -> Component.literal("§eDimension: §f" + dimId), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.header"), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.mob_id", mobId), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.mod_id", modNs), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.dimension", dimId), false);
 
         boolean isValid = MobBuffUtil.isValidMob(mob);
-        src.sendSuccess(() -> Component.literal("§eValid: §f" + (isValid ? "§aYES" : "§cNO")), false);
+        src.sendSuccess(() -> Component.translatable(
+                isValid ? "buffmobs.command.debug.valid.yes" : "buffmobs.command.debug.valid.no"), false);
 
-        src.sendSuccess(() -> Component.literal("§6=== Preset System ==="), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled;
-        src.sendSuccess(() -> Component.literal("§ePresets Enabled: §f" + (presetsOn ? "§aYES" : "§cNO")), false);
+        src.sendSuccess(() -> Component.translatable(
+                presetsOn ? "buffmobs.command.debug.presets_enabled.yes" : "buffmobs.command.debug.presets_enabled.no"), false);
 
         if (presetsOn) {
             MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
             if (preset != null) {
-                src.sendSuccess(() -> Component.literal("§ePreset Found: §aYES"),                                    false);
-                src.sendSuccess(() -> Component.literal("§eHP: §f"   + preset.health      + "x"),                   false);
-                src.sendSuccess(() -> Component.literal("§eDMG: §f"  + preset.damage      + "x"),                   false);
-                src.sendSuccess(() -> Component.literal("§eSPD: §f"  + preset.speed       + "x"),                   false);
-                src.sendSuccess(() -> Component.literal("§eASPD: §f" + preset.attackSpeed + "x"),                   false);
-                src.sendSuccess(() -> Component.literal("§eArmor: §f+"     + preset.armor),                         false);
-                src.sendSuccess(() -> Component.literal("§eToughness: §f+" + preset.armorToughness),                false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_found.yes"), false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_hp",       preset.health),       false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_dmg",      preset.damage),       false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_spd",      preset.speed),        false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_aspd",     preset.attackSpeed),  false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_armor",    preset.armor),        false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_toughness",preset.armorToughness), false);
             } else {
-                src.sendSuccess(() -> Component.literal("§ePreset Found: §cNO — using dimension/default"), false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_found.no"), false);
                 for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
-                    src.sendSuccess(() -> Component.literal("§7  - " + mapping), false);
+                    src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_mapping_entry", mapping), false);
                 }
-                src.sendSuccess(() -> Component.literal("§7To add: " + mobId + ":preset_name"), false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_mapping_hint", mobId), false);
             }
         }
 
-        src.sendSuccess(() -> Component.literal("§6=== Scaling ==="), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.scaling_header"), false);
         final double dayMult = MobBuffUtil.getDayMultiplier(mob.level().getDayTime());
-        src.sendSuccess(() -> Component.literal("§eDay Mult: §f" + String.format("%.2f", dayMult)), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.day_mult",     String.format("%.2f", dayMult)), false);
         final MobBuffUtil.DimensionMultipliers dm = MobBuffUtil.getDimensionMultipliers(mob);
-        src.sendSuccess(() -> Component.literal("§eDim HP Mult: §f"  + dm.health), false);
-        src.sendSuccess(() -> Component.literal("§eDim DMG Mult: §f" + dm.damage), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.dim_hp_mult",  dm.health), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.dim_dmg_mult", dm.damage), false);
 
-        src.sendSuccess(() -> Component.literal("§6=== Current Stats ==="), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.stats_header"), false);
         AttributeInstance hp = mob.getAttribute(Attributes.MAX_HEALTH);
         if (hp != null) {
-            src.sendSuccess(() -> Component.literal("§eHealth: §f" +
-                    String.format("%.1f / %.1f (base %.1f)", mob.getHealth(), hp.getValue(), hp.getBaseValue())), false);
+            src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.health",
+                    mob.getHealth(), hp.getValue(), hp.getBaseValue()), false);
         }
         AttributeInstance dmg = mob.getAttribute(Attributes.ATTACK_DAMAGE);
         if (dmg != null) {
-            src.sendSuccess(() -> Component.literal("§eDamage: §f" +
-                    String.format("%.1f (base %.1f)", dmg.getValue(), dmg.getBaseValue())), false);
+            src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.damage",
+                    dmg.getValue(), dmg.getBaseValue()), false);
         }
-        src.sendSuccess(() -> Component.literal("§eEffects: §f" + mob.getActiveEffects().size()), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.effects_count",
+                mob.getActiveEffects().size()), false);
         mob.getActiveEffects().forEach(eff ->
-                src.sendSuccess(() -> Component.literal("  §7- " +
-                        eff.getEffect().value().getDescriptionId() + " " + (eff.getAmplifier() + 1)), false));
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.effect_entry",
+                        eff.getEffect().value().getDescriptionId(), eff.getAmplifier() + 1), false));
 
         return 1;
     }
 
     private static int showPresets(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
-        src.sendSuccess(() -> Component.literal("§6=== BuffMobs Presets ==="), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.header"), false);
         boolean on = BuffMobsConfig.INSTANCE.mobPresets.enabled;
-        src.sendSuccess(() -> Component.literal("§eEnabled: §f" + (on ? "§aYES" : "§cNO")), false);
+        src.sendSuccess(() -> Component.translatable(
+                on ? "buffmobs.command.presets.enabled.yes" : "buffmobs.command.presets.enabled.no"), false);
         if (!on) return 1;
 
         BuffMobsConfig.MobPresets.PresetSlot[] presets = {
@@ -123,24 +133,23 @@ public class DebugCommand {
         for (BuffMobsConfig.MobPresets.PresetSlot p : presets) {
             if (p.presetName != null && !p.presetName.isEmpty()) {
                 int num = n[0];
-                src.sendSuccess(() -> Component.literal(String.format(
-                        "§e%d. §f%s §7(HP:%.1fx DMG:%.1fx SPD:%.1fx ASPD:%.1fx ARM:+%.0f TOUGH:+%.0f)",
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.entry",
                         num, p.presetName, p.healthMultiplier, p.damageMultiplier,
                         p.speedMultiplier, p.attackSpeedMultiplier,
-                        p.armorAddition, p.armorToughnessAddition)), false);
+                        p.armorAddition, p.armorToughnessAddition), false);
             }
             n[0]++;
         }
 
-        src.sendSuccess(() -> Component.literal("§6=== Mob Mappings ==="), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mappings_header"), false);
         for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
             String[] parts = mapping.split(":");
             if (parts.length >= 3) {
                 final String mid = parts[0] + ":" + parts[1];
                 final String pn  = parts[2];
-                src.sendSuccess(() -> Component.literal("§7- §f" + mid + " §7-> §e" + pn), false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mapping_entry", mid, pn), false);
             } else {
-                src.sendSuccess(() -> Component.literal("§c- Invalid: " + mapping), false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mapping_invalid", mapping), false);
             }
         }
         return 1;
@@ -148,9 +157,8 @@ public class DebugCommand {
 
     private static int reloadMobs(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
-        // Reload config from disk first
         BuffMobsConfig.load();
-        src.sendSuccess(() -> Component.literal("§6Reapplying buffs to all mobs..."), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.start"), false);
         int count = 0;
         MobTickHandler.forceReinitAll();
         for (Entity e : src.getLevel().getAllEntities()) {
@@ -166,19 +174,19 @@ public class DebugCommand {
             }
         }
         final int fc = count;
-        src.sendSuccess(() -> Component.literal("§aBuffed " + fc + " mobs!"), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.done", fc), false);
         return 1;
     }
 
     private static int showInfo(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
-        src.sendSuccess(() -> Component.literal("§6=== BuffMobs Info ==="), false);
-        src.sendSuccess(() -> Component.literal("§eEnabled: §f"          + BuffMobsConfig.INSTANCE.enabled), false);
-        src.sendSuccess(() -> Component.literal("§eInitialized Mobs: §f" + MobTickHandler.getInitializedCount()), false);
-        src.sendSuccess(() -> Component.literal("§eHealth Mult: §f"      + BuffMobsConfig.INSTANCE.attributes.healthMultiplier), false);
-        src.sendSuccess(() -> Component.literal("§eDamage Mult: §f"      + BuffMobsConfig.INSTANCE.attributes.damageMultiplier), false);
-        src.sendSuccess(() -> Component.literal("§eDay Scaling: §f"      + BuffMobsConfig.INSTANCE.dayScaling.enabled), false);
-        src.sendSuccess(() -> Component.literal("§ePresets: §f"          + BuffMobsConfig.INSTANCE.mobPresets.enabled), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.header"), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.enabled",      BuffMobsConfig.INSTANCE.enabled), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.initialized",  MobTickHandler.getInitializedCount()), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.health_mult",  BuffMobsConfig.INSTANCE.attributes.healthMultiplier), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult",  BuffMobsConfig.INSTANCE.attributes.damageMultiplier), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling",  BuffMobsConfig.INSTANCE.dayScaling.enabled), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",      BuffMobsConfig.INSTANCE.mobPresets.enabled), false);
         return 1;
     }
 }

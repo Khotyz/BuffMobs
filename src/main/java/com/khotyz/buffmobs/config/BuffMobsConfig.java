@@ -192,10 +192,10 @@ public class BuffMobsConfig {
 
     public static class MobPresets {
         public boolean enabled = false;
-        public PresetSlot preset1 = new PresetSlot("default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-        public PresetSlot preset2 = new PresetSlot("boss",    3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
-        public PresetSlot preset3 = new PresetSlot("elite",   2.0, 1.8, 1.1, 1.2, 5.0,  2.0);
-        public PresetSlot preset4 = new PresetSlot("weak",    0.5, 0.5, 0.9, 0.8, 0.0,  0.0);
+        public PresetSlot preset1 = new PresetSlot("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        public PresetSlot preset2 = new PresetSlot("",    3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
+        public PresetSlot preset3 = new PresetSlot("",   2.0, 1.8, 1.1, 1.2, 5.0,  2.0);
+        public PresetSlot preset4 = new PresetSlot("",    0.5, 0.5, 0.9, 0.8, 0.0,  0.0);
         public PresetSlot preset5 = new PresetSlot("",        1.0, 1.0, 1.0, 1.0, 0.0,  0.0);
         public List<String> mobMapping = new ArrayList<>(List.of(
                 "minecraft:zombie:default",

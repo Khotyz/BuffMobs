@@ -45,6 +45,7 @@ public class CombatDraftHandler {
         if (now >= state.restoreAtTick) {
             mob.stopUsingItem();
             mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
             state.pendingRestore = null;
         }
     }
@@ -76,7 +77,9 @@ public class CombatDraftHandler {
 
         state.pendingRestore = mob.getOffhandItem().copy();
         state.restoreAtTick  = now + DRINK_ANIMATION_TICKS;
+
         mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
+        mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
 
         mob.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
 

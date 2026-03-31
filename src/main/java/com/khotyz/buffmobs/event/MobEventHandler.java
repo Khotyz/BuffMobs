@@ -24,7 +24,6 @@ public class MobEventHandler {
     private static final RandomSource random = RandomSource.create();
 
     public static void register() {
-        // Equivalent to LivingDamageEvent.Post — fires after damage is applied to a LivingEntity
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken, damageTaken, blocked) -> {
             if (!BuffMobsConfig.INSTANCE.enabled || !BuffMobsConfig.INSTANCE.harmfulEffects.enabled) return;
             if (!(entity instanceof Player player)) return;
@@ -46,7 +45,6 @@ public class MobEventHandler {
             }
         });
 
-        // World tick — equivalent to LevelTickEvent.Post
         ServerTickEvents.END_WORLD_TICK.register(serverLevel -> {
             if (!BuffMobsConfig.INSTANCE.enabled) return;
             handleDayScaling(serverLevel);
@@ -89,12 +87,11 @@ public class MobEventHandler {
 
         final Component msg;
         if (mult >= maxMult) {
-            msg = Component.literal(String.format("Day %d - Mob Scaling: %.1fx (MAXIMUM)", currentDay, mult));
+            msg = Component.translatable("buffmobs.notify.day_scaling.max", currentDay, mult);
         } else {
             final long du = daysUntil;
-            msg = Component.literal(String.format(
-                    "Day %d - Mob Scaling: %.1fx | Next increase in %d day%s",
-                    currentDay, mult, du, du != 1 ? "s" : ""));
+            msg = Component.translatable("buffmobs.notify.day_scaling",
+                    currentDay, mult, du, du != 1 ? "s" : "");
         }
 
         world.players().forEach(p -> p.sendSystemMessage(msg));

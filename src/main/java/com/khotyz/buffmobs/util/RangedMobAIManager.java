@@ -67,7 +67,7 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null || !state.active) return;
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        Player target = resolveTarget(mob);
         if (target == null || !target.isAlive() || target.isSpectator() || target.isCreative()) return;
 
         if (state.usesMelee) {
@@ -85,7 +85,7 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }
 
-        Player target = mob.level().getNearestPlayer(mob, 32.0);
+        Player target = resolveTarget(mob);
         if (target == null || target.isSpectator() || target.isCreative() || !target.isAlive()) {
             if (state.active) exitActiveMode(mob, state);
             return;
@@ -132,9 +132,23 @@ public class RangedMobAIManager {
         removeMeleeSpeedModifier(mob);
     }
 
+    private static boolean hasConditionalHostility(Mob mob) {
+        return mob instanceof Piglin;
+    }
+
+    private static Player resolveTarget(Mob mob) {
+        if (hasConditionalHostility(mob)) {
+            return mob.getTarget() instanceof Player p ? p : null;
+        }
+        return mob.getTarget() instanceof Player p ? p
+                : mob.level().getNearestPlayer(mob, 32.0);
+    }
+
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
-        mob.setItemSlot(EquipmentSlot.MAINHAND, MeleeWeaponManager.generateMeleeWeapon(mob));
-        mob.setTarget(target);
+        ItemStack weapon = MeleeWeaponManager.generateMeleeWeapon(mob);
+        mob.setItemSlot(EquipmentSlot.MAINHAND, weapon);
+        // Prevent the mod-generated melee weapon from dropping on death
+        mob.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
 
         double meleeSpeedMult = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.meleeSpeedMultiplier;
         AttributeInstance speedAttr = mob.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -147,6 +161,10 @@ public class RangedMobAIManager {
             }
         }
 
+        if (!hasConditionalHostility(mob)) {
+            mob.setTarget(target);
+        }
+
         state.active         = true;
         state.lastSwitchTime = now;
         state.lastAttackTime = 0;
@@ -154,6 +172,10 @@ public class RangedMobAIManager {
     }
 
     private static void driveMeleeAttack(Mob mob, Player target, MobState state, long now) {
+        if (hasConditionalHostility(mob) && mob.getTarget() != target) {
+            exitActiveMode(mob, state);
+            return;
+        }
         if (mob.getTarget() != target) mob.setTarget(target);
         double dist = mob.distanceTo(target);
         if (dist > MELEE_ATTACK_REACH) {
