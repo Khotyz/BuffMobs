@@ -20,6 +20,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -182,11 +184,22 @@ public class RangedMobAIManager {
         } else {
             mob.getNavigation().stop();
             mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            if (now - state.lastAttackTime >= 20) {
+            if (now - state.lastAttackTime >= 20 && hasLineOfSight(mob, target)) {
                 performMeleeHit(mob, target);
                 state.lastAttackTime = now;
             }
         }
+    }
+
+    private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
+        Vec3 eyePos    = mob.getEyePosition();
+        Vec3 targetEye = target.getEyePosition();
+        HitResult ray  = mob.level().clip(new ClipContext(
+                eyePos, targetEye,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mob));
+        return ray.getType() != HitResult.Type.BLOCK;
     }
 
     private static void performMeleeHit(Mob mob, LivingEntity target) {

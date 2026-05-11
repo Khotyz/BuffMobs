@@ -9,7 +9,9 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.List;
@@ -62,9 +64,12 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration * 20;
         boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
 
+        // Strip any potion items from both hand slots so nothing drops as "uncraftable potion"
+        stripPotionItems(mob);
+
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
-                SoundEvents.GENERIC_DRINK,
+                SoundEvents.BOTTLE_FILL,
                 mob.getSoundSource(),
                 1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
 
@@ -112,6 +117,16 @@ public class CombatDraftHandler {
         if (cfg.blacklist.contains(mobId)) return false;
         if (cfg.useWhitelist) return cfg.whitelist.contains(mobId);
         return true;
+    }
+
+    // Removes any potion items from the mob's hand slots to prevent "uncraftable potion" drops
+    private static void stripPotionItems(Mob mob) {
+        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND}) {
+            ItemStack held = mob.getItemBySlot(slot);
+            if (!held.isEmpty() && held.getItem() instanceof net.minecraft.world.item.PotionItem) {
+                mob.setItemSlot(slot, ItemStack.EMPTY);
+            }
+        }
     }
 
     private static class MobDraftState {

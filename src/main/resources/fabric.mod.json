@@ -22,7 +22,7 @@
   "depends": {
     "fabricloader": ">=0.15.0",
     "fabric-api": "*",
-    "minecraft": "~1.21.1"
+    "minecraft": ">=1.21.1 <=1.21.3"
   },
   "suggests": {
     "cloth-config": ">=15.0.0",
