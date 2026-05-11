@@ -19,6 +19,8 @@ import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
@@ -197,7 +199,18 @@ public class RangedMobAIManager {
     }
 
     private static void performMeleeHit(Mob mob, LivingEntity target) {
-        if (!(mob.level() instanceof ServerLevel)) return;
+        if (!(mob.level() instanceof ServerLevel serverLevel)) return;
+
+        // Raycast from mob eye to target eye; abort if a solid block is in the way
+        Vec3 from = mob.getEyePosition();
+        Vec3 to   = target.getEyePosition();
+        HitResult hit = serverLevel.clip(new ClipContext(
+                from, to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mob));
+        if (hit.getType() == HitResult.Type.BLOCK) return;
+
         Vec3 dir = new Vec3(target.getX() - mob.getX(), 0, target.getZ() - mob.getZ())
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
