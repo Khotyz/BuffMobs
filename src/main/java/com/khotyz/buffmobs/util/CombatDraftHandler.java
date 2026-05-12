@@ -2,15 +2,14 @@ package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,8 +17,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public class CombatDraftHandler {
-
-    private static final int DRINK_ANIMATION_TICKS = 32;
 
     private static final Map<UUID, MobDraftState> STATES = new HashMap<>();
 
@@ -38,17 +35,8 @@ public class CombatDraftHandler {
         STATES.remove(mob.getUUID());
     }
 
-    public static void tickRestore(Mob mob) {
-        MobDraftState state = STATES.get(mob.getUUID());
-        if (state == null || state.pendingRestore == null) return;
-        long now = mob.level().getGameTime();
-        if (now >= state.restoreAtTick) {
-            mob.stopUsingItem();
-            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
-            mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
-            state.pendingRestore = null;
-        }
-    }
+    // tickRestore is no longer needed but kept as a no-op to avoid breaking MobTickHandler calls
+    public static void tickRestore(Mob mob) {}
 
     public static void tick(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.combatDraft.enabled) return;
@@ -75,19 +63,19 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration * 20;
         boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
 
-        state.pendingRestore = mob.getOffhandItem().copy();
-        state.restoreAtTick  = now + DRINK_ANIMATION_TICKS;
-
-        mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
-        mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
-
-        mob.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
-
+        // Play drink sound
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
                 1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
+
+        // Spawn happy villager particles as a visual cue
+        if (mob.level() instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.5, mob.getZ(),
+                    12, 0.4, 0.5, 0.4, 0.0);
+        }
 
         if (isUndead) {
             int existingAbs = 0;
@@ -108,7 +96,7 @@ public class CombatDraftHandler {
         state.useCount++;
         state.lastUseTick = now;
 
-        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used potion (amp +{}) [{}/{}]",
+        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used draft (amp +{}) [{}/{}]",
                 mob.getType().getDescriptionId(),
                 isUndead ? "undead" : "living",
                 draftAmp,
@@ -130,9 +118,7 @@ public class CombatDraftHandler {
     }
 
     private static class MobDraftState {
-        long      lastUseTick    = -99999;
-        int       useCount       = 0;
-        ItemStack pendingRestore = null;
-        long      restoreAtTick  = 0;
+        long lastUseTick = -99999;
+        int  useCount    = 0;
     }
 }

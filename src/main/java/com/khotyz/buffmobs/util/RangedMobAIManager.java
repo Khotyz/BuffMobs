@@ -183,7 +183,8 @@ public class RangedMobAIManager {
         } else {
             mob.getNavigation().stop();
             mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            if (now - state.lastAttackTime >= 20) {
+            // Only strike if there is an unobstructed line of sight to prevent hitting through walls
+            if (now - state.lastAttackTime >= 20 && mob.hasLineOfSight(target)) {
                 performMeleeHit(mob, target);
                 state.lastAttackTime = now;
             }
