@@ -19,6 +19,9 @@ import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
@@ -144,10 +147,21 @@ public class RangedMobAIManager {
                 : mob.level().getNearestPlayer(mob, 32.0);
     }
 
+    // Returns true only when no solid block obstructs the path between mob eyes and target eyes.
+    private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
+        Vec3 from = mob.getEyePosition();
+        Vec3 to   = target.getEyePosition();
+        BlockHitResult result = mob.level().clip(new ClipContext(
+                from, to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mob));
+        return result.getType() == HitResult.Type.MISS;
+    }
+
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
         ItemStack weapon = MeleeWeaponManager.generateMeleeWeapon(mob);
         mob.setItemSlot(EquipmentSlot.MAINHAND, weapon);
-        // Prevent the mod-generated melee weapon from dropping on death
         mob.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
 
         double meleeSpeedMult = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.meleeSpeedMultiplier;
@@ -177,13 +191,15 @@ public class RangedMobAIManager {
             return;
         }
         if (mob.getTarget() != target) mob.setTarget(target);
+
         double dist = mob.distanceTo(target);
         if (dist > MELEE_ATTACK_REACH) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
         } else {
             mob.getNavigation().stop();
             mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            if (now - state.lastAttackTime >= 20) {
+            // Only strike when there is a clear line of sight to avoid hitting through walls.
+            if (now - state.lastAttackTime >= 20 && hasLineOfSight(mob, target)) {
                 performMeleeHit(mob, target);
                 state.lastAttackTime = now;
             }
