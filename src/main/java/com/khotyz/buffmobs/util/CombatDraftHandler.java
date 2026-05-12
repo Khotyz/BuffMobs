@@ -2,7 +2,9 @@ package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -12,7 +14,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.util.HashMap;
 import java.util.List;
@@ -56,12 +57,9 @@ public class CombatDraftHandler {
 
         long now = mob.level().getGameTime();
 
-        if (state.pendingRestore != null && now >= state.restoreAtTick) {
-            mob.stopUsingItem();
-            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
-            // Keep drop chance at 0 — vanilla loot tables control the original item's drops
-            mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
-            state.pendingRestore = null;
+        if (state.animationActive && now >= state.restoreAtTick) {
+            spawnDrinkParticles(mob);
+            state.animationActive = false;
         }
 
         if (now - state.lastUseTick < BuffMobsConfig.INSTANCE.combatDraft.cooldownTicks.get()) return;
@@ -75,14 +73,9 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration.get() * 20;
         boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
 
-        state.pendingRestore = mob.getOffhandItem().copy();
-        state.restoreAtTick  = now + DRINK_ANIMATION_TICKS;
-
-        mob.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.POTION));
-        // Prevent the potion from dropping if the mob dies during the animation
-        mob.setDropChance(EquipmentSlot.OFFHAND, 0.0f);
-
-        mob.startUsingItem(net.minecraft.world.InteractionHand.OFF_HAND);
+        // Schedule particle burst after the "drink" delay
+        state.restoreAtTick   = now + DRINK_ANIMATION_TICKS;
+        state.animationActive = true;
 
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
@@ -101,12 +94,25 @@ public class CombatDraftHandler {
         state.useCount++;
         state.lastUseTick = now;
 
-        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used potion [{}/{}]",
+        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used draft [{}/{}]",
                 mob.getType().getDescriptionId(),
                 isUndead ? "undead" : "living",
                 state.useCount,
                 BuffMobsConfig.INSTANCE.combatDraft.maxUses.get() == 0
                         ? "∞" : BuffMobsConfig.INSTANCE.combatDraft.maxUses.get());
+    }
+
+    // Spawns happy villager particles to visually signal the heal
+    private static void spawnDrinkParticles(Mob mob) {
+        if (!(mob.level() instanceof ServerLevel sl)) return;
+        for (int i = 0; i < 8; i++) {
+            double ox = (mob.level().random.nextDouble() - 0.5) * mob.getBbWidth();
+            double oy = mob.level().random.nextDouble() * mob.getBbHeight();
+            double oz = (mob.level().random.nextDouble() - 0.5) * mob.getBbWidth();
+            sl.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                    mob.getX() + ox, mob.getY() + oy, mob.getZ() + oz,
+                    1, 0, 0, 0, 0);
+        }
     }
 
     private static boolean isEligible(Mob mob) {
@@ -142,9 +148,11 @@ public class CombatDraftHandler {
     }
 
     private static class MobDraftState {
-        long      lastUseTick    = -99999;
-        int       useCount       = 0;
+        long lastUseTick      = -99999;
+        int  useCount         = 0;
+        boolean animationActive = false;
+        long restoreAtTick    = 0;
+        // pendingRestore removed — no fake potion item is placed in offhand
         ItemStack pendingRestore = null;
-        long      restoreAtTick  = 0;
     }
 }

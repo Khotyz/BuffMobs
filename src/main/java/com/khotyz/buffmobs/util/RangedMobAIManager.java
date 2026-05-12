@@ -18,6 +18,8 @@ import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
@@ -65,9 +67,6 @@ public class RangedMobAIManager {
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }
 
-        // For mobs with conditional hostility (e.g. Piglin respects gold armor), only use the
-        // mob's existing vanilla target — never resolve a player ourselves.
-        // For always-hostile mobs (Skeleton, Pillager), fall back to nearest player.
         Player target;
         if (hasConditionalHostility(mob)) {
             if (!(mob.getTarget() instanceof Player p)) {
@@ -125,6 +124,18 @@ public class RangedMobAIManager {
         return mob instanceof Piglin;
     }
 
+    // Returns true only when there is an unobstructed line of sight between mob eyes and target eyes
+    private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
+        Vec3 from = mob.getEyePosition();
+        Vec3 to   = target.getEyePosition();
+        HitResult hit = mob.level().clip(new ClipContext(
+                from, to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mob));
+        return hit.getType() == HitResult.Type.MISS;
+    }
+
     public static boolean isInMeleeMode(Mob mob) {
         MobState s = MOB_STATES.get(mob.getUUID());
         return s != null && s.active && s.usesMelee;
@@ -145,8 +156,6 @@ public class RangedMobAIManager {
                     : new FallbackMeleeGoal(mob);
             mob.goalSelector.addGoal(0, state.meleeGoal);
         }
-        // Only force-set target for always-hostile mobs.
-        // Conditional mobs (Piglin) already have the correct target from vanilla AI.
         if (!hasConditionalHostility(mob)) {
             mob.setTarget(target);
         }
@@ -157,7 +166,6 @@ public class RangedMobAIManager {
     }
 
     private static void driveMeleeAttack(Mob mob, Player target, MobState state, long now) {
-        // Exit melee if the mob lost its target (e.g. Piglin pacified by gold).
         if (mob.getTarget() != target) {
             exitActiveMode(mob, state);
             return;
@@ -167,7 +175,7 @@ public class RangedMobAIManager {
         } else {
             mob.getNavigation().stop();
             mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            if (now - state.lastAttackTime >= 20) {
+            if (now - state.lastAttackTime >= 20 && hasLineOfSight(mob, target)) {
                 performMeleeHit(mob, target);
                 state.lastAttackTime = now;
             }
@@ -302,7 +310,7 @@ public class RangedMobAIManager {
                 mob.getNavigation().moveTo(t, MELEE_CHASE_SPEED);
             } else {
                 mob.getNavigation().stop();
-                if (mob.tickCount % 20 == 0) {
+                if (mob.tickCount % 20 == 0 && hasLineOfSight(mob, t)) {
                     mob.doHurtTarget(sl, t);
                     mob.swing(InteractionHand.MAIN_HAND);
                 }
