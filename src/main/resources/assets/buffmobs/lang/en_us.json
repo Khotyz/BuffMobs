@@ -142,6 +142,8 @@
   "buffmobs.config.rangedMeleeSwitching.netheriteAxeUnlockDay": "Netherite Axe Unlock Day",
   "buffmobs.config.rangedMeleeSwitching.customRangedMobs": "Custom Ranged Mobs",
   "buffmobs.config.rangedMeleeSwitching.customRangedMobs.tooltip": "Additional mob IDs that should be treated as ranged mobs for switching behavior.",
+  "buffmobs.config.rangedMeleeSwitching.weaponUnlockDays": "Weapon Unlock Days",
+  "buffmobs.config.rangedMeleeSwitching.enchantments": "Enchantments",
   "buffmobs.config.rangedMeleeSwitching.behaviorMode.melee": "Melee",
   "buffmobs.config.rangedMeleeSwitching.behaviorMode.kite": "Kite",
   "buffmobs.config.rangedMeleeSwitching.behaviorMode.random": "Random",
