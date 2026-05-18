@@ -117,7 +117,8 @@ public class DebugCommand {
                 String.valueOf(mob.getActiveEffects().size())), false);
         mob.getActiveEffects().forEach(eff ->
                 src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.effect_entry",
-                        eff.getEffect().value().getDescriptionId(), String.valueOf(eff.getAmplifier() + 1)), false));
+                        Component.translatable(eff.getEffect().value().getDescriptionId()).getString(),
+                        String.valueOf(eff.getAmplifier() + 1)), false));
 
         return 1;
     }
