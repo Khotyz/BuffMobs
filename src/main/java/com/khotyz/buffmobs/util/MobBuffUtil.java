@@ -41,9 +41,6 @@ public class MobBuffUtil {
 
         BuffMobsMod.LOGGER.debug("[BuffMobs] Applying buffs to {} | day={} dimHP={} preset={}",
                 BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), dayMult, dim.health, preset != null);
-
-        // Sempre aplica attributes + dimension + day como base.
-        // Se houver preset, multiplica por cima (stacka).
         applyAllLayers(mob, dayMult, dim, preset);
 
         applyStatusEffects(mob);
@@ -124,22 +121,18 @@ public class MobBuffUtil {
 
     public static boolean isValidMob(Mob mob) {
         if (mob.isRemoved() || !mob.isAlive()) return false;
-        // Animais domesticados não recebem buff
         if (mob instanceof TamableAnimal t && t.isTame()) return false;
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
+        String dimId = getDimensionId(mob.level());
 
-        // Aceita hostile puro, raiders, esqueletos, zumbis, neutros conhecidos
-        // NÃO usa hasAttackDamageAttribute como filtro — ele é zero antes do buff
         boolean hostile = mob instanceof Enemy
                 || mob.getType().is(EntityTypeTags.RAIDERS)
                 || mob.getType().is(EntityTypeTags.SKELETONS)
                 || mob.getType().is(EntityTypeTags.ZOMBIES)
                 || isNeutralMob(mob);
 
-        if (!hostile) return false;
-
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
-        String dimId = getDimensionId(mob.level());
+        if (!hostile && !isExplicitlyAllowed(mobId)) return false;
 
         boolean validDim = isValidDimension(dimId);
         boolean validMod = isValidModId(modId);
@@ -150,6 +143,17 @@ public class MobBuffUtil {
         if (!validMob) BuffMobsMod.LOGGER.debug("[BuffMobs] {} in blacklist",               mobId);
 
         return validDim && validMod && validMob;
+    }
+
+    private static boolean isExplicitlyAllowed(String mobId) {
+        if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.get().contains(mobId)) return true;
+        if (BuffMobsConfig.INSTANCE.mobPresets.enabled.get()) {
+            for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping.get()) {
+                String[] parts = mapping.split(":");
+                if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isNeutralMob(Mob mob) {
@@ -164,10 +168,6 @@ public class MobBuffUtil {
         };
     }
 
-    // -------------------------------------------------------------------------
-    // Aplicação de atributos
-    // -------------------------------------------------------------------------
-
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
                                        MobPresetUtil.PresetMultipliers preset) {
         double attrHp    = BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get();
@@ -176,8 +176,6 @@ public class MobBuffUtil {
         double attrAspd  = BuffMobsConfig.INSTANCE.attributes.attackSpeedMultiplier.get();
         double attrArm   = BuffMobsConfig.INSTANCE.attributes.armorAddition.get();
         double attrTough = BuffMobsConfig.INSTANCE.attributes.armorToughnessAddition.get();
-
-        // Preset stacks on top: multipliers multiply, additions add
         double presetHp    = preset != null ? preset.health      : 1.0;
         double presetDmg   = preset != null ? preset.damage      : 1.0;
         double presetSpd   = preset != null ? preset.speed       : 1.0;
@@ -193,17 +191,12 @@ public class MobBuffUtil {
         applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness  + presetTough) * dayMult);
     }
 
-    /**
-     * Aplica um multiplicador como ADD_MULTIPLIED_BASE.
-     * finalMult=1.5 → adiciona 0.5× o valor base → resultado final = base × 1.5
-     * finalMult=1.0 → sem efeito, não adiciona modificador.
-     */
+
     private static void applyMultiplier(Mob mob,
                                         Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr,
                                         Identifier id, double finalMult) {
         AttributeInstance inst = mob.getAttribute(attr);
         if (inst == null) return;
-        // Remove antes para evitar duplicata
         inst.removeModifier(id);
         if (finalMult > 1.0) {
             inst.addPermanentModifier(new AttributeModifier(id, finalMult - 1.0,
@@ -211,10 +204,7 @@ public class MobBuffUtil {
         }
     }
 
-    /**
-     * Velocidade: ADD_MULTIPLIED_BASE mas com fator de escala 0.3 e cap em 2.0×
-     * para não gerar mobs impossíveis de acertar.
-     */
+
     private static void applySpeedBonus(Mob mob, Identifier id, double finalMult) {
         AttributeInstance inst = mob.getAttribute(Attributes.MOVEMENT_SPEED);
         if (inst == null) return;
@@ -227,9 +217,7 @@ public class MobBuffUtil {
         }
     }
 
-    /**
-     * Adição flat: ADD_VALUE (armadura, toughness).
-     */
+
     private static void applyAddition(Mob mob,
                                       Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr,
                                       Identifier id, double amount) {
@@ -242,10 +230,6 @@ public class MobBuffUtil {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Efeitos de status nos mobs
-    // -------------------------------------------------------------------------
-
     private static void applyStatusEffects(Mob mob) {
         int duration = BuffMobsConfig.INSTANCE.effects.duration.get() == -1
                 ? -1 : BuffMobsConfig.INSTANCE.effects.duration.get() * 20;
@@ -256,8 +240,6 @@ public class MobBuffUtil {
         addEffect(mob, MobEffects.SPEED,       BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),       duration, show);
         addEffect(mob, MobEffects.RESISTANCE,  BuffMobsConfig.INSTANCE.effects.resistanceAmplifier.get(),  duration, show);
         addEffect(mob, MobEffects.ABSORPTION,  BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get(),  duration, show);
-
-        // Regeneration harms undead — skip for them
         if (!undead)
             addEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier.get(), duration, show);
     }
@@ -274,10 +256,6 @@ public class MobBuffUtil {
     private static void addEffect(Mob mob, Holder<MobEffect> effect, int amp, int duration, boolean show) {
         if (amp > 0) mob.addEffect(new MobEffectInstance(effect, duration, amp - 1, false, show, true));
     }
-
-    // -------------------------------------------------------------------------
-    // Filtros
-    // -------------------------------------------------------------------------
 
     private static boolean isValidDimension(String dim) {
         List<? extends String> bl = BuffMobsConfig.INSTANCE.dimensionFilter.blacklist.get();
@@ -302,10 +280,6 @@ public class MobBuffUtil {
             return BuffMobsConfig.INSTANCE.mobFilter.whitelist.get().contains(mobId);
         return true;
     }
-
-    // -------------------------------------------------------------------------
-    // Helpers públicos usados em outros lugares
-    // -------------------------------------------------------------------------
 
     public static double calculateFinalMultiplier(double base, double dim, double day) { return base * dim * day; }
     public static double calculateFinalAddition(double base, double dim, double day)   { return (base + dim) * day; }
