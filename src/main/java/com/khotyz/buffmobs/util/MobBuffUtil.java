@@ -158,17 +158,17 @@ public class MobBuffUtil {
         if (mob.isRemoved() || !mob.isAlive()) return false;
         if (mob instanceof TamableAnimal t && t.isTame()) return false;
 
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
+        String dimId = getDimensionId(mob.level());
+
         boolean hostile = mob instanceof Enemy
                 || mob.getType().is(EntityTypeTags.RAIDERS)
                 || mob.getType().is(EntityTypeTags.SKELETONS)
                 || mob.getType().is(EntityTypeTags.ZOMBIES)
                 || isNeutralHostile(mob);
 
-        if (!hostile) return false;
-
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
-        String dimId = getDimensionId(mob.level());
+        if (!hostile && !isExplicitlyAllowed(mobId)) return false;
 
         boolean validDim = isValidDimension(dimId);
         boolean validMod = isValidModId(modId);
@@ -181,10 +181,17 @@ public class MobBuffUtil {
         return validDim && validMod && validMob;
     }
 
-    /**
-     * Returns true for neutral mobs that should be treated as hostile.
-     * Piglins are only counted as hostile when they actually have a target (i.e. not pacified by gold armor).
-     */
+    private static boolean isExplicitlyAllowed(String mobId) {
+        if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.get().contains(mobId)) return true;
+        if (BuffMobsConfig.INSTANCE.mobPresets.enabled.get()) {
+            for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping.get()) {
+                String[] parts = mapping.split(":");
+                if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean isNeutralHostile(Mob mob) {
         String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         return switch (id) {
@@ -193,7 +200,6 @@ public class MobBuffUtil {
                  "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
                  "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
                  "minecraft:trader_llama", "minecraft:slime", "minecraft:magma_cube" -> true;
-            // Piglin is only hostile when vanilla AI has given it a target (no gold armor on player)
             case "minecraft:piglin" -> mob instanceof Piglin piglin && piglin.getTarget() != null;
             default -> false;
         };

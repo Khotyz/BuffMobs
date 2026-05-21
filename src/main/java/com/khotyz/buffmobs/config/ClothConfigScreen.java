@@ -29,8 +29,10 @@ public class ClothConfigScreen {
         ConfigBuilder builder = ConfigBuilder.create()
                 .setParentScreen(parent)
                 .setTitle(tr("buffmobs.config.title"))
-                .setSavingRunnable(() ->
-                        BuffMobsMod.LOGGER.info("[BuffMobs] Config saved via Cloth Config"));
+                .setSavingRunnable(() -> {
+                    BuffMobsConfig.SPEC.save();
+                    BuffMobsMod.LOGGER.info("[BuffMobs] Config saved via Cloth Config");
+                });
 
         ConfigEntryBuilder eb = builder.entryBuilder();
         BuffMobsConfig cfg = BuffMobsConfig.INSTANCE;
