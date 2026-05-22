@@ -161,17 +161,17 @@ public class MobBuffUtil {
         if (mob.isRemoved() || !mob.isAlive()) return false;
         if (mob instanceof TamableAnimal t && t.isTame()) return false;
 
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
+        String dimId = getDimensionId(mob.level());
+
         boolean hostile = mob instanceof Enemy
                 || mob.getType().is(EntityTypeTags.RAIDERS)
                 || mob.getType().is(EntityTypeTags.SKELETONS)
                 || mob.getType().is(EntityTypeTags.ZOMBIES)
                 || isNeutralMob(mob);
 
-        if (!hostile) return false;
-
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
-        String dimId = getDimensionId(mob.level());
+        if (!hostile && !isExplicitlyAllowed(mobId)) return false;
 
         boolean validDim = isValidDimension(dimId);
         boolean validMod = isValidModId(modId);
@@ -182,6 +182,18 @@ public class MobBuffUtil {
         if (!validMob) BuffMobsMod.LOGGER.debug("[BuffMobs] {} in blacklist",               mobId);
 
         return validDim && validMod && validMob;
+    }
+
+
+    private static boolean isExplicitlyAllowed(String mobId) {
+        if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.contains(mobId)) return true;
+        if (BuffMobsConfig.INSTANCE.mobPresets.enabled) {
+            for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
+                String[] parts = mapping.split(":");
+                if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isNeutralMob(Mob mob) {
