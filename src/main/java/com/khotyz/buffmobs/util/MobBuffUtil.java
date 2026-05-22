@@ -162,10 +162,10 @@ public class MobBuffUtil {
 
         boolean isHostile = mob instanceof Enemy;
         boolean isNeutral = isNeutralMob(mob);
-        if (!isHostile && !isNeutral) return false;
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        if (!isHostile && !isNeutral && !isExplicitlyAllowed(mobId)) return false;
 
         String dim   = getDimensionId(mob.level());
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
 
         boolean validDim = isValidDimension(dim);
@@ -177,6 +177,18 @@ public class MobBuffUtil {
         if (!validMob) BuffMobsMod.LOGGER.debug("[BuffMobs] {} in blacklist",             mobId);
 
         return validDim && validMod && validMob;
+    }
+
+
+    private static boolean isExplicitlyAllowed(String mobId) {
+        if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.contains(mobId)) return true;
+        if (BuffMobsConfig.INSTANCE.mobPresets.enabled) {
+            for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
+                String[] parts = mapping.split(":");
+                if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isNeutralMob(Mob mob) {
