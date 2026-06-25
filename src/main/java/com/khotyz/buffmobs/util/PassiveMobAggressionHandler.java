@@ -4,142 +4,167 @@ import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.goal.BreedGoal;
-import net.minecraft.world.entity.ai.goal.EatBlockGoal;
-import net.minecraft.world.entity.ai.goal.FollowParentGoal;
-import net.minecraft.world.entity.ai.goal.PanicGoal;
-import net.minecraft.world.entity.ai.goal.TemptGoal;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
 
-import java.util.Map;
+import java.util.EnumSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PassiveMobAggressionHandler {
 
-    private static final Set<UUID> INITIALIZED   = ConcurrentHashMap.newKeySet();
-    private static final Set<UUID> ENRAGED       = ConcurrentHashMap.newKeySet();
-    private static final Map<UUID, Long> LAST_ATTACK = new ConcurrentHashMap<>();
-    private static final Map<UUID, UUID> MOB_TARGET  = new ConcurrentHashMap<>();
+    private static final Identifier DAMAGE_MODIFIER_ID =
+            Identifier.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "passive_aggression_damage");
 
-    private static final double CHASE_SPEED     = 1.2;
-    private static final double ATTACK_RANGE    = 2.5;
-    private static final long   ATTACK_COOLDOWN = 20L;
-
-    private static final Set<String> FLEE_GOAL_NAMES = Set.of(
-            "PanicGoal", "FleeEntityGoal", "FleeGoal", "AvoidEntityGoal",
-            "RunAroundLikeCrazyGoal", "HorseFleesGoal"
-    );
+    private static final Set<UUID> INITIALIZED      = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> PARTICLES_SHOWN  = ConcurrentHashMap.newKeySet();
 
     public static void onMobInitialized(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (INITIALIZED.contains(mob.getUUID())) return;
+
+        applyDamageModifierIfPresent(mob);
+        addAIGoals(mob);
+
         INITIALIZED.add(mob.getUUID());
-        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression registered: {}",
+        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression initialized: {}",
                 BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()));
     }
 
     public static void onMobRemoved(Mob mob) {
         INITIALIZED.remove(mob.getUUID());
-        ENRAGED.remove(mob.getUUID());
-        LAST_ATTACK.remove(mob.getUUID());
-        MOB_TARGET.remove(mob.getUUID());
+        PARTICLES_SHOWN.remove(mob.getUUID());
     }
 
     public static void onMobHurtByPlayer(Mob mob, Player player) {
         if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
-        if (ENRAGED.contains(mob.getUUID())) return;
+        if (mob.getTarget() != null && PARTICLES_SHOWN.contains(mob.getUUID())) return;
 
-        removePeacefulGoals(mob);
-        ENRAGED.add(mob.getUUID());
-        MOB_TARGET.put(mob.getUUID(), player.getUUID());
-        spawnAngryParticles(mob);
-
-        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression enraged: {} -> {}",
-                BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), player.getName().getString());
+        if (mob.getTarget() != null && !PARTICLES_SHOWN.contains(mob.getUUID())) {
+            spawnAngryParticles(mob);
+            PARTICLES_SHOWN.add(mob.getUUID());
+        }
     }
 
     public static void tick(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return;
-        if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
-        if (!ENRAGED.contains(mob.getUUID())) return;
-
-        UUID targetId = MOB_TARGET.get(mob.getUUID());
-        if (targetId == null) { calmDown(mob); return; }
-
-        Player target = findPlayerById(mob, targetId);
-
-        if (target == null || !target.isAlive()) {
-            calmDown(mob);
-            return;
-        }
-
-        mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-        mob.getNavigation().moveTo(target, CHASE_SPEED);
-
-        double dist = mob.distanceTo(target);
-        if (dist <= ATTACK_RANGE) {
-            long now  = mob.level().getGameTime();
-            long last = LAST_ATTACK.getOrDefault(mob.getUUID(), 0L);
-            if (now - last >= ATTACK_COOLDOWN && mob.level() instanceof ServerLevel) {
-                double dmg = MobBuffUtil.getPassiveDamageForMob(mob);
-                target.hurt(mob.level().damageSources().mobAttack(mob), (float) dmg);
-                LAST_ATTACK.put(mob.getUUID(), now);
-                spawnAngryParticles(mob);
-            }
-        }
     }
 
     public static void forceReinit() {
         INITIALIZED.clear();
-        ENRAGED.clear();
-        LAST_ATTACK.clear();
-        MOB_TARGET.clear();
+        PARTICLES_SHOWN.clear();
     }
 
-    private static void calmDown(Mob mob) {
-        ENRAGED.remove(mob.getUUID());
-        LAST_ATTACK.remove(mob.getUUID());
-        MOB_TARGET.remove(mob.getUUID());
-        mob.getNavigation().stop();
-        mob.setTarget(null);
-        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression calmed: {}",
-                BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()));
+    public static double getConfiguredDamage(Mob mob) {
+        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+        double totalDamage = cfg.baseDamage;
+        if (cfg.scaleWithHealth) {
+            totalDamage += mob.getMaxHealth() * cfg.healthScaleFactor;
+        }
+        return totalDamage;
     }
 
-    private static void removePeacefulGoals(Mob mob) {
+    private static void applyDamageModifierIfPresent(Mob mob) {
+        AttributeInstance dmgAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmgAttr == null) return;
+        dmgAttr.removeModifier(DAMAGE_MODIFIER_ID);
+
+        double totalDamage = getConfiguredDamage(mob);
+        double base = dmgAttr.getBaseValue();
+        double bonus = totalDamage - base;
+        if (bonus > 0) {
+            dmgAttr.addPermanentModifier(new AttributeModifier(
+                    DAMAGE_MODIFIER_ID, bonus, AttributeModifier.Operation.ADD_VALUE));
+        }
+    }
+
+    private static void addAIGoals(Mob mob) {
         try {
-            mob.goalSelector.getAvailableGoals().removeIf(wrapped -> {
-                if (FLEE_GOAL_NAMES.contains(wrapped.getGoal().getClass().getSimpleName())) return true;
-                return wrapped.getGoal() instanceof PanicGoal
-                        || wrapped.getGoal() instanceof TemptGoal
-                        || wrapped.getGoal() instanceof FollowParentGoal
-                        || wrapped.getGoal() instanceof BreedGoal
-                        || wrapped.getGoal() instanceof EatBlockGoal;
-            });
+            mob.targetSelector.addGoal(1, new HurtByTargetGoal((PathfinderMob) mob));
+            mob.goalSelector.addGoal(2, new PassiveAggressionMeleeGoal((PathfinderMob) mob, 1.2));
         } catch (Exception e) {
-            BuffMobsMod.LOGGER.warn("[BuffMobs] Could not remove peaceful goals from {}: {}",
+            BuffMobsMod.LOGGER.warn("[BuffMobs] Could not add AI goals to {}: {}",
                     BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), e.getMessage());
         }
-    }
-
-    private static Player findPlayerById(Mob mob, UUID id) {
-        for (Player p : mob.level().players()) {
-            if (p.getUUID().equals(id)) return p;
-        }
-        return null;
     }
 
     private static void spawnAngryParticles(Mob mob) {
         if (!(mob.level() instanceof ServerLevel serverLevel)) return;
         serverLevel.sendParticles(
                 ParticleTypes.ANGRY_VILLAGER,
-                mob.getX(), mob.getY() + mob.getBbHeight() * 0.9, mob.getZ(),
-                5, 0.3, 0.2, 0.3, 0.0);
+                mob.getX(), mob.getY() + mob.getBbHeight() * 0.75, mob.getZ(),
+                8, 0.3, 0.3, 0.3, 0.0);
+    }
+
+    private static class PassiveAggressionMeleeGoal extends Goal {
+        private final PathfinderMob owner;
+        private final double speedModifier;
+        private int attackCooldown;
+
+        PassiveAggressionMeleeGoal(PathfinderMob mob, double speedModifier) {
+            this.owner = mob;
+            this.speedModifier = speedModifier;
+            this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            LivingEntity target = this.owner.getTarget();
+            return target != null && target.isAlive();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            LivingEntity target = this.owner.getTarget();
+            return target != null && target.isAlive() && this.owner.getTarget() == target;
+        }
+
+        @Override
+        public void start() {
+            this.attackCooldown = 0;
+        }
+
+        @Override
+        public void stop() {
+            this.owner.getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            LivingEntity target = this.owner.getTarget();
+            if (target == null) return;
+
+            this.owner.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
+
+            double combinedWidth = this.owner.getBbWidth() + target.getBbWidth();
+            double reach = combinedWidth * combinedWidth * 0.5 + 1.0;
+            double distSqr = this.owner.distanceToSqr(target.getX(), target.getY(), target.getZ());
+
+            if (this.attackCooldown > 0) this.attackCooldown--;
+
+            if (distSqr > reach) {
+                this.owner.getNavigation().moveTo(target, this.speedModifier);
+            } else {
+                this.owner.getNavigation().stop();
+                if (this.attackCooldown <= 0) {
+                    this.attackCooldown = 20;
+                    this.owner.swing(InteractionHand.MAIN_HAND);
+                    double damage = getConfiguredDamage(this.owner);
+                    target.hurt(this.owner.level().damageSources().mobAttack(this.owner), (float) damage);
+                }
+            }
+        }
     }
 }

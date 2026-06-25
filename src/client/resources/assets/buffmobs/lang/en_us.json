@@ -191,7 +191,7 @@
   "buffmobs.config.passiveMobAggression.baseDamage": "Base Damage",
   "buffmobs.config.passiveMobAggression.baseDamage.tooltip": "Base attack damage dealt by passive mobs when they attack players.",
   "buffmobs.config.passiveMobAggression.scaleWithHealth": "Scale Damage with HP%",
-  "buffmobs.config.passiveMobAggression.scaleWithHealth.tooltip": "When enabled, damage increases based on the mob's current HP percentage. A mob at full health deals more damage.",
+  "buffmobs.config.passiveMobAggression.scaleWithHealth.tooltip": "When enabled, damage increases based on the mob's HP.",
   "buffmobs.config.passiveMobAggression.healthScaleFactor": "Health Scale Factor",
   "buffmobs.config.passiveMobAggression.healthScaleFactor.tooltip": "Controls how strongly the mob's HP% affects damage. Formula: baseDamage + (HP% * factor * maxHP). 0.1 = 10% of max HP added at full health.",
   "buffmobs.config.passiveMobAggression.whitelist": "Allowlist",

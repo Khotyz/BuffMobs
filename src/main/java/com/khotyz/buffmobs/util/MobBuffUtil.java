@@ -181,6 +181,7 @@ public class MobBuffUtil {
 
     public static boolean isPassiveAggressiveMob(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return false;
+        if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
         if (mob instanceof Enemy) return false;
         if (isNeutralMob(mob)) return false;
 
@@ -196,8 +197,7 @@ public class MobBuffUtil {
         BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
         double base = cfg.baseDamage;
         if (cfg.scaleWithHealth) {
-            double healthPct = mob.getHealth() / mob.getMaxHealth();
-            base += healthPct * cfg.healthScaleFactor * mob.getMaxHealth();
+            base += mob.getMaxHealth() * cfg.healthScaleFactor;
         }
         return base;
     }
