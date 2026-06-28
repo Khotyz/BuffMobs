@@ -15,20 +15,32 @@ public class BuffMobsConfig {
         SPEC = builder.build();
     }
 
+    // General
     public final ModConfigSpec.BooleanValue enabled;
     public final ModConfigSpec.BooleanValue visualEffects;
 
+    // Day Scaling
     public final DayScaling dayScaling;
+    // Attributes
     public final Attributes attributes;
+    // Effects
     public final Effects effects;
+    // Harmful Effects
     public final HarmfulEffects harmfulEffects;
+    // Dimension Scaling
     public final DimensionScaling dimensionScaling;
+    // Filters
     public final MobFilter mobFilter;
     public final ModIdFilter modidFilter;
     public final DimensionFilter dimensionFilter;
+    // Combat
     public final RangedMeleeSwitching rangedMeleeSwitching;
+    // CombatDraft
     public final CombatDraft combatDraft;
+    // Presets
     public final MobPresets mobPresets;
+    // Passive Mob Aggression
+    public final PassiveMobAggression passiveMobAggression;
 
     private BuffMobsConfig(ModConfigSpec.Builder builder) {
         builder.push("general");
@@ -47,6 +59,7 @@ public class BuffMobsConfig {
         rangedMeleeSwitching = new RangedMeleeSwitching(builder);
         combatDraft = new CombatDraft(builder);
         mobPresets = new MobPresets(builder);
+        passiveMobAggression = new PassiveMobAggression(builder);
     }
 
     public static class DayScaling {
@@ -61,8 +74,8 @@ public class BuffMobsConfig {
             builder.push("dayScaling");
             enabled = builder.comment("Enable day-based difficulty scaling").define("enabled", false);
             interval = builder.comment("Days between each scaling increase").defineInRange("interval", 7, 1, 365);
-            multiplier = builder.comment("Multiplier added per interval").defineInRange("multiplier", 0.1, 0.01, 20.0);
-            maxMultiplier = builder.comment("Maximum scaling multiplier").defineInRange("maxMultiplier", 5.0, 1.0, 10.0);
+            multiplier = builder.comment("Multiplier added per interval").defineInRange("multiplier", 0.1, 0.01, 999999.0);
+            maxMultiplier = builder.comment("Maximum scaling multiplier").defineInRange("maxMultiplier", 5.0, 0.0, 999999.0);
             showNotifications = builder.comment("Show day scaling notifications to players").define("showNotifications", true);
             notificationMode = builder.comment("When to send notifications: EVERY_DAY or SCALING_INCREASE_ONLY")
                     .defineEnum("notificationMode", NotificationMode.EVERY_DAY);
@@ -82,12 +95,12 @@ public class BuffMobsConfig {
 
         Attributes(ModConfigSpec.Builder builder) {
             builder.push("attributes");
-            healthMultiplier = builder.comment("Health multiplier for mobs").defineInRange("healthMultiplier", 1.5, 0.1, 10.0);
-            damageMultiplier = builder.comment("Damage multiplier for mobs").defineInRange("damageMultiplier", 1.5, 0.1, 10.0);
-            speedMultiplier = builder.comment("Speed multiplier for mobs").defineInRange("speedMultiplier", 1.0, 0.1, 10.0);
-            attackSpeedMultiplier = builder.comment("Attack speed multiplier for mobs").defineInRange("attackSpeedMultiplier", 1.0, 0.1, 10.0);
-            armorAddition = builder.comment("Armor points added to mobs").defineInRange("armorAddition", 5.0, 0.0, 20.0);
-            armorToughnessAddition = builder.comment("Armor toughness added to mobs").defineInRange("armorToughnessAddition", 0.0, 0.0, 20.0);
+            healthMultiplier = builder.comment("Health multiplier for mobs").defineInRange("healthMultiplier", 1.5, 0.1, 999999.0);
+            damageMultiplier = builder.comment("Damage multiplier for mobs").defineInRange("damageMultiplier", 1.5, 0.1, 999999.0);
+            speedMultiplier = builder.comment("Speed multiplier for mobs").defineInRange("speedMultiplier", 1.0, 0.1, 999999.0);
+            attackSpeedMultiplier = builder.comment("Attack speed multiplier for mobs").defineInRange("attackSpeedMultiplier", 1.0, 0.1, 999999.0);
+            armorAddition = builder.comment("Armor points added to mobs").defineInRange("armorAddition", 5.0, 0.0, 999999.0);
+            armorToughnessAddition = builder.comment("Armor toughness added to mobs").defineInRange("armorToughnessAddition", 0.0, 0.0, 999999.0);
             builder.pop();
         }
     }
@@ -155,12 +168,12 @@ public class BuffMobsConfig {
             DimensionSlot(ModConfigSpec.Builder builder, String name) {
                 builder.push(name);
                 dimensionName = builder.comment("Dimension ID, e.g. minecraft:overworld").define("dimensionName", "");
-                healthMultiplier = builder.comment("Health % multiplier (100 = 1x)").defineInRange("healthMultiplier", 100, 100, 1000);
-                damageMultiplier = builder.comment("Damage % multiplier (100 = 1x)").defineInRange("damageMultiplier", 100, 100, 1000);
-                speedMultiplier = builder.comment("Speed % multiplier (100 = 1x)").defineInRange("speedMultiplier", 100, 100, 500);
-                attackSpeedMultiplier = builder.comment("Attack speed % multiplier (100 = 1x)").defineInRange("attackSpeedMultiplier", 100, 100, 1000);
-                armorAddition = builder.comment("Armor points added").defineInRange("armorAddition", 0, 0, 20);
-                armorToughnessAddition = builder.comment("Armor toughness points added").defineInRange("armorToughnessAddition", 0, 0, 10);
+                healthMultiplier = builder.comment("Health % multiplier (100 = 1x)").defineInRange("healthMultiplier", 100, 100, 999999);
+                damageMultiplier = builder.comment("Damage % multiplier (100 = 1x)").defineInRange("damageMultiplier", 100, 100, 999999);
+                speedMultiplier = builder.comment("Speed % multiplier (100 = 1x)").defineInRange("speedMultiplier", 100, 100, 999999);
+                attackSpeedMultiplier = builder.comment("Attack speed % multiplier (100 = 1x)").defineInRange("attackSpeedMultiplier", 100, 100, 999999);
+                armorAddition = builder.comment("Armor points added").defineInRange("armorAddition", 0, 0, 999999);
+                armorToughnessAddition = builder.comment("Armor toughness points added").defineInRange("armorToughnessAddition", 0, 0, 999999);
                 builder.pop();
             }
         }
@@ -351,14 +364,34 @@ public class BuffMobsConfig {
                        double hp, double dmg, double spd, double aspd, double arm, double tough) {
                 builder.push(key);
                 presetName = builder.define("presetName", name);
-                healthMultiplier = builder.defineInRange("healthMultiplier", hp, 0.01, 100.0);
-                damageMultiplier = builder.defineInRange("damageMultiplier", dmg, 0.01, 100.0);
-                speedMultiplier = builder.defineInRange("speedMultiplier", spd, 0.01, 10.0);
-                attackSpeedMultiplier = builder.defineInRange("attackSpeedMultiplier", aspd, 0.01, 10.0);
-                armorAddition = builder.defineInRange("armorAddition", arm, 0.0, 30.0);
-                armorToughnessAddition = builder.defineInRange("armorToughnessAddition", tough, 0.0, 20.0);
+                healthMultiplier = builder.defineInRange("healthMultiplier", hp, 0.01, 999999.0);
+                damageMultiplier = builder.defineInRange("damageMultiplier", dmg, 0.01, 999999.0);
+                speedMultiplier = builder.defineInRange("speedMultiplier", spd, 0.01, 999999.0);
+                attackSpeedMultiplier = builder.defineInRange("attackSpeedMultiplier", aspd, 0.01, 999999.0);
+                armorAddition = builder.defineInRange("armorAddition", arm, 0.0, 999999.0);
+                armorToughnessAddition = builder.defineInRange("armorToughnessAddition", tough, 0.0, 999999.0);
                 builder.pop();
             }
+        }
+    }
+
+    public static class PassiveMobAggression {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.DoubleValue baseDamage;
+        public final ModConfigSpec.BooleanValue scaleWithHealth;
+        public final ModConfigSpec.DoubleValue healthScaleFactor;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> whitelist;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> blacklist;
+
+        PassiveMobAggression(ModConfigSpec.Builder builder) {
+            builder.push("passiveMobAggression");
+            enabled = builder.comment("Enable Passive Mob Aggression: passive mobs retaliate when hit").define("enabled", false);
+            baseDamage = builder.comment("Base attack damage given to affected passive mobs").defineInRange("baseDamage", 3.0, 0.5, 100.0);
+            scaleWithHealth = builder.comment("Add bonus damage based on the mob's max health").define("scaleWithHealth", false);
+            healthScaleFactor = builder.comment("Scaling factor: totalDamage = baseDamage + (maxHealth * healthScaleFactor)").defineInRange("healthScaleFactor", 0.1, 0.0, 100.0);
+            whitelist = builder.comment("Mob IDs affected (if non-empty, only these mobs are affected)").defineListAllowEmpty("whitelist", new ArrayList<>(), o -> o instanceof String);
+            blacklist = builder.comment("Mob IDs that are never affected").defineListAllowEmpty("blacklist", new ArrayList<>(), o -> o instanceof String);
+            builder.pop();
         }
     }
 }

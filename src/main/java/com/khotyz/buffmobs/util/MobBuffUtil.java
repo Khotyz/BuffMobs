@@ -5,22 +5,24 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
-import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 
 import java.util.List;
-
-import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 
 public class MobBuffUtil {
 
@@ -31,14 +33,27 @@ public class MobBuffUtil {
     private static final ResourceLocation ARMOR_MOD_ID        = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "armor");
     private static final ResourceLocation TOUGHNESS_MOD_ID    = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "toughness");
 
+    public static long getOverworldDayTime(Level level) {
+        if (level instanceof ServerLevel sl) {
+            MinecraftServer server = sl.getServer();
+            if (server != null) {
+                ServerLevel overworld = server.overworld();
+                if (overworld != null) {
+                    return overworld.getGameTime();
+                }
+            }
+            return sl.getGameTime();
+        }
+        return 0L;
+    }
+
     public static void applyBuffs(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.enabled.get() || !isValidMob(mob)) {
             removeAllModifiers(mob);
-            removeAllBuffEffects(mob);
             return;
         }
 
-        double dayMult = getDayMultiplier(mob.level().getDayTime());
+        double dayMult = getDayMultiplier(getOverworldDayTime(mob.level()));
         DimensionMultipliers dim = getDimensionMultipliers(mob);
         MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
 
@@ -47,20 +62,8 @@ public class MobBuffUtil {
 
         applyAllLayers(mob, dayMult, dim, preset);
 
-        removeAllBuffEffects(mob);
         applyStatusEffects(mob);
         mob.setHealth(mob.getMaxHealth());
-
-        int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
-        if (absAmp > 0) mob.setAbsorptionAmount(absAmp * 4.0f);
-    }
-
-    public static void removeAllBuffEffects(Mob mob) {
-        mob.removeEffect(MobEffects.DAMAGE_BOOST);
-        mob.removeEffect(MobEffects.MOVEMENT_SPEED);
-        mob.removeEffect(MobEffects.DAMAGE_RESISTANCE);
-        mob.removeEffect(MobEffects.ABSORPTION);
-        mob.removeEffect(MobEffects.REGENERATION);
     }
 
     public static void removeAllModifiers(Mob mob) {
@@ -70,8 +73,6 @@ public class MobBuffUtil {
         removeModifier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID);
         removeModifier(mob, Attributes.ARMOR,           ARMOR_MOD_ID);
         removeModifier(mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID);
-        removeModifier(mob, Attributes.MAX_ABSORPTION,
-                ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "absorption"));
     }
 
     private static void removeModifier(Mob mob,
@@ -81,12 +82,13 @@ public class MobBuffUtil {
         if (inst != null) inst.removeModifier(id);
     }
 
-    public static double getDayMultiplier(long worldTime) {
+    public static double getDayMultiplier(long overworldDayTime) {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()) return 1.0;
-        long days      = worldTime / 24000L;
+        long days      = overworldDayTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
         double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier.get());
-        return Math.min(mult, BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get());
+        double max = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
+        return max == 0.0 ? mult : Math.min(mult, max);
     }
 
     public static DimensionMultipliers getDimensionMultipliers(Mob mob) {
@@ -117,41 +119,25 @@ public class MobBuffUtil {
     public static void refreshInfiniteEffects(Mob mob) {
         if (BuffMobsConfig.INSTANCE.effects.duration.get() != -1 || !isValidMob(mob)) return;
         boolean show   = BuffMobsConfig.INSTANCE.visualEffects.get();
-        boolean undead = mob.getType().is(EntityTypeTags.UNDEAD);
+        boolean undead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        refreshEffect(mob, MobEffects.DAMAGE_BOOST,      BuffMobsConfig.INSTANCE.effects.strengthAmplifier.get(),   show);
-        refreshEffect(mob, MobEffects.MOVEMENT_SPEED,    BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),      show);
+        refreshEffect(mob, MobEffects.DAMAGE_BOOST,    BuffMobsConfig.INSTANCE.effects.strengthAmplifier.get(),   show);
+        refreshEffect(mob, MobEffects.MOVEMENT_SPEED,  BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),      show);
         refreshEffect(mob, MobEffects.DAMAGE_RESISTANCE, BuffMobsConfig.INSTANCE.effects.resistanceAmplifier.get(), show);
-
-        int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
-        if (absAmp > 0) {
-            if (undead) {
-                MobEffectInstance cur = mob.getEffect(MobEffects.ABSORPTION);
-                if (cur == null || (cur.getAmplifier() <= absAmp - 1 && cur.getDuration() < 1200)) {
-                    mob.removeEffect(MobEffects.ABSORPTION);
-                    mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, -1, absAmp - 1, false, show, true));
-                }
-                float expected = absAmp * 4.0f;
-                if (mob.getAbsorptionAmount() < expected * 0.5f && (cur == null || cur.getAmplifier() <= absAmp - 1)) {
-                    mob.setAbsorptionAmount(expected);
-                }
-            } else {
-                refreshEffect(mob, MobEffects.ABSORPTION, absAmp, show);
-            }
-        }
+        refreshEffect(mob, MobEffects.ABSORPTION,      BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get(), show);
 
         if (!undead)
             refreshEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier.get(), show);
     }
 
     public static void applyPoisonToPlayer(Player player, int duration) {
-        player.addEffect(new MobEffectInstance(MobEffects.POISON,           duration * 20, 0));
+        player.addEffect(new MobEffectInstance(MobEffects.POISON,             duration * 20, 0));
     }
     public static void applySlownessToPlayer(Player player, int duration) {
-        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration * 20, 0));
+        player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,  duration * 20, 0));
     }
     public static void applyWitherToPlayer(Player player, int duration) {
-        player.addEffect(new MobEffectInstance(MobEffects.WITHER,            duration * 20, 0));
+        player.addEffect(new MobEffectInstance(MobEffects.WITHER,             duration * 20, 0));
     }
 
     public static boolean isValidMob(Mob mob) {
@@ -163,10 +149,10 @@ public class MobBuffUtil {
         String dimId = getDimensionId(mob.level());
 
         boolean hostile = mob instanceof Enemy
-                || mob.getType().is(EntityTypeTags.RAIDERS)
-                || mob.getType().is(EntityTypeTags.SKELETONS)
-                || mob.getType().is(EntityTypeTags.ZOMBIES)
-                || isNeutralHostile(mob);
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
+                || isNeutralMob(mob);
 
         if (!hostile && !isExplicitlyAllowed(mobId)) return false;
 
@@ -192,15 +178,28 @@ public class MobBuffUtil {
         return false;
     }
 
-    private static boolean isNeutralHostile(Mob mob) {
+    public static boolean isPassiveAggressiveMob(Mob mob) {
+        if (mob.isRemoved() || !mob.isAlive()) return false;
+        if (mob instanceof TamableAnimal t && t.isTame()) return false;
+        if (mob instanceof Enemy) return false;
+        if (mob instanceof NeutralMob) return false;
+
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+
+        if (cfg.blacklist.get().contains(mobId)) return false;
+        if (!cfg.whitelist.get().isEmpty()) return cfg.whitelist.get().contains(mobId);
+        return true;
+    }
+
+    private static boolean isNeutralMob(Mob mob) {
         String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         return switch (id) {
-            case "minecraft:enderman", "minecraft:zombified_piglin",
+            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
                  "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
                  "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
                  "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
                  "minecraft:trader_llama", "minecraft:slime", "minecraft:magma_cube" -> true;
-            case "minecraft:piglin" -> mob instanceof Piglin piglin && piglin.getTarget() != null;
             default -> false;
         };
     }
@@ -214,19 +213,19 @@ public class MobBuffUtil {
         double attrArm   = BuffMobsConfig.INSTANCE.attributes.armorAddition.get();
         double attrTough = BuffMobsConfig.INSTANCE.attributes.armorToughnessAddition.get();
 
-        double presetHp    = preset != null ? preset.health         : 1.0;
-        double presetDmg   = preset != null ? preset.damage         : 1.0;
-        double presetSpd   = preset != null ? preset.speed          : 1.0;
-        double presetAspd  = preset != null ? preset.attackSpeed    : 1.0;
-        double presetArm   = preset != null ? preset.armor          : 0.0;
+        double presetHp    = preset != null ? preset.health      : 1.0;
+        double presetDmg   = preset != null ? preset.damage      : 1.0;
+        double presetSpd   = preset != null ? preset.speed       : 1.0;
+        double presetAspd  = preset != null ? preset.attackSpeed : 1.0;
+        double presetArm   = preset != null ? preset.armor       : 0.0;
         double presetTough = preset != null ? preset.armorToughness : 0.0;
 
         applyMultiplier(mob, Attributes.MAX_HEALTH,      HEALTH_MOD_ID,       attrHp   * dim.health      * presetHp   * dayMult);
         applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
         applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
         applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
-        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor          + presetArm)   * dayMult);
-        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness + presetTough) * dayMult);
+        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor           + presetArm)   * dayMult);
+        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness  + presetTough) * dayMult);
     }
 
     private static void applyMultiplier(Mob mob,
@@ -268,28 +267,13 @@ public class MobBuffUtil {
     private static void applyStatusEffects(Mob mob) {
         int duration = BuffMobsConfig.INSTANCE.effects.duration.get() == -1
                 ? -1 : BuffMobsConfig.INSTANCE.effects.duration.get() * 20;
-        boolean show   = BuffMobsConfig.INSTANCE.visualEffects.get();
-        boolean undead = mob.getType().is(EntityTypeTags.UNDEAD);
+        boolean show = BuffMobsConfig.INSTANCE.visualEffects.get();
+        boolean undead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        addEffect(mob, MobEffects.DAMAGE_BOOST,      BuffMobsConfig.INSTANCE.effects.strengthAmplifier.get(),   duration, show);
-        addEffect(mob, MobEffects.MOVEMENT_SPEED,    BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),      duration, show);
-        addEffect(mob, MobEffects.DAMAGE_RESISTANCE, BuffMobsConfig.INSTANCE.effects.resistanceAmplifier.get(), duration, show);
-
-        int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
-        if (absAmp > 0) {
-            if (undead) {
-                AttributeInstance absAttr = mob.getAttribute(Attributes.MAX_ABSORPTION);
-                if (absAttr != null) {
-                    ResourceLocation absId = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "absorption");
-                    absAttr.removeModifier(absId);
-                    absAttr.addPermanentModifier(new AttributeModifier(absId, absAmp * 4.0,
-                            AttributeModifier.Operation.ADD_VALUE));
-                }
-                mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, absAmp - 1, false, show, true));
-            } else {
-                addEffect(mob, MobEffects.ABSORPTION, absAmp, duration, show);
-            }
-        }
+        addEffect(mob, MobEffects.DAMAGE_BOOST,      BuffMobsConfig.INSTANCE.effects.strengthAmplifier.get(),    duration, show);
+        addEffect(mob, MobEffects.MOVEMENT_SPEED,    BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),       duration, show);
+        addEffect(mob, MobEffects.DAMAGE_RESISTANCE, BuffMobsConfig.INSTANCE.effects.resistanceAmplifier.get(),  duration, show);
+        addEffect(mob, MobEffects.ABSORPTION,        BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get(),  duration, show);
 
         if (!undead)
             addEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier.get(), duration, show);
@@ -298,10 +282,10 @@ public class MobBuffUtil {
     private static void refreshEffect(Mob mob, Holder<MobEffect> effect, int amp, boolean show) {
         if (amp <= 0) return;
         MobEffectInstance cur = mob.getEffect(effect);
-        if (cur != null && cur.getAmplifier() >= amp - 1 && cur.getDuration() >= 1200) return;
-        if (cur != null && cur.getAmplifier() > amp - 1) return;
-        mob.removeEffect(effect);
-        mob.addEffect(new MobEffectInstance(effect, -1, amp - 1, false, show, true));
+        if (cur == null || cur.getDuration() < 1200) {
+            mob.removeEffect(effect);
+            mob.addEffect(new MobEffectInstance(effect, -1, amp - 1, false, show, true));
+        }
     }
 
     private static void addEffect(Mob mob, Holder<MobEffect> effect, int amp, int duration, boolean show) {

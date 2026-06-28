@@ -4,6 +4,7 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -14,8 +15,6 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 
 public class MobEventHandler {
     private final Map<String, Long> lastDayCheck = new HashMap<>();
@@ -53,8 +52,8 @@ public class MobEventHandler {
                 || !BuffMobsConfig.INSTANCE.dayScaling.showNotifications.get()
                 || world.players().isEmpty()) return;
 
-        long currentTime = world.getDayTime();
-        long currentDay  = currentTime / 24000L;
+        long overworldDayTime = MobBuffUtil.getOverworldDayTime(world);
+        long currentDay  = overworldDayTime / 24000L;
         String worldKey  = getDimensionId(world);
 
         Long lastChecked = lastDayCheck.get(worldKey);
@@ -62,8 +61,8 @@ public class MobEventHandler {
             lastDayCheck.put(worldKey, currentDay);
 
             if (lastChecked != null && currentDay > 0) {
-                boolean notify  = false;
-                int scalingInt  = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+                boolean notify     = false;
+                int scalingInt     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
 
                 switch (BuffMobsConfig.INSTANCE.dayScaling.notificationMode.get()) {
                     case EVERY_DAY             -> notify = true;
@@ -76,19 +75,16 @@ public class MobEventHandler {
     }
 
     private void sendDayScalingNotification(ServerLevel world, long currentDay) {
-        double mult      = MobBuffUtil.getDayMultiplier(world.getDayTime());
+        double mult      = MobBuffUtil.getDayMultiplier(MobBuffUtil.getOverworldDayTime(world));
         double maxMult   = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
-        int    interval  = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
-        long   daysUntil = interval - (currentDay % interval);
+        int interval     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
+        long daysUntil   = interval - (currentDay % interval);
         if (daysUntil == interval) daysUntil = 0;
 
-        final Component msg;
-        if (mult >= maxMult) {
-            msg = Component.translatable("buffmobs.notify.day_scaling.max", currentDay, mult);
-        } else {
-            final long du = daysUntil;
-            msg = Component.translatable("buffmobs.notify.day_scaling", currentDay, mult, du, du != 1 ? "s" : "");
-        }
+        final long du = daysUntil;
+        final Component msg = (mult >= maxMult)
+                ? Component.translatable("buffmobs.notify.day_scaling.max", currentDay, mult)
+                : Component.translatable("buffmobs.notify.day_scaling", currentDay, mult, du, du != 1 ? "s" : "");
 
         world.players().forEach(p -> p.sendSystemMessage(msg));
     }

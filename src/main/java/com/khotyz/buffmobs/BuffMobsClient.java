@@ -1,6 +1,8 @@
 package com.khotyz.buffmobs;
 
 import com.khotyz.buffmobs.config.ConfigScreenFactory;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;

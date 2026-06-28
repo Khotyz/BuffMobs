@@ -5,17 +5,15 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.Level;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -24,32 +22,35 @@ import java.util.UUID;
 
 public class MobTickHandler {
     private static final Set<UUID> INITIALIZED_MOBS = new HashSet<>();
-    // Maps mob UUID → dimension key where the mob is waiting for init
-    private static final Map<UUID, ResourceKey<Level>> PENDING_INIT = new HashMap<>();
-    // Per-dimension tick counter so each dimension ticks at its own rate
-    private static final Map<ResourceKey<Level>, Integer> DIM_TICK = new HashMap<>();
+    private static final Set<UUID> PENDING_INIT = new HashSet<>();
+    private static final Map<String, Long> lastScalingInterval = new HashMap<>();
+    private static int globalTickCounter = 0;
+    private static boolean initialScanDone = false;
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
         INITIALIZED_MOBS.clear();
         PENDING_INIT.clear();
-        DIM_TICK.clear();
+        lastScalingInterval.clear();
+        initialScanDone = false;
         int count = 0;
         for (ServerLevel world : event.getServer().getAllLevels()) {
             for (Entity entity : world.getAllEntities()) {
-                if (entity instanceof Mob mob) { initializeMob(mob, true); count++; }
+                if (entity instanceof Mob mob) {
+                    initializeMob(mob, true);
+                    count++;
+                }
             }
         }
         BuffMobsMod.LOGGER.info("[BuffMobs] Initialized {} existing mobs on startup", count);
+        initialScanDone = true;
     }
 
     @SubscribeEvent
     public void onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
-        if (!INITIALIZED_MOBS.contains(mob.getUUID())) {
-            PENDING_INIT.put(mob.getUUID(), event.getLevel().dimension());
-        }
+        if (!INITIALIZED_MOBS.contains(mob.getUUID())) PENDING_INIT.add(mob.getUUID());
     }
 
     @SubscribeEvent
@@ -67,47 +68,36 @@ public class MobTickHandler {
         if (!BuffMobsConfig.INSTANCE.enabled.get()) return;
         if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
 
-        ResourceKey<Level> dimKey = serverLevel.dimension();
-        int tick = DIM_TICK.merge(dimKey, 1, Integer::sum);
+        globalTickCounter++;
 
-        // Process pending inits for this specific dimension
         if (!PENDING_INIT.isEmpty()) {
-            Set<UUID> toInit = new HashSet<>();
-            for (Map.Entry<UUID, ResourceKey<Level>> entry : PENDING_INIT.entrySet()) {
-                if (entry.getValue().equals(dimKey)) toInit.add(entry.getKey());
-            }
-            if (!toInit.isEmpty()) {
-                for (Entity e : serverLevel.getAllEntities()) {
-                    if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
-                    if (toInit.remove(mob.getUUID())) {
-                        PENDING_INIT.remove(mob.getUUID());
-                        initializeMob(mob, false);
-                    }
+            for (Entity e : serverLevel.getAllEntities()) {
+                if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
+                if (PENDING_INIT.contains(mob.getUUID())) {
+                    PENDING_INIT.remove(mob.getUUID());
+                    initializeMob(mob, false);
                 }
-                // Remove any remaining UUIDs that didn't match (mob left already)
-                toInit.forEach(PENDING_INIT::remove);
             }
+            PENDING_INIT.clear();
         }
 
-        // High-frequency tick every tick
-        for (Entity e : serverLevel.getAllEntities()) {
-            if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
-            if (!INITIALIZED_MOBS.contains(mob.getUUID())) continue;
-            try {
-                RangedMobAIManager.driveTick(mob);
-                CombatDraftHandler.tickRestore(mob);
-            } catch (Exception ex) {
-                BuffMobsMod.LOGGER.warn("[BuffMobs] Error in high-frequency tick", ex);
-            }
-        }
+        if (globalTickCounter % 20 == 0) {
+            boolean scalingIntervalChanged = checkScalingIntervalChanged(serverLevel);
 
-        // Low-frequency tick every 20 ticks per dimension
-        if (tick % 20 == 0) {
             for (Entity e : serverLevel.getAllEntities()) {
                 if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
                 UUID uuid = mob.getUUID();
                 if (!INITIALIZED_MOBS.contains(uuid)) {
                     initializeMob(mob, false);
+                } else if (scalingIntervalChanged) {
+                    try {
+                        MobBuffUtil.applyBuffs(mob);
+                        RangedMobAIManager.updateMobBehavior(mob);
+                        MobBuffUtil.refreshInfiniteEffects(mob);
+                        CombatDraftHandler.tick(mob);
+                    } catch (Exception ex) {
+                        BuffMobsMod.LOGGER.warn("[BuffMobs] Error reapplying buffs on scaling change", ex);
+                    }
                 } else {
                     try {
                         RangedMobAIManager.updateMobBehavior(mob);
@@ -121,8 +111,34 @@ public class MobTickHandler {
         }
     }
 
+    private static boolean checkScalingIntervalChanged(ServerLevel serverLevel) {
+        if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()) return false;
+
+        long overworldDayTime = MobBuffUtil.getOverworldDayTime(serverLevel);
+        long days = overworldDayTime / 24000L;
+        int interval = Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
+        long currentInterval = days / interval;
+
+        ResourceKey<net.minecraft.world.level.Level> dimKey = serverLevel.dimension();
+        String dimKeyStr = com.khotyz.buffmobs.util.DimensionUtil.getDimensionId(serverLevel);
+        Long lastInterval = lastScalingInterval.get(dimKeyStr);
+
+        if (lastInterval == null || currentInterval > lastInterval) {
+            lastScalingInterval.put(dimKeyStr, currentInterval);
+            if (lastInterval != null) {
+                BuffMobsMod.LOGGER.info("[BuffMobs] Day scaling interval changed to {} in {}, reapplying buffs",
+                        currentInterval, dimKey);
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void initializeMob(Mob mob, boolean forceReapply) {
-        if (!BuffMobsConfig.INSTANCE.enabled.get()) { MobBuffUtil.removeAllModifiers(mob); return; }
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) {
+            MobBuffUtil.removeAllModifiers(mob);
+            return;
+        }
         UUID uuid = mob.getUUID();
         if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
@@ -140,15 +156,7 @@ public class MobTickHandler {
         }
     }
 
-    public static int getInitializedCount() { return INITIALIZED_MOBS.size(); }
-
-    public static void markInitialized(Mob mob) {
-        INITIALIZED_MOBS.add(mob.getUUID());
-        PENDING_INIT.remove(mob.getUUID());
-    }
-
-    public static void forceReinitAll() {
-        INITIALIZED_MOBS.clear();
-        PENDING_INIT.clear();
+    public static int getInitializedCount() {
+        return INITIALIZED_MOBS.size();
     }
 }

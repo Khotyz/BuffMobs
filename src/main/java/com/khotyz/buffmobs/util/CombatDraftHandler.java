@@ -9,7 +9,11 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +21,8 @@ import java.util.Map;
 import java.util.UUID;
 
 public class CombatDraftHandler {
+
+    private static final int DRINK_ANIMATION_TICKS = 32;
 
     private static final Map<UUID, MobDraftState> STATES = new HashMap<>();
 
@@ -32,81 +38,93 @@ public class CombatDraftHandler {
     }
 
     public static void onMobRemoved(Mob mob) {
-        STATES.remove(mob.getUUID());
-    }
-
-    public static void tickRestore(Mob mob) {
-        // No offhand item is ever placed, so nothing to restore.
+        MobDraftState state = STATES.remove(mob.getUUID());
+        if (state != null && state.pendingRestore != null) {
+            mob.stopUsingItem();
+            mob.setItemSlot(EquipmentSlot.OFFHAND, state.pendingRestore);
+            state.pendingRestore = null;
+        }
     }
 
     public static void tick(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.combatDraft.enabled.get()) return;
+        if (!isEligible(mob)) return;
 
-        MobDraftState state = STATES.get(mob.getUUID());
-        if (state == null) return;
-
-        if (!mob.isAlive() || mob.isRemoved()) return;
+        MobDraftState state = STATES.computeIfAbsent(mob.getUUID(), k -> new MobDraftState());
 
         int maxUses = BuffMobsConfig.INSTANCE.combatDraft.maxUses.get();
         if (maxUses > 0 && state.useCount >= maxUses) return;
 
         long now = mob.level().getGameTime();
-        if (now - state.lastUseTick < BuffMobsConfig.INSTANCE.combatDraft.cooldownTicks.get()) return;
 
-        float healthPct = mob.getHealth() / mob.getMaxHealth();
-        if (healthPct > (float)(double) BuffMobsConfig.INSTANCE.combatDraft.healthThreshold.get()) return;
+        if (state.animationActive && now >= state.restoreAtTick) {
+            spawnDrinkParticles(mob);
+            state.animationActive = false;
+        }
+
+        if (now - state.lastUseTick < BuffMobsConfig.INSTANCE.combatDraft.cooldownTicks.get()) return;
+        if (mob.getHealth() > mob.getMaxHealth() * BuffMobsConfig.INSTANCE.combatDraft.healthThreshold.get()) return;
 
         useDraft(mob, state, now);
     }
 
     private static void useDraft(Mob mob, MobDraftState state, long now) {
-        int draftAmp = BuffMobsConfig.INSTANCE.combatDraft.regenAmplifier.get();
+        int amp      = BuffMobsConfig.INSTANCE.combatDraft.regenAmplifier.get() - 1;
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration.get() * 20;
-        boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
+        boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
+
+        // Schedule particle burst after the "drink" delay
+        state.restoreAtTick   = now + DRINK_ANIMATION_TICKS;
+        state.animationActive = true;
 
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
-                1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
-
-        // Spawn happy villager particles as a visual cue for the "draft" effect
-        if (mob.level() instanceof ServerLevel serverLevel) {
-            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
-                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.75, mob.getZ(),
-                    12, 0.3, 0.4, 0.3, 0.0);
-        }
+                1.0f, 0.9f + mob.level().getRandom().nextFloat() * 0.2f);
 
         if (isUndead) {
-            int existingAbs = 0;
-            MobEffectInstance cur = mob.getEffect(MobEffects.ABSORPTION);
-            if (cur != null) existingAbs = cur.getAmplifier() + 1;
-            int totalAmp = existingAbs + draftAmp;
-            mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, totalAmp - 1, false, true, true));
-            mob.setAbsorptionAmount(mob.getAbsorptionAmount() + draftAmp * 4.0f);
-            mob.heal(draftAmp * 4.0f);
+            mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, amp, false, true, true));
+            float healAmount = (amp + 1) * 4.0f;
+            mob.heal(healAmount);
         } else {
-            int existingRegen = 0;
-            MobEffectInstance cur = mob.getEffect(MobEffects.REGENERATION);
-            if (cur != null) existingRegen = cur.getAmplifier() + 1;
-            int totalAmp = existingRegen + draftAmp;
-            mob.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration, totalAmp - 1, false, true, true));
+            mob.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration, amp, false, true, true));
         }
 
         state.useCount++;
         state.lastUseTick = now;
 
-        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used draft (amp +{}) [{}/{}]",
+        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used draft [{}/{}]",
                 mob.getType().getDescriptionId(),
                 isUndead ? "undead" : "living",
-                draftAmp,
                 state.useCount,
                 BuffMobsConfig.INSTANCE.combatDraft.maxUses.get() == 0
                         ? "∞" : BuffMobsConfig.INSTANCE.combatDraft.maxUses.get());
     }
 
+    // Spawns happy villager particles to visually signal the heal
+    private static void spawnDrinkParticles(Mob mob) {
+        if (!(mob.level() instanceof ServerLevel sl)) return;
+        for (int i = 0; i < 8; i++) {
+            double ox = (mob.level().getRandom().nextDouble() - 0.5) * mob.getBbWidth();
+            double oy = mob.level().getRandom().nextDouble() * mob.getBbHeight();
+            double oz = (mob.level().getRandom().nextDouble() - 0.5) * mob.getBbWidth();
+            sl.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                    mob.getX() + ox, mob.getY() + oy, mob.getZ() + oz,
+                    1, 0, 0, 0, 0);
+        }
+    }
+
     private static boolean isEligible(Mob mob) {
-        if (!MobBuffUtil.isValidMob(mob)) return false;
+        if (mob.isRemoved() || !mob.isAlive()) return false;
+        if (mob instanceof TamableAnimal t && t.isTame()) return false;
+
+        boolean hostile = mob instanceof Enemy
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
+                || isNeutral(mob);
+        if (!hostile) return false;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         BuffMobsConfig.CombatDraft cfg = BuffMobsConfig.INSTANCE.combatDraft;
@@ -117,8 +135,24 @@ public class CombatDraftHandler {
         return true;
     }
 
+    private static boolean isNeutral(Mob mob) {
+        String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        return switch (id) {
+            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
+                 "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
+                 "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
+                 "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
+                 "minecraft:trader_llama" -> true;
+            default -> false;
+        };
+    }
+
     private static class MobDraftState {
-        long lastUseTick = -99999;
-        int  useCount    = 0;
+        long lastUseTick      = -99999;
+        int  useCount         = 0;
+        boolean animationActive = false;
+        long restoreAtTick    = 0;
+        // pendingRestore removed — no fake potion item is placed in offhand
+        ItemStack pendingRestore = null;
     }
 }

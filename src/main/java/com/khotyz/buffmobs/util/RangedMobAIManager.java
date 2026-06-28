@@ -3,15 +3,14 @@ package com.khotyz.buffmobs.util;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.monster.AbstractSkeleton;
 import net.minecraft.world.entity.monster.Stray;
 import net.minecraft.world.entity.monster.Pillager;
@@ -23,6 +22,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -36,9 +36,6 @@ public class RangedMobAIManager {
     private static final int    SWITCH_COOLDOWN    = 60;
     private static final double MELEE_ATTACK_REACH = 2.5;
     private static final double HYSTERESIS         = 2.5;
-
-    private static final ResourceLocation MELEE_SPEED_ID =
-            ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "melee_speed");
 
     private static final Map<UUID, MobState> MOB_STATES = new HashMap<>();
     private static final Random RAND = new Random();
@@ -64,31 +61,24 @@ public class RangedMobAIManager {
                 state.usesMelee ? "MELEE" : "KITE");
     }
 
-    // Called every tick — handles both melee drive and kite flee
-    public static void driveTick(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enabled.get()) return;
-        MobState state = MOB_STATES.get(mob.getUUID());
-        if (state == null || !state.active) return;
-
-        Player target = resolveTarget(mob);
-        if (target == null || !target.isAlive() || target.isSpectator() || target.isCreative()) return;
-
-        if (state.usesMelee) {
-            driveMeleeAttack(mob, target, state, mob.level().getGameTime());
-        } else {
-            if (mob.tickCount % 10 == 0 || mob.getNavigation().isDone()) {
-                driveKite(mob, target);
-            }
-        }
-    }
-
     public static void updateMobBehavior(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enabled.get() || !isRangedMob(mob)) return;
 
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }
 
-        Player target = resolveTarget(mob);
+        Player target;
+        if (hasConditionalHostility(mob)) {
+            if (!(mob.getTarget() instanceof Player p)) {
+                if (state.active) exitActiveMode(mob, state);
+                return;
+            }
+            target = p;
+        } else {
+            target = mob.getTarget() instanceof Player p ? p
+                    : mob.level().getNearestPlayer(mob, 32.0);
+        }
+
         if (target == null || target.isSpectator() || target.isCreative() || !target.isAlive()) {
             if (state.active) exitActiveMode(mob, state);
             return;
@@ -106,6 +96,8 @@ public class RangedMobAIManager {
             } else if (state.active && farEnough && now - state.lastSwitchTime >= SWITCH_COOLDOWN) {
                 exitActiveMode(mob, state);
                 state.lastSwitchTime = now;
+            } else if (state.active) {
+                driveMeleeAttack(mob, target, state, now);
             }
         } else {
             if (tooClose && !state.active && now - state.lastSwitchTime >= SWITCH_COOLDOWN) {
@@ -124,19 +116,19 @@ public class RangedMobAIManager {
                 || mob instanceof Piglin || mob instanceof Pillager;
     }
 
-    // Mobs whose hostility depends on conditions managed entirely by vanilla AI.
     private static boolean hasConditionalHostility(Mob mob) {
         return mob instanceof Piglin;
     }
 
-    // For conditional-hostility mobs, only use the vanilla-assigned target.
-    // For always-hostile mobs, fall back to nearest player.
-    private static Player resolveTarget(Mob mob) {
-        if (hasConditionalHostility(mob)) {
-            return mob.getTarget() instanceof Player p ? p : null;
-        }
-        return mob.getTarget() instanceof Player p ? p
-                : mob.level().getNearestPlayer(mob, 32.0);
+    private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
+        Vec3 from = mob.getEyePosition();
+        Vec3 to   = target.getEyePosition();
+        HitResult hit = mob.level().clip(new ClipContext(
+                from, to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mob));
+        return hit.getType() == HitResult.Type.MISS;
     }
 
     public static boolean isInMeleeMode(Mob mob) {
@@ -147,29 +139,21 @@ public class RangedMobAIManager {
     public static void cleanup(Mob mob) {
         MobState s = MOB_STATES.remove(mob.getUUID());
         if (s == null) return;
-        removeMeleeSpeedModifier(mob);
+        if (s.meleeGoal != null) mob.goalSelector.removeGoal(s.meleeGoal);
+        if (s.kiteGoal  != null) mob.goalSelector.removeGoal(s.kiteGoal);
     }
 
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
         mob.setItemSlot(EquipmentSlot.MAINHAND, MeleeWeaponManager.generateMeleeWeapon(mob));
-        mob.setDropChance(EquipmentSlot.MAINHAND, 0f);
-
-        // Only force-set target for always-hostile mobs.
+        if (state.meleeGoal == null) {
+            state.meleeGoal = mob instanceof PathfinderMob pf
+                    ? new MeleeAttackGoal(pf, MELEE_CHASE_SPEED, false)
+                    : new FallbackMeleeGoal(mob);
+            mob.goalSelector.addGoal(0, state.meleeGoal);
+        }
         if (!hasConditionalHostility(mob)) {
             mob.setTarget(target);
         }
-
-        double meleeSpeedMult = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.meleeSpeedMultiplier.get();
-        AttributeInstance speedAttr = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speedAttr != null) {
-            speedAttr.removeModifier(MELEE_SPEED_ID);
-            if (meleeSpeedMult != 1.0) {
-                speedAttr.addTransientModifier(new AttributeModifier(
-                        MELEE_SPEED_ID, meleeSpeedMult - 1.0,
-                        AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
-            }
-        }
-
         state.active         = true;
         state.lastSwitchTime = now;
         state.lastAttackTime = 0;
@@ -177,21 +161,16 @@ public class RangedMobAIManager {
     }
 
     private static void driveMeleeAttack(Mob mob, Player target, MobState state, long now) {
-        // Exit melee if a conditional-hostility mob lost its vanilla target (e.g. Piglin pacified by gold).
-        if (hasConditionalHostility(mob) && mob.getTarget() != target) {
+        if (mob.getTarget() != target) {
             exitActiveMode(mob, state);
             return;
         }
-        if (!hasConditionalHostility(mob) && mob.getTarget() != target) {
-            mob.setTarget(target);
-        }
-        double dist = mob.distanceTo(target);
-        if (dist > MELEE_ATTACK_REACH) {
+        if (mob.distanceTo(target) > MELEE_ATTACK_REACH) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
         } else {
             mob.getNavigation().stop();
             mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            if (now - state.lastAttackTime >= 20) {
+            if (now - state.lastAttackTime >= 20 && hasLineOfSight(mob, target)) {
                 performMeleeHit(mob, target);
                 state.lastAttackTime = now;
             }
@@ -199,18 +178,7 @@ public class RangedMobAIManager {
     }
 
     private static void performMeleeHit(Mob mob, LivingEntity target) {
-        if (!(mob.level() instanceof ServerLevel serverLevel)) return;
-
-        // Raycast from mob eye to target eye; abort if a solid block is in the way
-        Vec3 from = mob.getEyePosition();
-        Vec3 to   = target.getEyePosition();
-        HitResult hit = serverLevel.clip(new ClipContext(
-                from, to,
-                ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE,
-                mob));
-        if (hit.getType() == HitResult.Type.BLOCK) return;
-
+        if (!(mob.level() instanceof ServerLevel)) return;
         Vec3 dir = new Vec3(target.getX() - mob.getX(), 0, target.getZ() - mob.getZ())
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
@@ -220,18 +188,13 @@ public class RangedMobAIManager {
     }
 
     private static void enterKiteMode(Mob mob, MobState state, long now) {
+        if (state.kiteGoal == null) {
+            state.kiteGoal = new KiteGoal(mob);
+            mob.goalSelector.addGoal(0, state.kiteGoal);
+        }
         state.active         = true;
         state.lastSwitchTime = now;
         BuffMobsMod.LOGGER.debug("[BuffMobs] {} -> KITE", mob.getType());
-    }
-
-    private static void driveKite(Mob mob, Player target) {
-        mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-        Vec3 away = mob.position().subtract(target.position());
-        if (away.lengthSqr() < 0.001)
-            away = new Vec3(RAND.nextDouble() - 0.5, 0, RAND.nextDouble() - 0.5);
-        Vec3 dest = mob.position().add(away.normalize().scale(KITE_SAFE_DISTANCE));
-        mob.getNavigation().moveTo(dest.x, dest.y, dest.z, KITE_FLEE_SPEED);
     }
 
     private static void exitActiveMode(Mob mob, MobState state) {
@@ -239,18 +202,13 @@ public class RangedMobAIManager {
                 ? state.originalWeapon.copy()
                 : getDefaultRangedWeapon(mob);
         mob.setItemSlot(EquipmentSlot.MAINHAND, rangedWeapon);
-        mob.setDropChance(EquipmentSlot.MAINHAND, 0f);
-        removeMeleeSpeedModifier(mob);
-        if (!hasConditionalHostility(mob)) mob.setTarget(null);
+        if (state.meleeGoal != null) { mob.goalSelector.removeGoal(state.meleeGoal); state.meleeGoal = null; }
+        if (state.kiteGoal  != null) { mob.goalSelector.removeGoal(state.kiteGoal);  state.kiteGoal  = null; }
+        mob.setTarget(null);
         mob.getNavigation().stop();
         state.active         = false;
         state.lastSwitchTime = mob.level().getGameTime();
         BuffMobsMod.LOGGER.debug("[BuffMobs] {} -> RANGED", mob.getType());
-    }
-
-    private static void removeMeleeSpeedModifier(Mob mob) {
-        AttributeInstance speedAttr = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (speedAttr != null) speedAttr.removeModifier(MELEE_SPEED_ID);
     }
 
     private static ItemStack getDefaultRangedWeapon(Mob mob) {
@@ -265,5 +223,93 @@ public class RangedMobAIManager {
         ItemStack originalWeapon = ItemStack.EMPTY;
         long      lastSwitchTime = 0;
         long      lastAttackTime = 0;
+        Goal      meleeGoal      = null;
+        Goal      kiteGoal       = null;
+    }
+
+    private static class KiteGoal extends Goal {
+        private final Mob mob;
+        private Player target;
+
+        KiteGoal(Mob mob) {
+            this.mob = mob;
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (hasConditionalHostility(mob)) {
+                if (!(mob.getTarget() instanceof Player p)) return false;
+                target = p;
+            } else {
+                target = mob.getTarget() instanceof Player p ? p
+                        : mob.level().getNearestPlayer(mob, 32.0);
+            }
+            if (target == null || target.isSpectator() || target.isCreative()) return false;
+            return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            if (target == null || !target.isAlive()) return false;
+            if (hasConditionalHostility(mob) && mob.getTarget() != target) return false;
+            return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get() + HYSTERESIS;
+        }
+
+        @Override
+        public void start() { flee(); }
+
+        @Override
+        public void tick() {
+            if (target == null) return;
+            mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
+            if (mob.tickCount % 10 == 0 || mob.getNavigation().isDone()) flee();
+        }
+
+        @Override
+        public void stop() { mob.getNavigation().stop(); }
+
+        private void flee() {
+            if (target == null) return;
+            Vec3 away = mob.position().subtract(target.position());
+            if (away.lengthSqr() < 0.001)
+                away = new Vec3(RAND.nextDouble() - 0.5, 0, RAND.nextDouble() - 0.5);
+            Vec3 dest = mob.position().add(away.normalize().scale(KITE_SAFE_DISTANCE));
+            mob.getNavigation().moveTo(dest.x, dest.y, dest.z, KITE_FLEE_SPEED);
+        }
+    }
+
+    private static class FallbackMeleeGoal extends Goal {
+        private final Mob mob;
+
+        FallbackMeleeGoal(Mob mob) {
+            this.mob = mob;
+            setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            LivingEntity t = mob.getTarget();
+            return t != null && t.isAlive() && mob.distanceTo(t) <= MELEE_ATTACK_REACH + 4.0;
+        }
+
+        @Override
+        public boolean canContinueToUse() { return canUse(); }
+
+        @Override
+        public void tick() {
+            LivingEntity t = mob.getTarget();
+            if (t == null || !(mob.level() instanceof ServerLevel)) return;
+            mob.getLookControl().setLookAt(t.getX(), t.getEyeY(), t.getZ());
+            if (mob.distanceTo(t) > MELEE_ATTACK_REACH) {
+                mob.getNavigation().moveTo(t, MELEE_CHASE_SPEED);
+            } else {
+                mob.getNavigation().stop();
+                if (mob.tickCount % 20 == 0 && hasLineOfSight(mob, t)) {
+                    mob.doHurtTarget(t);
+                    mob.swing(InteractionHand.MAIN_HAND);
+                }
+            }
+        }
     }
 }
