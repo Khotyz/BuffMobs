@@ -200,7 +200,7 @@
   "buffmobs.config.passiveMobAggression.whitelist.tooltip": "If non-empty, only these mob IDs will be made aggressive. Format: minecraft:cow",
   "buffmobs.config.passiveMobAggression.blacklist": "Denylist",
   "buffmobs.config.passiveMobAggression.blacklist.tooltip": "Mob IDs that will never be made aggressive even when Passive Aggression is enabled.",
-  "buffmobs.config.passiveMobAggression.mob.Filter": "Mob Filter",
+  "buffmobs.config.passiveMobAggression.mobFilter": "Mob Filter",
 
   "buffmobs.notify.day_scaling": "Day %s - Mob Scaling: %sx | Next increase in %s day%s",
   "buffmobs.notify.day_scaling.max": "Day %s - Mob Scaling: %sx",

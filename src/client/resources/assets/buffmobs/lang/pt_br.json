@@ -187,7 +187,7 @@
   "buffmobs.config.passiveMobAggression.whitelist.tooltip": "Se não estiver vazio, apenas esses IDs de mobs ficarão agressivos. Formato: minecraft:cow",
   "buffmobs.config.passiveMobAggression.blacklist": "Lista de Bloqueados",
   "buffmobs.config.passiveMobAggression.blacklist.tooltip": "IDs de Criaturas que nunca serão tornadas agressivas mesmo quando a agressão passiva estiver ativada.",
-  "buffmobs.config.passiveMobAggression.mob.Filter": "Filtro de Criaturas",
+  "buffmobs.config.passiveMobAggression.mobFilter": "Filtro de Criaturas",
   "buffmobs.notify.day_scaling": "Dia %s — Escalonamento de Criaturas: %sx | Próximo Aumento em %s Dia%s",
   "buffmobs.notify.day_scaling.max": "Dia %s — Escalonamento de Criaturas: %sx (MÁXIMO)",
   "buffmobs.config.dayScaling.notificationMode": "Modo de Notificação",

@@ -187,7 +187,7 @@
   "buffmobs.config.passiveMobAggression.whitelist.tooltip": "如果非空，则只有这些生物ID会被设为具敌对性。格式：minecraft:cow",
   "buffmobs.config.passiveMobAggression.blacklist": "黑名单",
   "buffmobs.config.passiveMobAggression.blacklist.tooltip": "即使开启了被动生物敌对性，这些生物ID也永远不会被设为具敌对性。",
-  "buffmobs.config.passiveMobAggression.mob.Filter": "怪物过滤",
+  "buffmobs.config.passiveMobAggression.mobFilter": "怪物过滤",
   "buffmobs.notify.day_scaling": "第 %s 天 - 怪物数值: %sx | 下次提升在 %s 天%s后",
   "buffmobs.notify.day_scaling.max": "第 %s 天 - 怪物数值: %sx (已达上限)",
   "buffmobs.config.dayScaling.notificationMode": "提醒模式",
