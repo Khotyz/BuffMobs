@@ -77,7 +77,7 @@ public class BuffMobsConfig {
         public double multiplier = 0.1;
         public boolean showNotifications = true;
         public NotificationMode notificationMode = NotificationMode.EVERY_DAY;
-        public double maxMultiplier;
+        public double maxMultiplier = 5.0;
 
         public enum NotificationMode { EVERY_DAY, SCALING_INCREASE_ONLY }
     }

@@ -83,7 +83,9 @@ public class MobBuffUtil {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled) return 1.0;
         long days      = worldTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval);
-        return 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier);
+        double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier);
+        double max     = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier;
+        return max == 0.0 ? mult : Math.min(mult, max);
     }
 
     public static DimensionMultipliers getDimensionMultipliers(Mob mob) {

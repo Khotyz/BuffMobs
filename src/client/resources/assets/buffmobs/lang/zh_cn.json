@@ -1,12 +1,10 @@
 {
   "buffmobs.config.title": "BuffMobs 配置",
-
   "buffmobs.config.general": "常规",
   "buffmobs.config.general.enabled": "启用模组",
   "buffmobs.config.general.enabled.tooltip": "完全启用或禁用模组。禁用后，所有怪物都会丢失它们身上存在的增益效果。",
   "buffmobs.config.general.visualEffects": "视觉效果",
   "buffmobs.config.general.visualEffects.tooltip": "对拥有状态效果的怪物显示粒子特效。",
-
   "buffmobs.config.attributes": "属性",
   "buffmobs.config.attributes.healthMultiplier": "生命值倍数",
   "buffmobs.config.attributes.healthMultiplier.tooltip": "增加拥有增益的怪物的基础最大生命值，如1.5则增加50%的HP。",
@@ -20,7 +18,6 @@
   "buffmobs.config.attributes.armorAddition.tooltip": "控制怪物的护甲值，20为钻石护甲。",
   "buffmobs.config.attributes.armorToughnessAddition": "护甲韧性",
   "buffmobs.config.attributes.armorToughnessAddition.tooltip": "给怪物增加固定护甲韧性，降低高伤害攻击的效果。",
-
   "buffmobs.config.effects": "状态效果",
   "buffmobs.config.effects.duration": "持续时间",
   "buffmobs.config.effects.duration.tooltip": "怪物身上的状态效果持续时间 (单位:秒, -1 = 无时间限制，每秒刷新一次)。",
@@ -36,7 +33,6 @@
   "buffmobs.config.effects.absorptionAmplifier.tooltip": "给予怪物的伤害吸收效果等级，0 = 禁用。",
   "buffmobs.config.effects.slider.disabled": "禁用",
   "buffmobs.config.effects.slider.level": "%d 级",
-
   "buffmobs.config.harmfulEffects": "有害效果",
   "buffmobs.config.harmfulEffects.enabled": "启用负面效果",
   "buffmobs.config.harmfulEffects.enabled.tooltip": "开启后，增益怪物 attack 玩家时有概率产生负面效果。",
@@ -48,7 +44,6 @@
   "buffmobs.config.harmfulEffects.slownessDuration.tooltip": "控制减速效果在玩家身上的持续时间，单位:秒。",
   "buffmobs.config.harmfulEffects.witherDuration": "凋零效果持续时间(秒)",
   "buffmobs.config.harmfulEffects.witherDuration.tooltip": "控制凋零效果在玩家身上的持续时间，单位:秒。",
-
   "buffmobs.config.dayScaling": "天数检测",
   "buffmobs.config.dayScaling.enabled": "开启天数检测",
   "buffmobs.config.dayScaling.enabled.tooltip": "开启后，随着游戏内天数的流逝怪物会逐渐变强。无上限。",
@@ -58,7 +53,8 @@
   "buffmobs.config.dayScaling.multiplier.tooltip": "每次增加的强化倍率。如0.1则每次增加原版10%的强度。无上限。",
   "buffmobs.config.dayScaling.showNotifications": "显示通知",
   "buffmobs.config.dayScaling.showNotifications.tooltip": "当难度增加时，向所有玩家显示聊天消息。",
-
+  "buffmobs.config.dayScaling.maxMultiplier": "最多强化次数",
+  "buffmobs.config.dayScaling.maxMultiplier.tooltip": "日间缩放的最大程度 (不再有上限)。",
   "buffmobs.config.dimensionScaling": "维度检测",
   "buffmobs.config.dimensionScaling.slot": "槽位 %d",
   "buffmobs.config.dimensionScaling.dimensionId": "维度ID",
@@ -75,7 +71,6 @@
   "buffmobs.config.dimensionScaling.armorAddition.tooltip": "控制维度中怪物的护甲值。",
   "buffmobs.config.dimensionScaling.toughnessAddition": "护甲韧性",
   "buffmobs.config.dimensionScaling.toughnessAddition.tooltip": "控制维度中怪物的护甲韧性。",
-
   "buffmobs.config.mobFilter": "怪物过滤",
   "buffmobs.config.mobFilter.useWhitelist": "启用白名单",
   "buffmobs.config.mobFilter.useWhitelist.tooltip": "开启后，只有白名单中的怪物才会获得增益。",
@@ -83,7 +78,6 @@
   "buffmobs.config.mobFilter.whitelist.tooltip": "启用白名单后将被增强的怪物ID。",
   "buffmobs.config.mobFilter.blacklist": "黑名单",
   "buffmobs.config.mobFilter.blacklist.tooltip": "不会被增强的怪物名单。格式：minecraft:zombie",
-
   "buffmobs.config.modidFilter": "模组中的怪物ID过滤",
   "buffmobs.config.modidFilter.useWhitelist": "启用白名单",
   "buffmobs.config.modidFilter.useWhitelist.tooltip": "开启后，只有白名单中的模组生物才会获得增益。",
@@ -91,7 +85,6 @@
   "buffmobs.config.modidFilter.whitelist.tooltip": "启用白名单后将被增强的模组怪物ID。",
   "buffmobs.config.modidFilter.blacklist": "黑名单",
   "buffmobs.config.modidFilter.blacklist.tooltip": "不会被增强的模组怪物ID。",
-
   "buffmobs.config.dimensionFilter": "维度过滤",
   "buffmobs.config.dimensionFilter.useWhitelist": "白名单",
   "buffmobs.config.dimensionFilter.useWhitelist.tooltip": "开启后，只有白名单中的世界的怪物才会获得增益。",
@@ -99,7 +92,6 @@
   "buffmobs.config.dimensionFilter.whitelist.tooltip": "启用白名单后将被增强怪物的世界。",
   "buffmobs.config.dimensionFilter.blacklist": "黑名单",
   "buffmobs.config.dimensionFilter.blacklist.tooltip": "不会有增强怪物出现的世界，格式:minecraft:the_nether",
-
   "buffmobs.config.rangedMeleeSwitching": "攻击方式切换",
   "buffmobs.config.rangedMeleeSwitching.enabled": "开启开关",
   "buffmobs.config.rangedMeleeSwitching.enabled.tooltip": "当玩家靠近时远程攻击的怪物会改变攻击方式。",
@@ -150,7 +142,6 @@
   "buffmobs.config.rangedMeleeSwitching.fireAspectMaxLevel.value": "最高等级: %d",
   "buffmobs.config.rangedMeleeSwitching.knockbackMaxLevel.value": "最高等级: %d",
   "buffmobs.config.rangedMeleeSwitching.sweepingEdgeMaxLevel.value": "最高等级: %d",
-
   "buffmobs.config.combatDraft": "战斗修整",
   "buffmobs.config.combatDraft.enabled": "启用",
   "buffmobs.config.combatDraft.enabled.tooltip": "开启后，当敌对和中立生物的生命值低于阈值时，它们会饮用生命恢复药水。",
@@ -168,7 +159,6 @@
   "buffmobs.config.combatDraft.mobFilter.useWhitelist": "使用白名单",
   "buffmobs.config.combatDraft.mobFilter.whitelist": "白名单",
   "buffmobs.config.combatDraft.mobFilter.blacklist": "黑名单",
-
   "buffmobs.config.mobPresets": "生物预设",
   "buffmobs.config.mobPresets.enabled": "启用预设",
   "buffmobs.config.mobPresets.enabled.tooltip": "启用后，可以为怪物单独分配属性，该属性会覆盖全局倍数。",
@@ -184,7 +174,6 @@
   "buffmobs.config.mobPresets.attackSpeedMultiplier": "攻击速度倍率",
   "buffmobs.config.mobPresets.armorAddition": "添加护甲",
   "buffmobs.config.mobPresets.toughnessAddition": "护甲韧性",
-
   "buffmobs.config.passiveMobAggression": "被动生物敌对性",
   "buffmobs.config.passiveMobAggression.enabled": "启用被动生物敌对性",
   "buffmobs.config.passiveMobAggression.enabled.tooltip": "开启后，被动生物（牛、猪、鸡等）将变为中立并会攻击玩家。使用白名单可限制受影响的生物类型。",
@@ -198,14 +187,13 @@
   "buffmobs.config.passiveMobAggression.whitelist.tooltip": "如果非空，则只有这些生物ID会被设为具敌对性。格式：minecraft:cow",
   "buffmobs.config.passiveMobAggression.blacklist": "黑名单",
   "buffmobs.config.passiveMobAggression.blacklist.tooltip": "即使开启了被动生物敌对性，这些生物ID也永远不会被设为具敌对性。",
-
+  "buffmobs.config.passiveMobAggression.mob.Filter": "怪物过滤",
   "buffmobs.notify.day_scaling": "第 %s 天 - 怪物数值: %sx | 下次提升在 %s 天%s后",
   "buffmobs.notify.day_scaling.max": "第 %s 天 - 怪物数值: %sx (已达上限)",
   "buffmobs.config.dayScaling.notificationMode": "提醒模式",
   "buffmobs.config.dayScaling.notificationMode.tooltip": "何时向玩家发送怪物强化时间通知。",
   "buffmobs.config.dayScaling.notificationMode.every_day": "每天",
   "buffmobs.config.dayScaling.notificationMode.scaling_increase_only": "仅强化当天",
-
   "buffmobs.command.debug.header": "=== BuffMobs 调试 ===",
   "buffmobs.command.debug.mob_id": "怪物ID: %s",
   "buffmobs.command.debug.mod_id": "模组ID: %s",
@@ -237,17 +225,14 @@
   "buffmobs.command.debug.error.player_only": "必须是玩家！",
   "buffmobs.command.debug.error.no_mobs": "附近没有怪物！",
   "buffmobs.command.debug.passive_aggression": "被动敌对性: %s",
-
   "buffmobs.command.presets.header": "=== 增益怪物预设 ===",
   "buffmobs.command.presets.enabled.yes": "启用：是",
   "buffmobs.command.presets.enabled.no": "启用：否",
   "buffmobs.command.presets.mappings_header": "=== 生物映射 ===",
   "buffmobs.command.presets.mapping_entry": "- %s -> %s",
   "buffmobs.command.presets.mapping_invalid": "- 无效: %s",
-
   "buffmobs.command.reload.start": "正在重新给所有怪物施加增益...",
   "buffmobs.command.reload.done": "已强化 %s 个怪物！",
-
   "buffmobs.command.info.header": "=== 增益怪物信息 ===",
   "buffmobs.command.info.enabled": "启用: %s",
   "buffmobs.command.info.initialized": "已初始化怪物: %s",
@@ -256,13 +241,10 @@
   "buffmobs.command.info.day_scaling": "怪物强化时间: %s",
   "buffmobs.command.info.presets": "预设: %s",
   "buffmobs.command.info.passive_aggression": "被动敌对性: %s",
-
   "buffmobs.config.filter.useWhitelist.tooltip": "如果启用，只会影响白名单中列出的条目。开启黑名单时会忽略。",
   "buffmobs.config.filter.whitelist.tooltip": "仅在白名单启用时受影响的 ID 列表。",
   "buffmobs.config.filter.blacklist.tooltip": "总是排除的ID列表。格式：模组id:条目id",
-
   "modmenu.nameTranslation.buffmobs": "增益怪物",
   "modmenu.descriptionTranslation.buffmobs": "随着难度增加使敌对和中立的生物变得更强、更快、更具挑战性。",
-
   "buffmobs.config.credits.translation": "翻译者: my耐奥祖 (Mytechnology)"
 }

@@ -141,6 +141,10 @@ public class ClothConfigScreen {
                 .setDefaultValue(0.1).setMin(0.001)
                 .setTooltip(tt("buffmobs.config.dayScaling.multiplier.tooltip"))
                 .setSaveConsumer(v -> cfg.dayScaling.multiplier = v).build());
+        dayScaling.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.maxMultiplier"), cfg.dayScaling.maxMultiplier)
+                .setDefaultValue(5.0).setMin(0.0)
+                .setTooltip(tt("buffmobs.config.dayScaling.maxMultiplier.tooltip"))
+                .setSaveConsumer(v -> cfg.dayScaling.maxMultiplier = v).build());
         dayScaling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dayScaling.showNotifications"), cfg.dayScaling.showNotifications)
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.dayScaling.showNotifications.tooltip"))

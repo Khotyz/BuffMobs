@@ -58,6 +58,8 @@
   "buffmobs.config.dayScaling.multiplier.tooltip": "How much the multiplier increases per interval. 0.1 = +10% per interval. No upper cap.",
   "buffmobs.config.dayScaling.showNotifications": "Show Notifications",
   "buffmobs.config.dayScaling.showNotifications.tooltip": "Show a chat message to all players when the difficulty increases.",
+  "buffmobs.config.dayScaling.maxMultiplier": "Max Multiplier",
+  "buffmobs.config.dayScaling.maxMultiplier.tooltip": "Maximum multiplier day scaling can reach. Set to 0 for unlimited.",
 
   "buffmobs.config.dimensionScaling": "Dimension Scaling",
   "buffmobs.config.dimensionScaling.slot": "Slot %d",
@@ -198,6 +200,7 @@
   "buffmobs.config.passiveMobAggression.whitelist.tooltip": "If non-empty, only these mob IDs will be made aggressive. Format: minecraft:cow",
   "buffmobs.config.passiveMobAggression.blacklist": "Denylist",
   "buffmobs.config.passiveMobAggression.blacklist.tooltip": "Mob IDs that will never be made aggressive even when Passive Aggression is enabled.",
+  "buffmobs.config.passiveMobAggression.mob.Filter": "Mob Filter",
 
   "buffmobs.notify.day_scaling": "Day %s - Mob Scaling: %sx | Next increase in %s day%s",
   "buffmobs.notify.day_scaling.max": "Day %s - Mob Scaling: %sx",
