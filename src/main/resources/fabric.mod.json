@@ -28,5 +28,6 @@
   "suggests": {
     "cloth-config": ">=26.1.0",
     "modmenu": ">=18.0.0"
-  }
+  },
+  "accessWidener": "buffmobs.accesswidener"
 }

@@ -84,7 +84,8 @@ public class MobBuffUtil {
         long days      = worldTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval);
         double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier);
-        return Math.min(mult, BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier);
+        double max     = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier;
+        return max == 0.0 ? mult : Math.min(mult, max);
     }
 
     public static DimensionMultipliers getDimensionMultipliers(Mob mob) {
@@ -162,8 +163,9 @@ public class MobBuffUtil {
 
         boolean isHostile = mob instanceof Enemy;
         boolean isNeutral = isNeutralMob(mob);
+        boolean isPassiveAggressive = isPassiveAggressiveMob(mob);
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (!isHostile && !isNeutral && !isExplicitlyAllowed(mobId)) return false;
+        if (!isHostile && !isNeutral && !isPassiveAggressive && !isExplicitlyAllowed(mobId)) return false;
 
         String dim   = getDimensionId(mob.level());
         String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
@@ -179,6 +181,28 @@ public class MobBuffUtil {
         return validDim && validMod && validMob;
     }
 
+    public static boolean isPassiveAggressiveMob(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return false;
+        if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
+        if (mob instanceof Enemy) return false;
+        if (isNeutralMob(mob)) return false;
+
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+
+        if (cfg.blacklist.contains(mobId)) return false;
+        if (!cfg.whitelist.isEmpty()) return cfg.whitelist.contains(mobId);
+        return true;
+    }
+
+    public static double getPassiveDamageForMob(Mob mob) {
+        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+        double base = cfg.baseDamage;
+        if (cfg.scaleWithHealth) {
+            base += mob.getMaxHealth() * cfg.healthScaleFactor;
+        }
+        return base;
+    }
 
     private static boolean isExplicitlyAllowed(String mobId) {
         if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.contains(mobId)) return true;
@@ -219,12 +243,31 @@ public class MobBuffUtil {
         double presetArm   = preset != null ? preset.armor          : 0.0;
         double presetTough = preset != null ? preset.armorToughness : 0.0;
 
-        applyMultiplier(mob, Attributes.MAX_HEALTH,      HEALTH_MOD_ID,       attrHp   * dim.health      * presetHp   * dayMult);
-        applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
-        applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
-        applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
-        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor          + presetArm)   * dayMult);
-        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness + presetTough) * dayMult);
+        boolean isPassive = isPassiveAggressiveMob(mob);
+
+        if (isPassive) {
+            applyPassiveAggressionDamage(mob);
+        } else {
+            applyMultiplier(mob, Attributes.MAX_HEALTH,      HEALTH_MOD_ID,       attrHp   * dim.health      * presetHp   * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
+            applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
+            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor          + presetArm)   * dayMult);
+            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness + presetTough) * dayMult);
+        }
+    }
+
+    private static void applyPassiveAggressionDamage(Mob mob) {
+        AttributeInstance dmgAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmgAttr == null) return;
+        dmgAttr.removeModifier(DAMAGE_MOD_ID);
+        double baseDmg = BuffMobsConfig.INSTANCE.passiveMobAggression.baseDamage;
+        double current = dmgAttr.getBaseValue();
+        if (baseDmg > current) {
+            double bonus = baseDmg - current;
+            dmgAttr.addPermanentModifier(new AttributeModifier(DAMAGE_MOD_ID, bonus,
+                    AttributeModifier.Operation.ADD_VALUE));
+        }
     }
 
     private static void applyMultiplier(Mob mob,
@@ -244,8 +287,7 @@ public class MobBuffUtil {
         if (inst == null) return;
         inst.removeModifier(id);
         if (finalMult > 1.0) {
-            double capped = Math.min(finalMult, 2.0);
-            double bonus  = (capped - 1.0) * 0.3;
+            double bonus = (finalMult - 1.0) * 0.3;
             inst.addPermanentModifier(new AttributeModifier(id, bonus,
                     AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
         }

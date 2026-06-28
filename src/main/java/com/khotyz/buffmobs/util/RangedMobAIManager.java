@@ -147,7 +147,6 @@ public class RangedMobAIManager {
                 : mob.level().getNearestPlayer(mob, 32.0);
     }
 
-    // Returns true only when no solid block obstructs the path between mob eyes and target eyes.
     private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
         Vec3 from = mob.getEyePosition();
         Vec3 to   = target.getEyePosition();
@@ -198,7 +197,6 @@ public class RangedMobAIManager {
         } else {
             mob.getNavigation().stop();
             mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            // Only strike when there is a clear line of sight to avoid hitting through walls.
             if (now - state.lastAttackTime >= 20 && hasLineOfSight(mob, target)) {
                 performMeleeHit(mob, target);
                 state.lastAttackTime = now;
@@ -211,7 +209,6 @@ public class RangedMobAIManager {
         Vec3 dir = new Vec3(target.getX() - mob.getX(), 0, target.getZ() - mob.getZ())
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
-        mob.hurtMarked = true;
         mob.doHurtTarget(serverLevel, target);
         mob.swing(InteractionHand.MAIN_HAND);
     }

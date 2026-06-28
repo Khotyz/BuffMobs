@@ -2,12 +2,12 @@ package com.khotyz.buffmobs.event;
 
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.MobBuffUtil;
+import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -25,7 +25,16 @@ public class MobEventHandler {
 
     public static void register() {
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken, damageTaken, blocked) -> {
-            if (!BuffMobsConfig.INSTANCE.enabled || !BuffMobsConfig.INSTANCE.harmfulEffects.enabled) return;
+            if (!BuffMobsConfig.INSTANCE.enabled) return;
+
+            if (entity instanceof Mob mob && MobBuffUtil.isPassiveAggressiveMob(mob)) {
+                Entity attacker = source.getEntity();
+                if (attacker instanceof Player player) {
+                    PassiveMobAggressionHandler.onMobHurtByPlayer(mob, player);
+                }
+            }
+
+            if (!BuffMobsConfig.INSTANCE.harmfulEffects.enabled) return;
             if (!(entity instanceof Player player)) return;
 
             Entity attacker = source.getEntity();
