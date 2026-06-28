@@ -9,9 +9,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
 import java.util.List;
@@ -37,15 +35,16 @@ public class CombatDraftHandler {
         STATES.remove(mob.getUUID());
     }
 
-    public static void tickRestore(Mob mob) {
-        // no-op: kept for compatibility with MobTickHandler call sites
-    }
+    // Kept for API compatibility with MobTickHandler; no-op now that offhand restore was removed.
+    public static void tickRestore(Mob mob) {}
 
     public static void tick(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.combatDraft.enabled) return;
 
         MobDraftState state = STATES.get(mob.getUUID());
-        if (state == null || !mob.isAlive() || mob.isRemoved()) return;
+        if (state == null) return;
+
+        if (!mob.isAlive() || mob.isRemoved()) return;
 
         int maxUses = BuffMobsConfig.INSTANCE.combatDraft.maxUses;
         if (maxUses > 0 && state.useCount >= maxUses) return;
@@ -62,43 +61,43 @@ public class CombatDraftHandler {
     private static void useDraft(Mob mob, MobDraftState state, long now) {
         int draftAmp = BuffMobsConfig.INSTANCE.combatDraft.regenAmplifier;
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration * 20;
-        boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
+        boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        // Strip any potion items from both hand slots so nothing drops as "uncraftable potion"
-        stripPotionItems(mob);
-
+        // Play drink sound without touching any item slot
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
-                SoundEvents.BOTTLE_FILL,
+                SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
-                1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
+                1.0f, 0.9f + mob.level().getRandom().nextFloat() * 0.2f);
 
+        // Spawn happy-villager particles as a visual cue
         if (mob.level() instanceof ServerLevel serverLevel) {
-            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
-                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.8, mob.getZ(),
-                    8, 0.3, 0.3, 0.3, 0.0);
+            serverLevel.sendParticles(
+                    ParticleTypes.HAPPY_VILLAGER,
+                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.75, mob.getZ(),
+                    12, 0.4, 0.4, 0.4, 0.0);
         }
 
         if (isUndead) {
             int existingAbs = 0;
             MobEffectInstance cur = mob.getEffect(MobEffects.ABSORPTION);
             if (cur != null) existingAbs = cur.getAmplifier() + 1;
-            mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration,
-                    existingAbs + draftAmp - 1, false, true, true));
+            int totalAmp = existingAbs + draftAmp;
+            mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, totalAmp - 1, false, true, true));
             mob.setAbsorptionAmount(mob.getAbsorptionAmount() + draftAmp * 4.0f);
             mob.heal(draftAmp * 4.0f);
         } else {
             int existingRegen = 0;
             MobEffectInstance cur = mob.getEffect(MobEffects.REGENERATION);
             if (cur != null) existingRegen = cur.getAmplifier() + 1;
-            mob.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration,
-                    existingRegen + draftAmp - 1, false, true, true));
+            int totalAmp = existingRegen + draftAmp;
+            mob.addEffect(new MobEffectInstance(MobEffects.REGENERATION, duration, totalAmp - 1, false, true, true));
         }
 
         state.useCount++;
         state.lastUseTick = now;
 
-        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used potion (amp +{}) [{}/{}]",
+        BuffMobsMod.LOGGER.debug("[BuffMobs] CombatDraft: {} ({}) used draft (amp +{}) [{}/{}]",
                 mob.getType().getDescriptionId(),
                 isUndead ? "undead" : "living",
                 draftAmp,
@@ -117,16 +116,6 @@ public class CombatDraftHandler {
         if (cfg.blacklist.contains(mobId)) return false;
         if (cfg.useWhitelist) return cfg.whitelist.contains(mobId);
         return true;
-    }
-
-    // Removes any potion items from the mob's hand slots to prevent "uncraftable potion" drops
-    private static void stripPotionItems(Mob mob) {
-        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND}) {
-            ItemStack held = mob.getItemBySlot(slot);
-            if (!held.isEmpty() && held.getItem() instanceof net.minecraft.world.item.PotionItem) {
-                mob.setItemSlot(slot, ItemStack.EMPTY);
-            }
-        }
     }
 
     private static class MobDraftState {

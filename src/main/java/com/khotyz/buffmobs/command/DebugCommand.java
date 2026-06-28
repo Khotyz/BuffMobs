@@ -68,8 +68,7 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled;
         src.sendSuccess(() -> Component.translatable(
-                presetsOn ? "buffmobs.command.debug.presets_enabled.yes"
-                        : "buffmobs.command.debug.presets_enabled.no"), false);
+                presetsOn ? "buffmobs.command.debug.presets_enabled.yes" : "buffmobs.command.debug.presets_enabled.no"), false);
 
         if (presetsOn) {
             MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);

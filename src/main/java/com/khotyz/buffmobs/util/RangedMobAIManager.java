@@ -19,9 +19,10 @@ import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -146,10 +147,21 @@ public class RangedMobAIManager {
                 : mob.level().getNearestPlayer(mob, 32.0);
     }
 
+    private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
+        Vec3 from = mob.getEyePosition();
+        Vec3 to   = target.getEyePosition();
+        BlockHitResult result = mob.level().clip(new ClipContext(
+                from, to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                mob));
+        return result.getType() == HitResult.Type.MISS;
+    }
+
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
-        mob.setItemSlot(EquipmentSlot.MAINHAND, MeleeWeaponManager.generateMeleeWeapon(mob));
-        // Prevent the mod-generated weapon from dropping on death
-        mob.setDropChance(EquipmentSlot.MAINHAND, 0f);
+        ItemStack weapon = MeleeWeaponManager.generateMeleeWeapon(mob);
+        mob.setItemSlot(EquipmentSlot.MAINHAND, weapon);
+        mob.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
 
         double meleeSpeedMult = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.meleeSpeedMultiplier;
         AttributeInstance speedAttr = mob.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -178,6 +190,7 @@ public class RangedMobAIManager {
             return;
         }
         if (mob.getTarget() != target) mob.setTarget(target);
+
         double dist = mob.distanceTo(target);
         if (dist > MELEE_ATTACK_REACH) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
@@ -191,23 +204,11 @@ public class RangedMobAIManager {
         }
     }
 
-    private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
-        Vec3 eyePos    = mob.getEyePosition();
-        Vec3 targetEye = target.getEyePosition();
-        HitResult ray  = mob.level().clip(new ClipContext(
-                eyePos, targetEye,
-                ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE,
-                mob));
-        return ray.getType() != HitResult.Type.BLOCK;
-    }
-
     private static void performMeleeHit(Mob mob, LivingEntity target) {
         if (!(mob.level() instanceof ServerLevel)) return;
         Vec3 dir = new Vec3(target.getX() - mob.getX(), 0, target.getZ() - mob.getZ())
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
-        mob.hurtMarked = true;
         mob.doHurtTarget(target);
         mob.swing(InteractionHand.MAIN_HAND);
     }
@@ -232,8 +233,6 @@ public class RangedMobAIManager {
                 ? state.originalWeapon.copy()
                 : getDefaultRangedWeapon(mob);
         mob.setItemSlot(EquipmentSlot.MAINHAND, rangedWeapon);
-        // Restore original drop chance now that the mod-generated weapon is gone
-        mob.setDropChance(EquipmentSlot.MAINHAND, state.originalMainHandDropChance);
         removeMeleeSpeedModifier(mob);
         mob.setTarget(null);
         mob.getNavigation().stop();
@@ -254,11 +253,10 @@ public class RangedMobAIManager {
     }
 
     private static class MobState {
-        boolean   usesMelee                  = true;
-        boolean   active                     = false;
-        ItemStack originalWeapon             = ItemStack.EMPTY;
-        float     originalMainHandDropChance = 0f;
-        long      lastSwitchTime             = 0;
-        long      lastAttackTime             = 0;
+        boolean   usesMelee      = true;
+        boolean   active         = false;
+        ItemStack originalWeapon = ItemStack.EMPTY;
+        long      lastSwitchTime = 0;
+        long      lastAttackTime = 0;
     }
 }

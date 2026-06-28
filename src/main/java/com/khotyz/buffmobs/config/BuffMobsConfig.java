@@ -17,11 +17,9 @@ public class BuffMobsConfig {
     private static final Path CONFIG_PATH = FabricLoader.getInstance()
             .getConfigDir().resolve("buffmobs.json");
 
-    // ── General ──────────────────────────────────────────────────────────────
     public boolean enabled = true;
     public boolean visualEffects = true;
 
-    // ── Sections ─────────────────────────────────────────────────────────────
     public DayScaling dayScaling = new DayScaling();
     public Attributes attributes = new Attributes();
     public Effects effects = new Effects();
@@ -33,8 +31,8 @@ public class BuffMobsConfig {
     public RangedMeleeSwitching rangedMeleeSwitching = new RangedMeleeSwitching();
     public CombatDraft combatDraft = new CombatDraft();
     public MobPresets mobPresets = new MobPresets();
+    public PassiveMobAggression passiveMobAggression = new PassiveMobAggression();
 
-    // ── Load / Save ───────────────────────────────────────────────────────────
     public static void load() {
         File file = CONFIG_PATH.toFile();
         if (file.exists()) {
@@ -70,17 +68,16 @@ public class BuffMobsConfig {
         if (src.rangedMeleeSwitching != null) INSTANCE.rangedMeleeSwitching = src.rangedMeleeSwitching;
         if (src.combatDraft != null) INSTANCE.combatDraft = src.combatDraft;
         if (src.mobPresets != null) INSTANCE.mobPresets = src.mobPresets;
+        if (src.passiveMobAggression != null) INSTANCE.passiveMobAggression = src.passiveMobAggression;
     }
-
-    // ── Inner classes ─────────────────────────────────────────────────────────
 
     public static class DayScaling {
         public boolean enabled = false;
         public int interval = 7;
         public double multiplier = 0.1;
-        public double maxMultiplier = 5.0;
         public boolean showNotifications = true;
         public NotificationMode notificationMode = NotificationMode.EVERY_DAY;
+        public double maxMultiplier = 5.0;
 
         public enum NotificationMode { EVERY_DAY, SCALING_INCREASE_ONLY }
     }
@@ -192,10 +189,10 @@ public class BuffMobsConfig {
 
     public static class MobPresets {
         public boolean enabled = false;
-        public PresetSlot preset1 = new PresetSlot("default", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-        public PresetSlot preset2 = new PresetSlot("boss",    3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
-        public PresetSlot preset3 = new PresetSlot("elite",   2.0, 1.8, 1.1, 1.2, 5.0,  2.0);
-        public PresetSlot preset4 = new PresetSlot("weak",    0.5, 0.5, 0.9, 0.8, 0.0,  0.0);
+        public PresetSlot preset1 = new PresetSlot("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        public PresetSlot preset2 = new PresetSlot("",    3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
+        public PresetSlot preset3 = new PresetSlot("",   2.0, 1.8, 1.1, 1.2, 5.0,  2.0);
+        public PresetSlot preset4 = new PresetSlot("",    0.5, 0.5, 0.9, 0.8, 0.0,  0.0);
         public PresetSlot preset5 = new PresetSlot("",        1.0, 1.0, 1.0, 1.0, 0.0,  0.0);
         public List<String> mobMapping = new ArrayList<>(List.of(
                 "minecraft:zombie:default",
@@ -226,5 +223,14 @@ public class BuffMobsConfig {
                 this.armorToughnessAddition = tough;
             }
         }
+    }
+
+    public static class PassiveMobAggression {
+        public boolean enabled = false;
+        public double baseDamage = 3.0;
+        public boolean scaleWithHealth = false;
+        public double healthScaleFactor = 0.1;
+        public List<String> whitelist = new ArrayList<>();
+        public List<String> blacklist = new ArrayList<>();
     }
 }
