@@ -12,6 +12,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -85,7 +86,8 @@ public class MobBuffUtil {
         long days      = overworldDayTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
         double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier.get());
-        return Math.min(mult, BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get());
+        double max = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
+        return max == 0.0 ? mult : Math.min(mult, max);
     }
 
     public static DimensionMultipliers getDimensionMultipliers(Mob mob) {
@@ -173,6 +175,20 @@ public class MobBuffUtil {
             }
         }
         return false;
+    }
+
+    public static boolean isPassiveAggressiveMob(Mob mob) {
+        if (mob.isRemoved() || !mob.isAlive()) return false;
+        if (mob instanceof TamableAnimal t && t.isTame()) return false;
+        if (mob instanceof Enemy) return false;
+        if (mob instanceof NeutralMob) return false;
+
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+
+        if (cfg.blacklist.get().contains(mobId)) return false;
+        if (!cfg.whitelist.get().isEmpty()) return cfg.whitelist.get().contains(mobId);
+        return true;
     }
 
     private static boolean isNeutralMob(Mob mob) {

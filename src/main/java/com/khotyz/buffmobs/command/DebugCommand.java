@@ -82,6 +82,10 @@ public class DebugCommand {
                 ? "buffmobs.command.debug.valid.yes"
                 : "buffmobs.command.debug.valid.no"), false);
 
+        boolean passiveAggressive = MobBuffUtil.isPassiveAggressiveMob(mob);
+        src.sendSuccess(() -> lit("buffmobs.command.debug.passive_aggression",
+                BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get() && passiveAggressive), false);
+
         src.sendSuccess(() -> lit("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
         src.sendSuccess(() -> lit(presetsOn
@@ -201,6 +205,7 @@ public class DebugCommand {
         src.sendSuccess(() -> lit("buffmobs.command.info.damage_mult",  BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.day_scaling",  BuffMobsConfig.INSTANCE.dayScaling.enabled.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.presets",      BuffMobsConfig.INSTANCE.mobPresets.enabled.get()), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()), false);
         return 1;
     }
 }
