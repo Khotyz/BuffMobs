@@ -35,7 +35,7 @@ public class CombatDraftHandler {
         STATES.remove(mob.getUUID());
     }
 
-    // tickRestore is no longer needed but kept as a no-op to avoid breaking MobTickHandler calls
+    // Kept for API compatibility with MobTickHandler; no-op now that offhand restore was removed.
     public static void tickRestore(Mob mob) {}
 
     public static void tick(Mob mob) {
@@ -61,20 +61,21 @@ public class CombatDraftHandler {
     private static void useDraft(Mob mob, MobDraftState state, long now) {
         int draftAmp = BuffMobsConfig.INSTANCE.combatDraft.regenAmplifier;
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration * 20;
-        boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
+        boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        // Play drink sound
+        // Play drink sound without touching any item slot
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
-                1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
+                1.0f, 0.9f + mob.level().getRandom().nextFloat() * 0.2f);
 
-        // Spawn happy villager particles as a visual cue
+        // Spawn happy-villager particles as a visual cue
         if (mob.level() instanceof ServerLevel serverLevel) {
-            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
-                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.5, mob.getZ(),
-                    12, 0.4, 0.5, 0.4, 0.0);
+            serverLevel.sendParticles(
+                    ParticleTypes.HAPPY_VILLAGER,
+                    mob.getX(), mob.getY() + mob.getBbHeight() * 0.75, mob.getZ(),
+                    12, 0.4, 0.4, 0.4, 0.0);
         }
 
         if (isUndead) {
