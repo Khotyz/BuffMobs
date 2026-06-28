@@ -3,8 +3,9 @@ package com.khotyz.buffmobs.util;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.Identifier;
 import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
@@ -23,14 +24,13 @@ public class MeleeWeaponManager {
     public static ItemStack generateMeleeWeapon(Mob mob) {
         Level level = mob.level();
         String dim      = getDimensionId(level);
-        long   worldDays = level.getDayTime() / 24000L;
+        long   worldDays = MobBuffUtil.getOverworldDayTime(level) / 24000L;
 
         ItemStack weapon = createWeapon(dim, worldDays);
         if (BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enchantmentsEnabled.get()) {
             applyEnchantments(weapon, worldDays, level);
         }
 
-        // Prevent the weapon from being dropped on death
         mob.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
 
         return weapon;
@@ -80,10 +80,9 @@ public class MeleeWeaponManager {
         List<EnchantTier> avail = new ArrayList<>();
 
         BuffMobsConfig.RangedMeleeSwitching c = BuffMobsConfig.INSTANCE.rangedMeleeSwitching;
-        addIfUnlocked(avail, days, c.sharpnessUnlockDay.get(),    c.sharpnessMaxLevel.get(),    Enchantments.SHARPNESS,    40.0);
-        addIfUnlocked(avail, days, c.fireAspectUnlockDay.get(),   c.fireAspectMaxLevel.get(),   Enchantments.FIRE_ASPECT,  25.0);
-        addIfUnlocked(avail, days, c.knockbackUnlockDay.get(),    c.knockbackMaxLevel.get(),    Enchantments.KNOCKBACK,    20.0);
-        addIfUnlocked(avail, days, c.sweepingEdgeUnlockDay.get(), c.sweepingEdgeMaxLevel.get(), Enchantments.SWEEPING_EDGE, 15.0);
+        addIfUnlocked(avail, days, c.sharpnessUnlockDay.get(),    c.sharpnessMaxLevel.get(),    Enchantments.SHARPNESS,   40.0);
+        addIfUnlocked(avail, days, c.fireAspectUnlockDay.get(),   c.fireAspectMaxLevel.get(),   Enchantments.FIRE_ASPECT, 25.0);
+        addIfUnlocked(avail, days, c.knockbackUnlockDay.get(),    c.knockbackMaxLevel.get(),    Enchantments.KNOCKBACK,   20.0);
 
         List<EnchantTier> remaining = new ArrayList<>(avail);
         int toApply = Math.min(maxE, remaining.size());

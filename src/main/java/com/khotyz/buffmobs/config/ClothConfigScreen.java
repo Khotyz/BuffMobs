@@ -1,55 +1,19 @@
 package com.khotyz.buffmobs.config;
 
 import com.khotyz.buffmobs.BuffMobsMod;
-import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 public class ClothConfigScreen {
 
     private static Component tt(String key) {
         return Component.translatable(key);
-    }
-
-    private static AbstractConfigListEntry<?> buildPulsingCredits() {
-        return new AbstractConfigListEntry<>(Component.translatable("buffmobs.config.credits.translation"), false) {
-            @Override public Object getValue() { return null; }
-            @Override public Optional<Object> getDefaultValue() { return Optional.empty(); }
-            @Override public void save() {}
-
-            @Override
-            public java.util.List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children() {
-                return Collections.emptyList();
-            }
-
-            @Override
-            public java.util.List<? extends net.minecraft.client.gui.narration.NarratableEntry> narratables() {
-                return Collections.emptyList();
-            }
-
-            @Override
-            public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                               int mouseX, int mouseY, boolean isHovered, float delta) {
-                long time = System.currentTimeMillis();
-                float pulse = (float)(Math.sin(time / 1000.0) * 0.5 + 0.5);
-                int alpha = (int)(40 + pulse * 215);
-                int color = (alpha << 24) | 0xFFFFFF;
-                Component text = Component.translatable("buffmobs.config.credits.translation");
-                int textWidth = Minecraft.getInstance().font.width(text);
-                graphics.drawString(Minecraft.getInstance().font, text,
-                        x + entryWidth / 2 - textWidth / 2, y + entryHeight / 2 - 4, color, false);
-            }
-        };
     }
 
     public static Screen create(Screen parent) {
@@ -74,32 +38,32 @@ public class ClothConfigScreen {
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.general.visualEffects.tooltip"))
                 .setSaveConsumer(cfg.visualEffects::set).build());
-        general.addEntry(buildPulsingCredits());
+        general.addEntry(eb.startTextDescription(Component.translatable("buffmobs.config.credits.translation")).build());
 
         // ── Attributes ───────────────────────────────────────────────────────
         ConfigCategory attributes = builder.getOrCreateCategory(Component.translatable("buffmobs.config.attributes"));
         attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.healthMultiplier"), cfg.attributes.healthMultiplier.get())
-                .setDefaultValue(1.5).setMin(0.1).setMax(10.0)
+                .setDefaultValue(1.5).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.healthMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.healthMultiplier::set).build());
         attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.damageMultiplier"), cfg.attributes.damageMultiplier.get())
-                .setDefaultValue(1.5).setMin(0.1).setMax(10.0)
+                .setDefaultValue(1.5).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.damageMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.damageMultiplier::set).build());
         attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.speedMultiplier"), cfg.attributes.speedMultiplier.get())
-                .setDefaultValue(1.0).setMin(0.1).setMax(10.0)
+                .setDefaultValue(1.0).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.speedMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.speedMultiplier::set).build());
         attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.attackSpeedMultiplier"), cfg.attributes.attackSpeedMultiplier.get())
-                .setDefaultValue(1.0).setMin(0.1).setMax(10.0)
+                .setDefaultValue(1.0).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.attackSpeedMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.attackSpeedMultiplier::set).build());
         attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.armorAddition"), cfg.attributes.armorAddition.get())
-                .setDefaultValue(5.0).setMin(0.0).setMax(20.0)
+                .setDefaultValue(5.0).setMin(0.0).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.armorAddition.tooltip"))
                 .setSaveConsumer(cfg.attributes.armorAddition::set).build());
         attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.armorToughnessAddition"), cfg.attributes.armorToughnessAddition.get())
-                .setDefaultValue(0.0).setMin(0.0).setMax(20.0)
+                .setDefaultValue(0.0).setMin(0.0).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.armorToughnessAddition.tooltip"))
                 .setSaveConsumer(cfg.attributes.armorToughnessAddition::set).build());
 
@@ -179,11 +143,11 @@ public class ClothConfigScreen {
                 .setTooltip(tt("buffmobs.config.dayScaling.interval.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.interval::set).build());
         dayScaling.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.multiplier"), cfg.dayScaling.multiplier.get())
-                .setDefaultValue(0.1).setMin(0.01).setMax(20.0)
+                .setDefaultValue(0.1).setMin(0.01).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.dayScaling.multiplier.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.multiplier::set).build());
         dayScaling.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.maxMultiplier"), cfg.dayScaling.maxMultiplier.get())
-                .setDefaultValue(5.0).setMin(1.0).setMax(10.0)
+                .setDefaultValue(5.0).setMin(0.0).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.dayScaling.maxMultiplier.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.maxMultiplier::set).build());
         dayScaling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dayScaling.showNotifications"), cfg.dayScaling.showNotifications.get())
@@ -216,27 +180,27 @@ public class ClothConfigScreen {
                     .setTooltip(tt("buffmobs.config.dimensionScaling.dimensionId.tooltip"))
                     .setSaveConsumer(slot.dimensionName::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.healthPercent"), slot.healthMultiplier.get())
-                    .setDefaultValue(100).setMin(100).setMax(1000)
+                    .setDefaultValue(100).setMin(100).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.healthPercent.tooltip"))
                     .setSaveConsumer(slot.healthMultiplier::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.damagePercent"), slot.damageMultiplier.get())
-                    .setDefaultValue(100).setMin(100).setMax(1000)
+                    .setDefaultValue(100).setMin(100).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.damagePercent.tooltip"))
                     .setSaveConsumer(slot.damageMultiplier::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.speedPercent"), slot.speedMultiplier.get())
-                    .setDefaultValue(100).setMin(100).setMax(500)
+                    .setDefaultValue(100).setMin(100).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.speedPercent.tooltip"))
                     .setSaveConsumer(slot.speedMultiplier::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.attackSpeedPercent"), slot.attackSpeedMultiplier.get())
-                    .setDefaultValue(100).setMin(100).setMax(1000)
+                    .setDefaultValue(100).setMin(100).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.attackSpeedPercent.tooltip"))
                     .setSaveConsumer(slot.attackSpeedMultiplier::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.armorAddition"), slot.armorAddition.get())
-                    .setDefaultValue(0).setMin(0).setMax(20)
+                    .setDefaultValue(0).setMin(0).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.armorAddition.tooltip"))
                     .setSaveConsumer(slot.armorAddition::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.toughnessAddition"), slot.armorToughnessAddition.get())
-                    .setDefaultValue(0).setMin(0).setMax(10)
+                    .setDefaultValue(0).setMin(0).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.toughnessAddition.tooltip"))
                     .setSaveConsumer(slot.armorToughnessAddition::set).build());
             dimScaling.addEntry(sub.build());
@@ -421,17 +385,17 @@ public class ClothConfigScreen {
                     .setTooltip(tt("buffmobs.config.mobPresets.presetName.tooltip"))
                     .setSaveConsumer(p.presetName::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.healthMultiplier"), p.healthMultiplier.get())
-                    .setDefaultValue(1.0).setMin(0.01).setMax(100.0).setSaveConsumer(p.healthMultiplier::set).build());
+                    .setDefaultValue(1.0).setMin(0.01).setMax(999999.0).setSaveConsumer(p.healthMultiplier::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.damageMultiplier"), p.damageMultiplier.get())
-                    .setDefaultValue(1.0).setMin(0.01).setMax(100.0).setSaveConsumer(p.damageMultiplier::set).build());
+                    .setDefaultValue(1.0).setMin(0.01).setMax(999999.0).setSaveConsumer(p.damageMultiplier::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.speedMultiplier"), p.speedMultiplier.get())
-                    .setDefaultValue(1.0).setMin(0.01).setMax(10.0).setSaveConsumer(p.speedMultiplier::set).build());
+                    .setDefaultValue(1.0).setMin(0.01).setMax(999999.0).setSaveConsumer(p.speedMultiplier::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.attackSpeedMultiplier"), p.attackSpeedMultiplier.get())
-                    .setDefaultValue(1.0).setMin(0.01).setMax(10.0).setSaveConsumer(p.attackSpeedMultiplier::set).build());
+                    .setDefaultValue(1.0).setMin(0.01).setMax(999999.0).setSaveConsumer(p.attackSpeedMultiplier::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.armorAddition"), p.armorAddition.get())
-                    .setDefaultValue(0.0).setMin(0.0).setMax(30.0).setSaveConsumer(p.armorAddition::set).build());
+                    .setDefaultValue(0.0).setMin(0.0).setMax(999999.0).setSaveConsumer(p.armorAddition::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.toughnessAddition"), p.armorToughnessAddition.get())
-                    .setDefaultValue(0.0).setMin(0.0).setMax(20.0).setSaveConsumer(p.armorToughnessAddition::set).build());
+                    .setDefaultValue(0.0).setMin(0.0).setMax(999999.0).setSaveConsumer(p.armorToughnessAddition::set).build());
             presets.addEntry(pSub.build());
         }
         presets.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobPresets.mobMapping"), new ArrayList<>(cfg.mobPresets.mobMapping.get()))
@@ -439,6 +403,38 @@ public class ClothConfigScreen {
                         "minecraft:ender_dragon:boss", "minecraft:wither:boss"))
                 .setTooltip(tt("buffmobs.config.mobPresets.mobMapping.tooltip"))
                 .setSaveConsumer(v -> cfg.mobPresets.mobMapping.set(v)).build());
+
+        ConfigCategory passiveAggression = builder.getOrCreateCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
+        passiveAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.enabled"), cfg.passiveMobAggression.enabled.get())
+                .setDefaultValue(false)
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.enabled.tooltip"))
+                .setSaveConsumer(v -> {
+                    cfg.passiveMobAggression.enabled.set(v);
+                    com.khotyz.buffmobs.event.PassiveMobAggressionHandler.forceReinit();
+                }).build());
+        passiveAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.baseDamage"), cfg.passiveMobAggression.baseDamage.get())
+                .setDefaultValue(3.0).setMin(0.5).setMax(100.0)
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.baseDamage.tooltip"))
+                .setSaveConsumer(cfg.passiveMobAggression.baseDamage::set).build());
+        passiveAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.scaleWithHealth"), cfg.passiveMobAggression.scaleWithHealth.get())
+                .setDefaultValue(false)
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.scaleWithHealth.tooltip"))
+                .setSaveConsumer(cfg.passiveMobAggression.scaleWithHealth::set).build());
+        passiveAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.healthScaleFactor"), cfg.passiveMobAggression.healthScaleFactor.get())
+                .setDefaultValue(0.1).setMin(0.0).setMax(100.0)
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.healthScaleFactor.tooltip"))
+                .setSaveConsumer(cfg.passiveMobAggression.healthScaleFactor::set).build());
+
+        var passiveMobFilterSub = eb.startSubCategory(Component.translatable("buffmobs.config.passiveMobAggression.mobFilter"));
+        passiveMobFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.passiveMobAggression.whitelist"), new ArrayList<>(cfg.passiveMobAggression.whitelist.get()))
+                .setDefaultValue(new ArrayList<>())
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.whitelist.tooltip"))
+                .setSaveConsumer(v -> cfg.passiveMobAggression.whitelist.set(v)).build());
+        passiveMobFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.passiveMobAggression.blacklist"), new ArrayList<>(cfg.passiveMobAggression.blacklist.get()))
+                .setDefaultValue(new ArrayList<>())
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.blacklist.tooltip"))
+                .setSaveConsumer(v -> cfg.passiveMobAggression.blacklist.set(v)).build());
+        passiveAggression.addEntry(passiveMobFilterSub.build());
 
         return builder.build();
     }

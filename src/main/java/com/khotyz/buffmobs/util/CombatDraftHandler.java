@@ -71,7 +71,7 @@ public class CombatDraftHandler {
     private static void useDraft(Mob mob, MobDraftState state, long now) {
         int amp      = BuffMobsConfig.INSTANCE.combatDraft.regenAmplifier.get() - 1;
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration.get() * 20;
-        boolean isUndead = mob.getType().is(EntityTypeTags.UNDEAD);
+        boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
         // Schedule particle burst after the "drink" delay
         state.restoreAtTick   = now + DRINK_ANIMATION_TICKS;
@@ -81,7 +81,7 @@ public class CombatDraftHandler {
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
-                1.0f, 0.9f + mob.level().random.nextFloat() * 0.2f);
+                1.0f, 0.9f + mob.level().getRandom().nextFloat() * 0.2f);
 
         if (isUndead) {
             mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, amp, false, true, true));
@@ -106,9 +106,9 @@ public class CombatDraftHandler {
     private static void spawnDrinkParticles(Mob mob) {
         if (!(mob.level() instanceof ServerLevel sl)) return;
         for (int i = 0; i < 8; i++) {
-            double ox = (mob.level().random.nextDouble() - 0.5) * mob.getBbWidth();
-            double oy = mob.level().random.nextDouble() * mob.getBbHeight();
-            double oz = (mob.level().random.nextDouble() - 0.5) * mob.getBbWidth();
+            double ox = (mob.level().getRandom().nextDouble() - 0.5) * mob.getBbWidth();
+            double oy = mob.level().getRandom().nextDouble() * mob.getBbHeight();
+            double oz = (mob.level().getRandom().nextDouble() - 0.5) * mob.getBbWidth();
             sl.sendParticles(ParticleTypes.HAPPY_VILLAGER,
                     mob.getX() + ox, mob.getY() + oy, mob.getZ() + oz,
                     1, 0, 0, 0, 0);
@@ -120,9 +120,9 @@ public class CombatDraftHandler {
         if (mob instanceof TamableAnimal t && t.isTame()) return false;
 
         boolean hostile = mob instanceof Enemy
-                || mob.getType().is(EntityTypeTags.RAIDERS)
-                || mob.getType().is(EntityTypeTags.SKELETONS)
-                || mob.getType().is(EntityTypeTags.ZOMBIES)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
                 || isNeutral(mob);
         if (!hostile) return false;
 

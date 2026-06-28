@@ -8,31 +8,38 @@ import com.khotyz.buffmobs.util.RangedMobAIManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
-
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 public class MobTickHandler {
     private static final Set<UUID> INITIALIZED_MOBS = new HashSet<>();
-    private static final Set<UUID> PENDING_INIT     = new HashSet<>();
-    private static int     globalTickCounter = 0;
-    private static boolean initialScanDone   = false;
+    private static final Set<UUID> PENDING_INIT = new HashSet<>();
+    private static final Map<String, Long> lastScalingInterval = new HashMap<>();
+    private static int globalTickCounter = 0;
+    private static boolean initialScanDone = false;
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
         INITIALIZED_MOBS.clear();
         PENDING_INIT.clear();
+        lastScalingInterval.clear();
         initialScanDone = false;
         int count = 0;
         for (ServerLevel world : event.getServer().getAllLevels()) {
             for (Entity entity : world.getAllEntities()) {
-                if (entity instanceof Mob mob) { initializeMob(mob, true); count++; }
+                if (entity instanceof Mob mob) {
+                    initializeMob(mob, true);
+                    count++;
+                }
             }
         }
         BuffMobsMod.LOGGER.info("[BuffMobs] Initialized {} existing mobs on startup", count);
@@ -75,11 +82,22 @@ public class MobTickHandler {
         }
 
         if (globalTickCounter % 20 == 0) {
+            boolean scalingIntervalChanged = checkScalingIntervalChanged(serverLevel);
+
             for (Entity e : serverLevel.getAllEntities()) {
                 if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
                 UUID uuid = mob.getUUID();
                 if (!INITIALIZED_MOBS.contains(uuid)) {
                     initializeMob(mob, false);
+                } else if (scalingIntervalChanged) {
+                    try {
+                        MobBuffUtil.applyBuffs(mob);
+                        RangedMobAIManager.updateMobBehavior(mob);
+                        MobBuffUtil.refreshInfiniteEffects(mob);
+                        CombatDraftHandler.tick(mob);
+                    } catch (Exception ex) {
+                        BuffMobsMod.LOGGER.warn("[BuffMobs] Error reapplying buffs on scaling change", ex);
+                    }
                 } else {
                     try {
                         RangedMobAIManager.updateMobBehavior(mob);
@@ -93,8 +111,34 @@ public class MobTickHandler {
         }
     }
 
+    private static boolean checkScalingIntervalChanged(ServerLevel serverLevel) {
+        if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()) return false;
+
+        long overworldDayTime = MobBuffUtil.getOverworldDayTime(serverLevel);
+        long days = overworldDayTime / 24000L;
+        int interval = Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
+        long currentInterval = days / interval;
+
+        ResourceKey<net.minecraft.world.level.Level> dimKey = serverLevel.dimension();
+        String dimKeyStr = com.khotyz.buffmobs.util.DimensionUtil.getDimensionId(serverLevel);
+        Long lastInterval = lastScalingInterval.get(dimKeyStr);
+
+        if (lastInterval == null || currentInterval > lastInterval) {
+            lastScalingInterval.put(dimKeyStr, currentInterval);
+            if (lastInterval != null) {
+                BuffMobsMod.LOGGER.info("[BuffMobs] Day scaling interval changed to {} in {}, reapplying buffs",
+                        currentInterval, dimKey);
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void initializeMob(Mob mob, boolean forceReapply) {
-        if (!BuffMobsConfig.INSTANCE.enabled.get()) { MobBuffUtil.removeAllModifiers(mob); return; }
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) {
+            MobBuffUtil.removeAllModifiers(mob);
+            return;
+        }
         UUID uuid = mob.getUUID();
         if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
@@ -112,5 +156,7 @@ public class MobTickHandler {
         }
     }
 
-    public static int getInitializedCount() { return INITIALIZED_MOBS.size(); }
+    public static int getInitializedCount() {
+        return INITIALIZED_MOBS.size();
+    }
 }

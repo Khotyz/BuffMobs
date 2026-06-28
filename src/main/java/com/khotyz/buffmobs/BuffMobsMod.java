@@ -4,6 +4,7 @@ import com.khotyz.buffmobs.command.DebugCommand;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobEventHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
+import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -23,6 +24,7 @@ public class BuffMobsMod {
         NeoForge.EVENT_BUS.register(new MobEventHandler());
         NeoForge.EVENT_BUS.register(new MobTickHandler());
         NeoForge.EVENT_BUS.register(DebugCommand.class);
+        PassiveMobAggressionHandler.register();
 
         LOGGER.info("BuffMobs initialized successfully");
     }

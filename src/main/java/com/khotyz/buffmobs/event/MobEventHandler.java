@@ -52,8 +52,8 @@ public class MobEventHandler {
                 || !BuffMobsConfig.INSTANCE.dayScaling.showNotifications.get()
                 || world.players().isEmpty()) return;
 
-        long currentTime = world.getDayTime();
-        long currentDay  = currentTime / 24000L;
+        long overworldDayTime = MobBuffUtil.getOverworldDayTime(world);
+        long currentDay  = overworldDayTime / 24000L;
         String worldKey  = getDimensionId(world);
 
         Long lastChecked = lastDayCheck.get(worldKey);
@@ -75,7 +75,7 @@ public class MobEventHandler {
     }
 
     private void sendDayScalingNotification(ServerLevel world, long currentDay) {
-        double mult      = MobBuffUtil.getDayMultiplier(world.getDayTime());
+        double mult      = MobBuffUtil.getDayMultiplier(MobBuffUtil.getOverworldDayTime(world));
         double maxMult   = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
         int interval     = BuffMobsConfig.INSTANCE.dayScaling.interval.get();
         long daysUntil   = interval - (currentDay % interval);
