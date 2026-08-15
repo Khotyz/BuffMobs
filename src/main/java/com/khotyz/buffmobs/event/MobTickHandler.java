@@ -103,6 +103,7 @@ public class MobTickHandler {
                                 MobBuffUtil.refreshInfiniteEffects(mob);
                                 CombatDraftHandler.tick(mob);
                                 PassiveMobAggressionHandler.tick(mob);
+                                MobBuffUtil.applyDimensionMaxHealth(mob);
                             } catch (Exception ex) {
                                 BuffMobsMod.LOGGER.warn("[BuffMobs] Error updating mob behavior", ex);
                             }
@@ -114,7 +115,11 @@ public class MobTickHandler {
     }
 
     private static void initializeMob(Mob mob, boolean forceReapply) {
-        if (!BuffMobsConfig.INSTANCE.enabled) { MobBuffUtil.removeAllModifiers(mob); return; }
+        if (!BuffMobsConfig.INSTANCE.enabled) {
+            MobBuffUtil.removeAllModifiers(mob);
+            MobBuffUtil.applyDimensionMaxHealth(mob);
+            return;
+        }
         UUID uuid = mob.getUUID();
         if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
@@ -133,6 +138,7 @@ public class MobTickHandler {
             } else {
                 MobBuffUtil.removeAllModifiers(mob);
             }
+            MobBuffUtil.applyDimensionMaxHealth(mob);
         } catch (Exception e) {
             BuffMobsMod.LOGGER.error("[BuffMobs] Failed to initialize mob: {}", mob.getType(), e);
         }
