@@ -28,61 +28,58 @@ public class ClothConfigScreen {
         ConfigEntryBuilder eb = builder.entryBuilder();
         BuffMobsConfig cfg = BuffMobsConfig.INSTANCE;
 
-        ConfigCategory main = builder.getOrCreateCategory(Component.translatable("buffmobs.config.general"));
-
-        main.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.general.enabled"), cfg.enabled.get())
+        ConfigCategory general = builder.getOrCreateCategory(Component.translatable("buffmobs.config.general"));
+        general.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.general.enabled"), cfg.enabled.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.general.enabled.tooltip"))
                 .setSaveConsumer(cfg.enabled::set).build());
-        main.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.general.visualEffects"), cfg.visualEffects.get())
+        general.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.general.visualEffects"), cfg.visualEffects.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.general.visualEffects.tooltip"))
                 .setSaveConsumer(cfg.visualEffects::set).build());
 
-        var attributesSub = eb.startSubCategory(Component.translatable("buffmobs.config.attributes"));
-        attributesSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.healthMultiplier"), cfg.attributes.healthMultiplier.get())
+        ConfigCategory attributes = builder.getOrCreateCategory(Component.translatable("buffmobs.config.attributes"));
+        attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.healthMultiplier"), cfg.attributes.healthMultiplier.get())
                 .setDefaultValue(1.5).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.healthMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.healthMultiplier::set).build());
-        attributesSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.damageMultiplier"), cfg.attributes.damageMultiplier.get())
+        attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.damageMultiplier"), cfg.attributes.damageMultiplier.get())
                 .setDefaultValue(1.5).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.damageMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.damageMultiplier::set).build());
-        attributesSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.speedMultiplier"), cfg.attributes.speedMultiplier.get())
+        attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.speedMultiplier"), cfg.attributes.speedMultiplier.get())
                 .setDefaultValue(1.0).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.speedMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.speedMultiplier::set).build());
-        attributesSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.attackSpeedMultiplier"), cfg.attributes.attackSpeedMultiplier.get())
+        attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.attackSpeedMultiplier"), cfg.attributes.attackSpeedMultiplier.get())
                 .setDefaultValue(1.0).setMin(0.1).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.attackSpeedMultiplier.tooltip"))
                 .setSaveConsumer(cfg.attributes.attackSpeedMultiplier::set).build());
-        attributesSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.armorAddition"), cfg.attributes.armorAddition.get())
+        attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.armorAddition"), cfg.attributes.armorAddition.get())
                 .setDefaultValue(5.0).setMin(0.0).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.armorAddition.tooltip"))
                 .setSaveConsumer(cfg.attributes.armorAddition::set).build());
-        attributesSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.armorToughnessAddition"), cfg.attributes.armorToughnessAddition.get())
+        attributes.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.attributes.armorToughnessAddition"), cfg.attributes.armorToughnessAddition.get())
                 .setDefaultValue(0.0).setMin(0.0).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.attributes.armorToughnessAddition.tooltip"))
                 .setSaveConsumer(cfg.attributes.armorToughnessAddition::set).build());
-        main.addEntry(attributesSub.build());
 
-        var zombieHandlingSub = eb.startSubCategory(Component.translatable("buffmobs.config.zombieHandling"));
-        zombieHandlingSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.disableLeaderZombies"), cfg.zombieHandling.disableLeaderZombies.get())
+        ConfigCategory zombieHandling = builder.getOrCreateCategory(Component.translatable("buffmobs.config.zombieHandling"));
+        zombieHandling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.disableLeaderZombies"), cfg.zombieHandling.disableLeaderZombies.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.zombieHandling.disableLeaderZombies.tooltip"))
                 .setSaveConsumer(cfg.zombieHandling.disableLeaderZombies::set).build());
-        zombieHandlingSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier"), cfg.zombieHandling.excludeLeaderBonusFromMultiplier.get())
+        zombieHandling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier"), cfg.zombieHandling.excludeLeaderBonusFromMultiplier.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier.tooltip"))
                 .setSaveConsumer(cfg.zombieHandling.excludeLeaderBonusFromMultiplier::set).build());
-        main.addEntry(zombieHandlingSub.build());
 
-        var healthSyncSub = eb.startSubCategory(Component.translatable("buffmobs.config.healthSync"));
-        healthSyncSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.healthSync.enabled"), cfg.healthSync.enabled.get())
+        ConfigCategory healthSync = builder.getOrCreateCategory(Component.translatable("buffmobs.config.healthSync"));
+        healthSync.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.healthSync.enabled"), cfg.healthSync.enabled.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.healthSync.enabled.tooltip"))
                 .setSaveConsumer(cfg.healthSync.enabled::set).build());
-        healthSyncSub.add(eb.startEnumSelector(Component.translatable("buffmobs.config.healthSync.mode"),
+        healthSync.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.healthSync.mode"),
                         BuffMobsConfig.HealthSync.Mode.class,
                         cfg.healthSync.mode.get())
                 .setDefaultValue(BuffMobsConfig.HealthSync.Mode.OVERRIDE)
@@ -92,95 +89,92 @@ public class ClothConfigScreen {
                 })
                 .setTooltip(tt("buffmobs.config.healthSync.mode.tooltip"))
                 .setSaveConsumer(cfg.healthSync.mode::set).build());
-        main.addEntry(healthSyncSub.build());
 
-        var effectsSub = eb.startSubCategory(Component.translatable("buffmobs.config.effects"));
-        effectsSub.add(eb.startIntField(Component.translatable("buffmobs.config.effects.duration"), cfg.effects.duration.get())
+        ConfigCategory effects = builder.getOrCreateCategory(Component.translatable("buffmobs.config.effects"));
+        effects.addEntry(eb.startIntField(Component.translatable("buffmobs.config.effects.duration"), cfg.effects.duration.get())
                 .setDefaultValue(-1).setMin(-1).setMax(7200)
                 .setTooltip(tt("buffmobs.config.effects.duration.tooltip"))
                 .setSaveConsumer(cfg.effects.duration::set).build());
-        effectsSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.effects.strengthAmplifier"), cfg.effects.strengthAmplifier.get(), 0, 10)
+        effects.addEntry(eb.startIntSlider(Component.translatable("buffmobs.config.effects.strengthAmplifier"), cfg.effects.strengthAmplifier.get(), 0, 10)
                 .setDefaultValue(0)
                 .setTextGetter(v -> v == 0
                         ? Component.translatable("buffmobs.config.effects.slider.disabled")
                         : Component.translatable("buffmobs.config.effects.slider.level", v))
                 .setTooltip(tt("buffmobs.config.effects.strengthAmplifier.tooltip"))
                 .setSaveConsumer(cfg.effects.strengthAmplifier::set).build());
-        effectsSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.effects.speedAmplifier"), cfg.effects.speedAmplifier.get(), 0, 10)
+        effects.addEntry(eb.startIntSlider(Component.translatable("buffmobs.config.effects.speedAmplifier"), cfg.effects.speedAmplifier.get(), 0, 10)
                 .setDefaultValue(0)
                 .setTextGetter(v -> v == 0
                         ? Component.translatable("buffmobs.config.effects.slider.disabled")
                         : Component.translatable("buffmobs.config.effects.slider.level", v))
                 .setTooltip(tt("buffmobs.config.effects.speedAmplifier.tooltip"))
                 .setSaveConsumer(cfg.effects.speedAmplifier::set).build());
-        effectsSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.effects.resistanceAmplifier"), cfg.effects.resistanceAmplifier.get(), 0, 10)
+        effects.addEntry(eb.startIntSlider(Component.translatable("buffmobs.config.effects.resistanceAmplifier"), cfg.effects.resistanceAmplifier.get(), 0, 10)
                 .setDefaultValue(0)
                 .setTextGetter(v -> v == 0
                         ? Component.translatable("buffmobs.config.effects.slider.disabled")
                         : Component.translatable("buffmobs.config.effects.slider.level", v))
                 .setTooltip(tt("buffmobs.config.effects.resistanceAmplifier.tooltip"))
                 .setSaveConsumer(cfg.effects.resistanceAmplifier::set).build());
-        effectsSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.effects.regenerationAmplifier"), cfg.effects.regenerationAmplifier.get(), 0, 10)
+        effects.addEntry(eb.startIntSlider(Component.translatable("buffmobs.config.effects.regenerationAmplifier"), cfg.effects.regenerationAmplifier.get(), 0, 10)
                 .setDefaultValue(0)
                 .setTextGetter(v -> v == 0
                         ? Component.translatable("buffmobs.config.effects.slider.disabled")
                         : Component.translatable("buffmobs.config.effects.slider.level", v))
                 .setTooltip(tt("buffmobs.config.effects.regenerationAmplifier.tooltip"))
                 .setSaveConsumer(cfg.effects.regenerationAmplifier::set).build());
-        effectsSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.effects.absorptionAmplifier"), cfg.effects.absorptionAmplifier.get(), 0, 10)
+        effects.addEntry(eb.startIntSlider(Component.translatable("buffmobs.config.effects.absorptionAmplifier"), cfg.effects.absorptionAmplifier.get(), 0, 10)
                 .setDefaultValue(0)
                 .setTextGetter(v -> v == 0
                         ? Component.translatable("buffmobs.config.effects.slider.disabled")
                         : Component.translatable("buffmobs.config.effects.slider.level", v))
                 .setTooltip(tt("buffmobs.config.effects.absorptionAmplifier.tooltip"))
                 .setSaveConsumer(cfg.effects.absorptionAmplifier::set).build());
-        main.addEntry(effectsSub.build());
 
-        var harmfulSub = eb.startSubCategory(Component.translatable("buffmobs.config.harmfulEffects"));
-        harmfulSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.harmfulEffects.enabled"), cfg.harmfulEffects.enabled.get())
+        ConfigCategory harmfulEffects = builder.getOrCreateCategory(Component.translatable("buffmobs.config.harmfulEffects"));
+        harmfulEffects.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.harmfulEffects.enabled"), cfg.harmfulEffects.enabled.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.harmfulEffects.enabled.tooltip"))
                 .setSaveConsumer(cfg.harmfulEffects.enabled::set).build());
-        harmfulSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.harmfulEffects.chance"), cfg.harmfulEffects.chance.get())
+        harmfulEffects.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.harmfulEffects.chance"), cfg.harmfulEffects.chance.get())
                 .setDefaultValue(0.15).setMin(0.0).setMax(1.0)
                 .setTooltip(tt("buffmobs.config.harmfulEffects.chance.tooltip"))
                 .setSaveConsumer(cfg.harmfulEffects.chance::set).build());
-        harmfulSub.add(eb.startIntField(Component.translatable("buffmobs.config.harmfulEffects.poisonDuration"), cfg.harmfulEffects.poisonDuration.get())
+        harmfulEffects.addEntry(eb.startIntField(Component.translatable("buffmobs.config.harmfulEffects.poisonDuration"), cfg.harmfulEffects.poisonDuration.get())
                 .setDefaultValue(5).setMin(1).setMax(60)
                 .setTooltip(tt("buffmobs.config.harmfulEffects.poisonDuration.tooltip"))
                 .setSaveConsumer(cfg.harmfulEffects.poisonDuration::set).build());
-        harmfulSub.add(eb.startIntField(Component.translatable("buffmobs.config.harmfulEffects.slownessDuration"), cfg.harmfulEffects.slownessDuration.get())
+        harmfulEffects.addEntry(eb.startIntField(Component.translatable("buffmobs.config.harmfulEffects.slownessDuration"), cfg.harmfulEffects.slownessDuration.get())
                 .setDefaultValue(3).setMin(1).setMax(60)
                 .setTooltip(tt("buffmobs.config.harmfulEffects.slownessDuration.tooltip"))
                 .setSaveConsumer(cfg.harmfulEffects.slownessDuration::set).build());
-        harmfulSub.add(eb.startIntField(Component.translatable("buffmobs.config.harmfulEffects.witherDuration"), cfg.harmfulEffects.witherDuration.get())
+        harmfulEffects.addEntry(eb.startIntField(Component.translatable("buffmobs.config.harmfulEffects.witherDuration"), cfg.harmfulEffects.witherDuration.get())
                 .setDefaultValue(3).setMin(1).setMax(60)
                 .setTooltip(tt("buffmobs.config.harmfulEffects.witherDuration.tooltip"))
                 .setSaveConsumer(cfg.harmfulEffects.witherDuration::set).build());
-        main.addEntry(harmfulSub.build());
 
-        var dayScalingSub = eb.startSubCategory(Component.translatable("buffmobs.config.dayScaling"));
-        dayScalingSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.dayScaling.enabled"), cfg.dayScaling.enabled.get())
+        ConfigCategory dayScaling = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dayScaling"));
+        dayScaling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dayScaling.enabled"), cfg.dayScaling.enabled.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.dayScaling.enabled.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.enabled::set).build());
-        dayScalingSub.add(eb.startIntField(Component.translatable("buffmobs.config.dayScaling.interval"), cfg.dayScaling.interval.get())
+        dayScaling.addEntry(eb.startIntField(Component.translatable("buffmobs.config.dayScaling.interval"), cfg.dayScaling.interval.get())
                 .setDefaultValue(7).setMin(1).setMax(365)
                 .setTooltip(tt("buffmobs.config.dayScaling.interval.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.interval::set).build());
-        dayScalingSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.multiplier"), cfg.dayScaling.multiplier.get())
+        dayScaling.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.multiplier"), cfg.dayScaling.multiplier.get())
                 .setDefaultValue(0.1).setMin(0.01).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.dayScaling.multiplier.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.multiplier::set).build());
-        dayScalingSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.maxMultiplier"), cfg.dayScaling.maxMultiplier.get())
+        dayScaling.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.dayScaling.maxMultiplier"), cfg.dayScaling.maxMultiplier.get())
                 .setDefaultValue(5.0).setMin(0.0).setMax(999999.0)
                 .setTooltip(tt("buffmobs.config.dayScaling.maxMultiplier.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.maxMultiplier::set).build());
-        dayScalingSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.dayScaling.showNotifications"), cfg.dayScaling.showNotifications.get())
+        dayScaling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dayScaling.showNotifications"), cfg.dayScaling.showNotifications.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.dayScaling.showNotifications.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.showNotifications::set).build());
-        dayScalingSub.add(eb.startEnumSelector(Component.translatable("buffmobs.config.dayScaling.notificationMode"),
+        dayScaling.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.dayScaling.notificationMode"),
                         BuffMobsConfig.DayScaling.NotificationMode.class,
                         cfg.dayScaling.notificationMode.get())
                 .setDefaultValue(BuffMobsConfig.DayScaling.NotificationMode.EVERY_DAY)
@@ -190,9 +184,8 @@ public class ClothConfigScreen {
                 })
                 .setTooltip(tt("buffmobs.config.dayScaling.notificationMode.tooltip"))
                 .setSaveConsumer(cfg.dayScaling.notificationMode::set).build());
-        main.addEntry(dayScalingSub.build());
 
-        var dimScalingSub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionScaling"));
+        ConfigCategory dimensionScaling = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionScaling"));
         BuffMobsConfig.DimensionScaling.DimensionSlot[] dimSlots = {
                 cfg.dimensionScaling.slot1, cfg.dimensionScaling.slot2, cfg.dimensionScaling.slot3,
                 cfg.dimensionScaling.slot4, cfg.dimensionScaling.slot5
@@ -229,12 +222,11 @@ public class ClothConfigScreen {
                     .setDefaultValue(0).setMin(0).setMax(999999)
                     .setTooltip(tt("buffmobs.config.dimensionScaling.toughnessAddition.tooltip"))
                     .setSaveConsumer(slot.armorToughnessAddition::set).build());
-            dimScalingSub.add(sub.build());
+            dimensionScaling.addEntry(sub.build());
         }
-        main.addEntry(dimScalingSub.build());
 
-        var dimMaxHealthSub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionMaxHealth"));
-        dimMaxHealthSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.dimensionMaxHealth.enabled"), cfg.dimensionMaxHealth.enabled.get())
+        ConfigCategory dimensionMaxHealth = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionMaxHealth"));
+        dimensionMaxHealth.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dimensionMaxHealth.enabled"), cfg.dimensionMaxHealth.enabled.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.dimensionMaxHealth.enabled.tooltip"))
                 .setSaveConsumer(cfg.dimensionMaxHealth.enabled::set).build());
@@ -270,61 +262,57 @@ public class ClothConfigScreen {
                     .setSaveConsumer(v -> slot.denylist.set(v)).build());
             slotSub.add(maxHealthFilterSub.build());
 
-            dimMaxHealthSub.add(slotSub.build());
+            dimensionMaxHealth.addEntry(slotSub.build());
         }
-        main.addEntry(dimMaxHealthSub.build());
 
-        var mobFilterSub = eb.startSubCategory(Component.translatable("buffmobs.config.mobFilter"));
-        mobFilterSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobFilter.useWhitelist"), cfg.mobFilter.useWhitelist.get())
+        ConfigCategory mobFilter = builder.getOrCreateCategory(Component.translatable("buffmobs.config.mobFilter"));
+        mobFilter.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobFilter.useWhitelist"), cfg.mobFilter.useWhitelist.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.mobFilter.useWhitelist.tooltip"))
                 .setSaveConsumer(cfg.mobFilter.useWhitelist::set).build());
-        mobFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.blacklist"), new ArrayList<>(cfg.mobFilter.blacklist.get()))
+        mobFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.blacklist"), new ArrayList<>(cfg.mobFilter.blacklist.get()))
                 .setDefaultValue(List.of("minecraft:warden"))
                 .setTooltip(tt("buffmobs.config.mobFilter.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.mobFilter.blacklist.set(v)).build());
-        mobFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.whitelist"), new ArrayList<>(cfg.mobFilter.whitelist.get()))
+        mobFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.whitelist"), new ArrayList<>(cfg.mobFilter.whitelist.get()))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.mobFilter.whitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.mobFilter.whitelist.set(v)).build());
-        main.addEntry(mobFilterSub.build());
 
-        var modFilterSub = eb.startSubCategory(Component.translatable("buffmobs.config.modidFilter"));
-        modFilterSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.modidFilter.useWhitelist"), cfg.modidFilter.useWhitelist.get())
+        ConfigCategory modidFilter = builder.getOrCreateCategory(Component.translatable("buffmobs.config.modidFilter"));
+        modidFilter.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.modidFilter.useWhitelist"), cfg.modidFilter.useWhitelist.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.modidFilter.useWhitelist.tooltip"))
                 .setSaveConsumer(cfg.modidFilter.useWhitelist::set).build());
-        modFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.blacklist"), new ArrayList<>(cfg.modidFilter.blacklist.get()))
+        modidFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.blacklist"), new ArrayList<>(cfg.modidFilter.blacklist.get()))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.modidFilter.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.modidFilter.blacklist.set(v)).build());
-        modFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.whitelist"), new ArrayList<>(cfg.modidFilter.whitelist.get()))
+        modidFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.whitelist"), new ArrayList<>(cfg.modidFilter.whitelist.get()))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.modidFilter.whitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.modidFilter.whitelist.set(v)).build());
-        main.addEntry(modFilterSub.build());
 
-        var dimFilterSub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionFilter"));
-        dimFilterSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.dimensionFilter.useWhitelist"), cfg.dimensionFilter.useWhitelist.get())
+        ConfigCategory dimensionFilter = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionFilter"));
+        dimensionFilter.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dimensionFilter.useWhitelist"), cfg.dimensionFilter.useWhitelist.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.dimensionFilter.useWhitelist.tooltip"))
                 .setSaveConsumer(cfg.dimensionFilter.useWhitelist::set).build());
-        dimFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.blacklist"), new ArrayList<>(cfg.dimensionFilter.blacklist.get()))
+        dimensionFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.blacklist"), new ArrayList<>(cfg.dimensionFilter.blacklist.get()))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.dimensionFilter.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.dimensionFilter.blacklist.set(v)).build());
-        dimFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.whitelist"), new ArrayList<>(cfg.dimensionFilter.whitelist.get()))
+        dimensionFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.whitelist"), new ArrayList<>(cfg.dimensionFilter.whitelist.get()))
                 .setDefaultValue(List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"))
                 .setTooltip(tt("buffmobs.config.dimensionFilter.whitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.dimensionFilter.whitelist.set(v)).build());
-        main.addEntry(dimFilterSub.build());
 
-        var rangedSub = eb.startSubCategory(Component.translatable("buffmobs.config.rangedMeleeSwitching"));
-        rangedSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.rangedMeleeSwitching.enabled"), cfg.rangedMeleeSwitching.enabled.get())
+        ConfigCategory rangedMeleeSwitching = builder.getOrCreateCategory(Component.translatable("buffmobs.config.rangedMeleeSwitching"));
+        rangedMeleeSwitching.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.rangedMeleeSwitching.enabled"), cfg.rangedMeleeSwitching.enabled.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.enabled.tooltip"))
                 .setSaveConsumer(cfg.rangedMeleeSwitching.enabled::set).build());
-        rangedSub.add(eb.startEnumSelector(Component.translatable("buffmobs.config.rangedMeleeSwitching.behaviorMode"),
+        rangedMeleeSwitching.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.rangedMeleeSwitching.behaviorMode"),
                         BuffMobsConfig.RangedMeleeSwitching.BehaviorMode.class,
                         cfg.rangedMeleeSwitching.behaviorMode.get())
                 .setDefaultValue(BuffMobsConfig.RangedMeleeSwitching.BehaviorMode.RANDOM)
@@ -335,15 +323,15 @@ public class ClothConfigScreen {
                 })
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.behaviorMode.tooltip"))
                 .setSaveConsumer(cfg.rangedMeleeSwitching.behaviorMode::set).build());
-        rangedSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.rangedMeleeSwitching.switchDistance"), cfg.rangedMeleeSwitching.switchDistance.get())
+        rangedMeleeSwitching.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.rangedMeleeSwitching.switchDistance"), cfg.rangedMeleeSwitching.switchDistance.get())
                 .setDefaultValue(4.0).setMin(1.0).setMax(16.0)
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.switchDistance.tooltip"))
                 .setSaveConsumer(cfg.rangedMeleeSwitching.switchDistance::set).build());
-        rangedSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.rangedMeleeSwitching.meleeSpeedMultiplier"), cfg.rangedMeleeSwitching.meleeSpeedMultiplier.get())
+        rangedMeleeSwitching.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.rangedMeleeSwitching.meleeSpeedMultiplier"), cfg.rangedMeleeSwitching.meleeSpeedMultiplier.get())
                 .setDefaultValue(0.9).setMin(0.1).setMax(5.0)
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.meleeSpeedMultiplier.tooltip"))
                 .setSaveConsumer(cfg.rangedMeleeSwitching.meleeSpeedMultiplier::set).build());
-        rangedSub.add(eb.startStrList(Component.translatable("buffmobs.config.rangedMeleeSwitching.customRangedMobs"), new ArrayList<>(cfg.rangedMeleeSwitching.customRangedMobs.get()))
+        rangedMeleeSwitching.addEntry(eb.startStrList(Component.translatable("buffmobs.config.rangedMeleeSwitching.customRangedMobs"), new ArrayList<>(cfg.rangedMeleeSwitching.customRangedMobs.get()))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.customRangedMobs.tooltip"))
                 .setSaveConsumer(v -> cfg.rangedMeleeSwitching.customRangedMobs.set(v)).build());
@@ -363,7 +351,7 @@ public class ClothConfigScreen {
                 .setDefaultValue(14).setMin(0).setMax(365).setSaveConsumer(cfg.rangedMeleeSwitching.diamondAxeUnlockDay::set).build());
         weaponSub.add(eb.startIntField(Component.translatable("buffmobs.config.rangedMeleeSwitching.netheriteAxeUnlockDay"), cfg.rangedMeleeSwitching.netheriteAxeUnlockDay.get())
                 .setDefaultValue(45).setMin(0).setMax(365).setSaveConsumer(cfg.rangedMeleeSwitching.netheriteAxeUnlockDay::set).build());
-        rangedSub.add(weaponSub.build());
+        rangedMeleeSwitching.addEntry(weaponSub.build());
 
         var enchantSub = eb.startSubCategory(Component.translatable("buffmobs.config.rangedMeleeSwitching.enchantments"));
         enchantSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.rangedMeleeSwitching.enchantmentsEnabled"), cfg.rangedMeleeSwitching.enchantmentsEnabled.get())
@@ -388,32 +376,31 @@ public class ClothConfigScreen {
                 .setDefaultValue(21).setMin(0).setMax(365).setSaveConsumer(cfg.rangedMeleeSwitching.sweepingEdgeUnlockDay::set).build());
         enchantSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.rangedMeleeSwitching.sweepingEdgeMaxLevel"), cfg.rangedMeleeSwitching.sweepingEdgeMaxLevel.get(), 1, 3)
                 .setDefaultValue(3).setSaveConsumer(cfg.rangedMeleeSwitching.sweepingEdgeMaxLevel::set).build());
-        rangedSub.add(enchantSub.build());
-        main.addEntry(rangedSub.build());
+        rangedMeleeSwitching.addEntry(enchantSub.build());
 
-        var draftSub = eb.startSubCategory(Component.translatable("buffmobs.config.combatDraft"));
-        draftSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.combatDraft.enabled"), cfg.combatDraft.enabled.get())
+        ConfigCategory combatDraft = builder.getOrCreateCategory(Component.translatable("buffmobs.config.combatDraft"));
+        combatDraft.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.combatDraft.enabled"), cfg.combatDraft.enabled.get())
                 .setDefaultValue(true)
                 .setTooltip(tt("buffmobs.config.combatDraft.enabled.tooltip"))
                 .setSaveConsumer(cfg.combatDraft.enabled::set).build());
-        draftSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.combatDraft.healthThreshold"), cfg.combatDraft.healthThreshold.get())
+        combatDraft.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.combatDraft.healthThreshold"), cfg.combatDraft.healthThreshold.get())
                 .setDefaultValue(0.20).setMin(0.01).setMax(0.99)
                 .setTooltip(tt("buffmobs.config.combatDraft.healthThreshold.tooltip"))
                 .setSaveConsumer(cfg.combatDraft.healthThreshold::set).build());
-        draftSub.add(eb.startIntSlider(Component.translatable("buffmobs.config.combatDraft.regenAmplifier"), cfg.combatDraft.regenAmplifier.get(), 1, 10)
+        combatDraft.addEntry(eb.startIntSlider(Component.translatable("buffmobs.config.combatDraft.regenAmplifier"), cfg.combatDraft.regenAmplifier.get(), 1, 10)
                 .setDefaultValue(4)
                 .setTextGetter(v -> Component.translatable("buffmobs.config.effects.slider.level", v))
                 .setTooltip(tt("buffmobs.config.combatDraft.regenAmplifier.tooltip"))
                 .setSaveConsumer(cfg.combatDraft.regenAmplifier::set).build());
-        draftSub.add(eb.startIntField(Component.translatable("buffmobs.config.combatDraft.regenDuration"), cfg.combatDraft.regenDuration.get())
+        combatDraft.addEntry(eb.startIntField(Component.translatable("buffmobs.config.combatDraft.regenDuration"), cfg.combatDraft.regenDuration.get())
                 .setDefaultValue(10).setMin(1).setMax(120)
                 .setTooltip(tt("buffmobs.config.combatDraft.regenDuration.tooltip"))
                 .setSaveConsumer(cfg.combatDraft.regenDuration::set).build());
-        draftSub.add(eb.startIntField(Component.translatable("buffmobs.config.combatDraft.cooldownTicks"), cfg.combatDraft.cooldownTicks.get())
+        combatDraft.addEntry(eb.startIntField(Component.translatable("buffmobs.config.combatDraft.cooldownTicks"), cfg.combatDraft.cooldownTicks.get())
                 .setDefaultValue(600).setMin(20).setMax(72000)
                 .setTooltip(tt("buffmobs.config.combatDraft.cooldownTicks.tooltip"))
                 .setSaveConsumer(cfg.combatDraft.cooldownTicks::set).build());
-        draftSub.add(eb.startIntField(Component.translatable("buffmobs.config.combatDraft.maxUses"), cfg.combatDraft.maxUses.get())
+        combatDraft.addEntry(eb.startIntField(Component.translatable("buffmobs.config.combatDraft.maxUses"), cfg.combatDraft.maxUses.get())
                 .setDefaultValue(0).setMin(0).setMax(100)
                 .setTooltip(tt("buffmobs.config.combatDraft.maxUses.tooltip"))
                 .setSaveConsumer(cfg.combatDraft.maxUses::set).build());
@@ -427,15 +414,14 @@ public class ClothConfigScreen {
                 .setDefaultValue(new ArrayList<>()).setSaveConsumer(v -> cfg.combatDraft.whitelist.set(v)).build());
         draftFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.combatDraft.mobFilter.blacklist"), new ArrayList<>(cfg.combatDraft.blacklist.get()))
                 .setDefaultValue(new ArrayList<>()).setSaveConsumer(v -> cfg.combatDraft.blacklist.set(v)).build());
-        draftSub.add(draftFilterSub.build());
-        main.addEntry(draftSub.build());
+        combatDraft.addEntry(draftFilterSub.build());
 
-        var presetsSub = eb.startSubCategory(Component.translatable("buffmobs.config.mobPresets"));
-        presetsSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobPresets.enabled"), cfg.mobPresets.enabled.get())
+        ConfigCategory mobPresets = builder.getOrCreateCategory(Component.translatable("buffmobs.config.mobPresets"));
+        mobPresets.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobPresets.enabled"), cfg.mobPresets.enabled.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.mobPresets.enabled.tooltip"))
                 .setSaveConsumer(cfg.mobPresets.enabled::set).build());
-        presetsSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobPresets.overrideDimensionScaling"), cfg.mobPresets.overrideDimensionScaling.get())
+        mobPresets.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobPresets.overrideDimensionScaling"), cfg.mobPresets.overrideDimensionScaling.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.mobPresets.overrideDimensionScaling.tooltip"))
                 .setSaveConsumer(cfg.mobPresets.overrideDimensionScaling::set).build());
@@ -467,32 +453,31 @@ public class ClothConfigScreen {
                     .setDefaultValue(0.0).setMin(0.0).setMax(999999.0).setSaveConsumer(p.armorAddition::set).build());
             pSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.mobPresets.toughnessAddition"), p.armorToughnessAddition.get())
                     .setDefaultValue(0.0).setMin(0.0).setMax(999999.0).setSaveConsumer(p.armorToughnessAddition::set).build());
-            presetsSub.add(pSub.build());
+            mobPresets.addEntry(pSub.build());
         }
-        presetsSub.add(eb.startStrList(Component.translatable("buffmobs.config.mobPresets.mobMapping"), new ArrayList<>(cfg.mobPresets.mobMapping.get()))
+        mobPresets.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobPresets.mobMapping"), new ArrayList<>(cfg.mobPresets.mobMapping.get()))
                 .setDefaultValue(List.of("minecraft:zombie:default", "minecraft:skeleton:default",
                         "minecraft:ender_dragon:boss", "minecraft:wither:boss"))
                 .setTooltip(tt("buffmobs.config.mobPresets.mobMapping.tooltip"))
                 .setSaveConsumer(v -> cfg.mobPresets.mobMapping.set(v)).build());
-        main.addEntry(presetsSub.build());
 
-        var passiveAggressionSub = eb.startSubCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
-        passiveAggressionSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.enabled"), cfg.passiveMobAggression.enabled.get())
+        ConfigCategory passiveMobAggression = builder.getOrCreateCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
+        passiveMobAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.enabled"), cfg.passiveMobAggression.enabled.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.enabled.tooltip"))
                 .setSaveConsumer(v -> {
                     cfg.passiveMobAggression.enabled.set(v);
                     com.khotyz.buffmobs.event.PassiveMobAggressionHandler.forceReinit();
                 }).build());
-        passiveAggressionSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.baseDamage"), cfg.passiveMobAggression.baseDamage.get())
+        passiveMobAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.baseDamage"), cfg.passiveMobAggression.baseDamage.get())
                 .setDefaultValue(3.0).setMin(0.5).setMax(100.0)
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.baseDamage.tooltip"))
                 .setSaveConsumer(cfg.passiveMobAggression.baseDamage::set).build());
-        passiveAggressionSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.scaleWithHealth"), cfg.passiveMobAggression.scaleWithHealth.get())
+        passiveMobAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.scaleWithHealth"), cfg.passiveMobAggression.scaleWithHealth.get())
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.scaleWithHealth.tooltip"))
                 .setSaveConsumer(cfg.passiveMobAggression.scaleWithHealth::set).build());
-        passiveAggressionSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.healthScaleFactor"), cfg.passiveMobAggression.healthScaleFactor.get())
+        passiveMobAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.healthScaleFactor"), cfg.passiveMobAggression.healthScaleFactor.get())
                 .setDefaultValue(0.1).setMin(0.0).setMax(100.0)
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.healthScaleFactor.tooltip"))
                 .setSaveConsumer(cfg.passiveMobAggression.healthScaleFactor::set).build());
@@ -506,10 +491,9 @@ public class ClothConfigScreen {
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.passiveMobAggression.blacklist.set(v)).build());
-        passiveAggressionSub.add(passiveMobFilterSub.build());
-        main.addEntry(passiveAggressionSub.build());
+        passiveMobAggression.addEntry(passiveMobFilterSub.build());
 
-        main.addEntry(eb.startTextDescription(Component.translatable("buffmobs.config.credits.translation")).build());
+        general.addEntry(eb.startTextDescription(Component.translatable("buffmobs.config.credits.translation")).build());
 
         return builder.build();
     }

@@ -49,8 +49,16 @@ public class MobBuffUtil {
     }
 
     public static void applyBuffs(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.enabled.get() || !isValidMob(mob)) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) {
             removeAllModifiers(mob);
+            return;
+        }
+
+        Double dimBaseHealth = getDimensionMaxHealthOverride(mob);
+
+        if (!isValidMob(mob)) {
+            removeAllModifiers(mob);
+            applyDimensionMaxHealthOverride(mob, dimBaseHealth);
             return;
         }
 
@@ -68,18 +76,28 @@ public class MobBuffUtil {
         AttributeInstance hp = mob.getAttribute(Attributes.MAX_HEALTH);
         double oldMaxHealth = hp != null ? hp.getValue() : mob.getMaxHealth();
 
-        Double dimBaseHealth = getDimensionMaxHealthOverride(mob);
         if (hp != null && dimBaseHealth != null) {
             hp.setBaseValue(dimBaseHealth);
         }
 
         double leaderBonusExclude = handleZombieLeaderBonus(mob, hp);
 
-        applyAllLayers(mob, dayMult, dim, preset, leaderBonusExclude);
+        applyAllLayers(mob, dayMult, dim, preset, leaderBonusExclude, dimBaseHealth != null);
 
         applyStatusEffects(mob);
 
         double newMaxHealth = hp != null ? hp.getValue() : mob.getMaxHealth();
+        syncHealth(mob, oldMaxHealth, newMaxHealth);
+    }
+
+    private static void applyDimensionMaxHealthOverride(Mob mob, Double dimBaseHealth) {
+        if (dimBaseHealth == null) return;
+        AttributeInstance hp = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (hp == null) return;
+        double oldMaxHealth = hp.getValue();
+        hp.removeModifier(HEALTH_MOD_ID);
+        hp.setBaseValue(dimBaseHealth);
+        double newMaxHealth = hp.getValue();
         syncHealth(mob, oldMaxHealth, newMaxHealth);
     }
 
@@ -264,7 +282,8 @@ public class MobBuffUtil {
     }
 
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
-                                       MobPresetUtil.PresetMultipliers preset, double leaderBonusExclude) {
+                                       MobPresetUtil.PresetMultipliers preset, double leaderBonusExclude,
+                                       boolean dimensionHealthCapped) {
         double attrHp    = BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get();
         double attrDmg   = BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get();
         double attrSpd   = BuffMobsConfig.INSTANCE.attributes.speedMultiplier.get();
@@ -279,7 +298,12 @@ public class MobBuffUtil {
         double presetArm   = preset != null ? preset.armor       : 0.0;
         double presetTough = preset != null ? preset.armorToughness : 0.0;
 
-        applyHealthMultiplier(mob, attrHp * dim.health * presetHp * dayMult, leaderBonusExclude);
+        if (dimensionHealthCapped) {
+            AttributeInstance hpInst = mob.getAttribute(Attributes.MAX_HEALTH);
+            if (hpInst != null) hpInst.removeModifier(HEALTH_MOD_ID);
+        } else {
+            applyHealthMultiplier(mob, attrHp * dim.health * presetHp * dayMult, leaderBonusExclude);
+        }
         applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
         applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
         applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
