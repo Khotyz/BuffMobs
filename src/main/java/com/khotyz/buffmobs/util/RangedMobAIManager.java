@@ -35,7 +35,6 @@ public class RangedMobAIManager {
     private static final double KITE_FLEE_SPEED    = 1.35;
     private static final double KITE_SAFE_DISTANCE = 12.0;
     private static final int    SWITCH_COOLDOWN    = 60;
-    private static final double MELEE_ATTACK_REACH = 2.5;
     private static final double HYSTERESIS         = 2.5;
 
     private static final Identifier MELEE_SPEED_ID =
@@ -191,8 +190,9 @@ public class RangedMobAIManager {
         }
         if (mob.getTarget() != target) mob.setTarget(target);
 
-        double dist = mob.distanceTo(target);
-        if (dist > MELEE_ATTACK_REACH) {
+        double dist  = mob.distanceTo(target);
+        double reach = getMeleeAttackReach(mob, target);
+        if (dist > reach) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
         } else {
             mob.getNavigation().stop();
@@ -202,6 +202,11 @@ public class RangedMobAIManager {
                 state.lastAttackTime = now;
             }
         }
+    }
+
+    private static double getMeleeAttackReach(Mob mob, LivingEntity target) {
+        double reachSqr = mob.getBbWidth() * 2.0 * mob.getBbWidth() * 2.0 + target.getBbWidth();
+        return Math.sqrt(reachSqr);
     }
 
     private static void performMeleeHit(Mob mob, LivingEntity target) {
