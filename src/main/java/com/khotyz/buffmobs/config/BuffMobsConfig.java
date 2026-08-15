@@ -32,6 +32,9 @@ public class BuffMobsConfig {
     public CombatDraft combatDraft = new CombatDraft();
     public MobPresets mobPresets = new MobPresets();
     public PassiveMobAggression passiveMobAggression = new PassiveMobAggression();
+    public ZombieHandling zombieHandling = new ZombieHandling();
+    public HealthSync healthSync = new HealthSync();
+    public DimensionMaxHealth dimensionMaxHealth = new DimensionMaxHealth();
 
     public static void load() {
         File file = CONFIG_PATH.toFile();
@@ -69,6 +72,9 @@ public class BuffMobsConfig {
         if (src.combatDraft != null) INSTANCE.combatDraft = src.combatDraft;
         if (src.mobPresets != null) INSTANCE.mobPresets = src.mobPresets;
         if (src.passiveMobAggression != null) INSTANCE.passiveMobAggression = src.passiveMobAggression;
+        if (src.zombieHandling != null) INSTANCE.zombieHandling = src.zombieHandling;
+        if (src.healthSync != null) INSTANCE.healthSync = src.healthSync;
+        if (src.dimensionMaxHealth != null) INSTANCE.dimensionMaxHealth = src.dimensionMaxHealth;
     }
 
     public static class DayScaling {
@@ -189,6 +195,7 @@ public class BuffMobsConfig {
 
     public static class MobPresets {
         public boolean enabled = false;
+        public boolean overrideDimensionScaling = false;
         public PresetSlot preset1 = new PresetSlot("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
         public PresetSlot preset2 = new PresetSlot("",    3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
         public PresetSlot preset3 = new PresetSlot("",   2.0, 1.8, 1.1, 1.2, 5.0,  2.0);
@@ -232,5 +239,34 @@ public class BuffMobsConfig {
         public double healthScaleFactor = 0.1;
         public List<String> whitelist = new ArrayList<>();
         public List<String> blacklist = new ArrayList<>();
+    }
+
+    public static class ZombieHandling {
+        public boolean disableLeaderZombies = false;
+        public boolean excludeLeaderBonusFromMultiplier = false;
+    }
+
+    public static class HealthSync {
+        public boolean enabled = true;
+        public Mode mode = Mode.OVERRIDE;
+
+        public enum Mode { OVERRIDE, STACK }
+    }
+
+    public static class DimensionMaxHealth {
+        public boolean enabled = false;
+        public Slot slot1 = new Slot();
+        public Slot slot2 = new Slot();
+        public Slot slot3 = new Slot();
+        public Slot slot4 = new Slot();
+        public Slot slot5 = new Slot();
+
+        public static class Slot {
+            public String dimensionId = "";
+            public double maxHealth = 20.0;
+            public boolean useAllowlist = false;
+            public List<String> allowlist = new ArrayList<>();
+            public List<String> denylist = new ArrayList<>();
+        }
     }
 }

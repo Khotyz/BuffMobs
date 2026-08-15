@@ -12,6 +12,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -169,15 +170,15 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.start"), false);
         int count = 0;
         MobTickHandler.forceReinitAll();
-        for (Entity e : src.getLevel().getAllEntities()) {
-            if (e instanceof Mob mob) {
-                try {
-                    MobBuffUtil.removeAllModifiers(mob);
-                    MobBuffUtil.removeAllBuffEffects(mob);
-                    MobBuffUtil.applyBuffs(mob);
-                    count++;
-                } catch (Exception ex) {
-                    BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
+        for (ServerLevel level : src.getServer().getAllLevels()) {
+            for (Entity e : level.getAllEntities()) {
+                if (e instanceof Mob mob) {
+                    try {
+                        MobTickHandler.reinitializeMob(mob);
+                        count++;
+                    } catch (Exception ex) {
+                        BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
+                    }
                 }
             }
         }

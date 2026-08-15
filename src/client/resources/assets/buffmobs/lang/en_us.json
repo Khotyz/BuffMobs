@@ -267,5 +267,36 @@
   "modmenu.nameTranslation.buffmobs": "BuffMobs",
   "modmenu.descriptionTranslation.buffmobs": "Makes hostile and neutral mobs stronger, faster, and more challenging with progressive difficulty scaling.",
 
-  "buffmobs.config.credits.translation": "Translation by: Khotyz "
+  "buffmobs.config.credits.translation": "Translation by: Khotyz ",
+
+  "buffmobs.config.zombieHandling": "Zombie Handling",
+  "buffmobs.config.zombieHandling.disableLeaderZombies": "Disable Leader Zombie Bonus",
+  "buffmobs.config.zombieHandling.disableLeaderZombies.tooltip": "Strip the vanilla leader zombie health bonus modifier from zombies entirely.",
+  "buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier": "Exclude Leader Bonus From Multiplier",
+  "buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier.tooltip": "Prevent BuffMobs health scaling from multiplying the vanilla leader zombie bonus.",
+  "buffmobs.config.healthSync": "Health Sync",
+  "buffmobs.config.healthSync.enabled": "Enable Health Sync",
+  "buffmobs.config.healthSync.enabled.tooltip": "Synchronize a mob's current health with its new max health after BuffMobs modifies it.",
+  "buffmobs.config.healthSync.mode": "Sync Mode",
+  "buffmobs.config.healthSync.mode.tooltip": "OVERRIDE fully heals the mob. STACK preserves the damage already taken and adds the health delta on top.",
+  "buffmobs.config.healthSync.mode.override": "Override",
+  "buffmobs.config.healthSync.mode.stack": "Stack",
+  "buffmobs.config.dimensionMaxHealth": "Dimension Max Health",
+  "buffmobs.config.dimensionMaxHealth.enabled": "Enable Dimension Max Health",
+  "buffmobs.config.dimensionMaxHealth.enabled.tooltip": "Enable fixed max health overrides per dimension.",
+  "buffmobs.config.dimensionMaxHealth.slot": "Slot %s",
+  "buffmobs.config.dimensionMaxHealth.dimensionId": "Dimension ID",
+  "buffmobs.config.dimensionMaxHealth.dimensionId.tooltip": "Dimension ID, e.g. minecraft:the_nether",
+  "buffmobs.config.dimensionMaxHealth.maxHealth": "Max Health",
+  "buffmobs.config.dimensionMaxHealth.maxHealth.tooltip": "Fixed max health applied to mobs in this dimension (0 = disabled).",
+  "buffmobs.config.dimensionMaxHealth.mobFilter": "Mob Filter",
+  "buffmobs.config.dimensionMaxHealth.useAllowlist": "Use Allowlist",
+  "buffmobs.config.dimensionMaxHealth.useAllowlist.tooltip": "If true, only mobs in 'allowlist' receive dimension max health overrides.",
+  "buffmobs.config.dimensionMaxHealth.allowlist": "Allowlist",
+  "buffmobs.config.dimensionMaxHealth.allowlist.tooltip": "Mob IDs eligible for dimension max health overrides (used when useAllowlist = true).",
+  "buffmobs.config.dimensionMaxHealth.denylist": "Denylist",
+  "buffmobs.config.dimensionMaxHealth.denylist.tooltip": "Mob IDs that never receive dimension max health overrides.",
+  "buffmobs.config.mobPresets.overrideDimensionScaling": "Override Dimension Scaling",
+  "buffmobs.config.mobPresets.overrideDimensionScaling.tooltip": "If true, mobs that have a matching preset ignore dimension scaling multipliers and only use the preset values."
+
 }

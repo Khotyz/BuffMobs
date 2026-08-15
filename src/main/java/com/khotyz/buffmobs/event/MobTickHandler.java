@@ -118,6 +118,7 @@ public class MobTickHandler {
         UUID uuid = mob.getUUID();
         if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
+            MobBuffUtil.syncHealth(mob);
             if (MobBuffUtil.isValidMob(mob)) {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
@@ -144,9 +145,14 @@ public class MobTickHandler {
         PENDING_INIT.remove(mob.getUUID());
     }
 
+    public static void reinitializeMob(Mob mob) {
+        initializeMob(mob, true);
+    }
+
     public static void forceReinitAll() {
         INITIALIZED_MOBS.clear();
         PENDING_INIT.clear();
         PassiveMobAggressionHandler.forceReinit();
+        CombatDraftHandler.forceReinit();
     }
 }

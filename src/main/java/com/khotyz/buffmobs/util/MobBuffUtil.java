@@ -15,6 +15,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
@@ -29,6 +30,8 @@ public class MobBuffUtil {
     private static final ResourceLocation ATTACK_SPEED_MOD_ID = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "attack_speed");
     private static final ResourceLocation ARMOR_MOD_ID        = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "armor");
     private static final ResourceLocation TOUGHNESS_MOD_ID    = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "toughness");
+    private static final ResourceLocation DIMENSION_MAX_HEALTH_MOD_ID = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "dimension_max_health");
+    private static final ResourceLocation LEADER_ZOMBIE_BONUS_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "leader_zombie_bonus");
 
     public static void applyBuffs(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.enabled || !isValidMob(mob)) {
@@ -36,6 +39,8 @@ public class MobBuffUtil {
             removeAllBuffEffects(mob);
             return;
         }
+
+        handleZombieLeaderBonus(mob);
 
         double dayMult = getDayMultiplier(mob.level().getDayTime());
         DimensionMultipliers dim = getDimensionMultipliers(mob);
@@ -45,6 +50,7 @@ public class MobBuffUtil {
                 BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), dayMult, dim.health, preset != null);
 
         applyAllLayers(mob, dayMult, dim, preset);
+        applyDimensionMaxHealth(mob);
 
         removeAllBuffEffects(mob);
         applyStatusEffects(mob);
@@ -69,6 +75,7 @@ public class MobBuffUtil {
         removeModifier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID);
         removeModifier(mob, Attributes.ARMOR,           ARMOR_MOD_ID);
         removeModifier(mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID);
+        removeModifier(mob, Attributes.MAX_HEALTH,      DIMENSION_MAX_HEALTH_MOD_ID);
         mob.setAbsorptionAmount(0);
     }
 
@@ -146,6 +153,25 @@ public class MobBuffUtil {
 
         if (!undead)
             refreshEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier, show);
+    }
+
+    public static void syncHealth(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.healthSync.enabled) return;
+        AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (inst == null) return;
+
+        double maxHealth = inst.getValue();
+        double curHealth = mob.getHealth();
+        if (maxHealth <= 0 || curHealth >= maxHealth) return;
+
+        switch (BuffMobsConfig.INSTANCE.healthSync.mode) {
+            case OVERRIDE -> mob.setHealth((float) maxHealth);
+            case STACK -> {
+                double vanillaBase = inst.getBaseValue();
+                double ratio = vanillaBase > 0 ? Math.min(1.0, curHealth / vanillaBase) : 1.0;
+                mob.setHealth((float) (maxHealth * ratio));
+            }
+        }
     }
 
     public static void applyPoisonToPlayer(Player player, int duration) {
@@ -227,6 +253,13 @@ public class MobBuffUtil {
         };
     }
 
+    private static void handleZombieLeaderBonus(Mob mob) {
+        if (!(mob instanceof Zombie)) return;
+        if (!BuffMobsConfig.INSTANCE.zombieHandling.disableLeaderZombies) return;
+        AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (inst != null) inst.removeModifier(LEADER_ZOMBIE_BONUS_ID);
+    }
+
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
                                        MobPresetUtil.PresetMultipliers preset) {
         double attrHp    = BuffMobsConfig.INSTANCE.attributes.healthMultiplier;
@@ -245,15 +278,19 @@ public class MobBuffUtil {
 
         boolean isPassive = isPassiveAggressiveMob(mob);
 
+        DimensionMultipliers effectiveDim =
+                (preset != null && BuffMobsConfig.INSTANCE.mobPresets.overrideDimensionScaling)
+                        ? DimensionMultipliers.NEUTRAL : dim;
+
         if (isPassive) {
             applyPassiveAggressionDamage(mob);
         } else {
-            applyMultiplier(mob, Attributes.MAX_HEALTH,      HEALTH_MOD_ID,       attrHp   * dim.health      * presetHp   * dayMult);
-            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
-            applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
-            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
-            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor          + presetArm)   * dayMult);
-            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness + presetTough) * dayMult);
+            applyHealthMultiplier(mob, attrHp * effectiveDim.health * presetHp * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * effectiveDim.damage      * presetDmg  * dayMult);
+            applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * effectiveDim.speed       * presetSpd  * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * effectiveDim.attackSpeed * presetAspd * dayMult);
+            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + effectiveDim.armor          + presetArm)   * dayMult);
+            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + effectiveDim.armorToughness + presetTough) * dayMult);
         }
     }
 
@@ -267,6 +304,26 @@ public class MobBuffUtil {
             double bonus = baseDmg - current;
             dmgAttr.addPermanentModifier(new AttributeModifier(DAMAGE_MOD_ID, bonus,
                     AttributeModifier.Operation.ADD_VALUE));
+        }
+    }
+
+    private static void applyHealthMultiplier(Mob mob, double finalMult) {
+        AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (inst == null) return;
+        inst.removeModifier(HEALTH_MOD_ID);
+        if (finalMult <= 1.0) return;
+
+        boolean excludeLeaderBonus = mob instanceof Zombie
+                && BuffMobsConfig.INSTANCE.zombieHandling.excludeLeaderBonusFromMultiplier;
+
+        if (excludeLeaderBonus) {
+            double base = inst.getBaseValue();
+            double bonus = base * (finalMult - 1.0);
+            inst.addPermanentModifier(new AttributeModifier(HEALTH_MOD_ID, bonus,
+                    AttributeModifier.Operation.ADD_VALUE));
+        } else {
+            inst.addPermanentModifier(new AttributeModifier(HEALTH_MOD_ID, finalMult - 1.0,
+                    AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
         }
     }
 
@@ -303,6 +360,48 @@ public class MobBuffUtil {
             inst.addPermanentModifier(new AttributeModifier(id, amount,
                     AttributeModifier.Operation.ADD_VALUE));
         }
+    }
+
+    private static void applyDimensionMaxHealth(Mob mob) {
+        AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (inst == null) return;
+        inst.removeModifier(DIMENSION_MAX_HEALTH_MOD_ID);
+
+        if (!BuffMobsConfig.INSTANCE.dimensionMaxHealth.enabled) return;
+
+        String dim = getDimensionId(mob.level());
+        BuffMobsConfig.DimensionMaxHealth.Slot slot = findDimensionMaxHealthSlot(dim);
+        if (slot == null || slot.maxHealth <= 0) return;
+
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        if (!isAllowedByDimensionMaxHealthFilter(mobId, slot)) return;
+
+        double current = inst.getValue();
+        double delta = slot.maxHealth - current;
+        if (Math.abs(delta) > 0.001) {
+            inst.addPermanentModifier(new AttributeModifier(DIMENSION_MAX_HEALTH_MOD_ID, delta,
+                    AttributeModifier.Operation.ADD_VALUE));
+        }
+    }
+
+    private static BuffMobsConfig.DimensionMaxHealth.Slot findDimensionMaxHealthSlot(String dim) {
+        BuffMobsConfig.DimensionMaxHealth.Slot[] slots = {
+                BuffMobsConfig.INSTANCE.dimensionMaxHealth.slot1,
+                BuffMobsConfig.INSTANCE.dimensionMaxHealth.slot2,
+                BuffMobsConfig.INSTANCE.dimensionMaxHealth.slot3,
+                BuffMobsConfig.INSTANCE.dimensionMaxHealth.slot4,
+                BuffMobsConfig.INSTANCE.dimensionMaxHealth.slot5
+        };
+        for (BuffMobsConfig.DimensionMaxHealth.Slot slot : slots) {
+            if (slot.dimensionId != null && !slot.dimensionId.isEmpty() && slot.dimensionId.equals(dim)) return slot;
+        }
+        return null;
+    }
+
+    private static boolean isAllowedByDimensionMaxHealthFilter(String mobId, BuffMobsConfig.DimensionMaxHealth.Slot slot) {
+        if (slot.denylist.contains(mobId)) return false;
+        if (slot.useAllowlist) return slot.allowlist.contains(mobId);
+        return true;
     }
 
     private static void applyStatusEffects(Mob mob) {
@@ -372,6 +471,8 @@ public class MobBuffUtil {
     public static double calculateFinalAddition(double base, double dim, double day)   { return (base + dim) * day; }
 
     public static class DimensionMultipliers {
+        public static final DimensionMultipliers NEUTRAL = new DimensionMultipliers(1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+
         public final double health, damage, speed, attackSpeed, armor, armorToughness;
         public DimensionMultipliers(double health, double damage, double speed,
                                     double attackSpeed, double armor, double armorToughness) {
