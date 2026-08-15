@@ -15,31 +15,23 @@ public class BuffMobsConfig {
         SPEC = builder.build();
     }
 
-    // General
     public final ModConfigSpec.BooleanValue enabled;
     public final ModConfigSpec.BooleanValue visualEffects;
 
-    // Day Scaling
     public final DayScaling dayScaling;
-    // Attributes
     public final Attributes attributes;
-    // Effects
     public final Effects effects;
-    // Harmful Effects
     public final HarmfulEffects harmfulEffects;
-    // Dimension Scaling
     public final DimensionScaling dimensionScaling;
-    // Filters
+    public final DimensionMaxHealth dimensionMaxHealth;
+    public final ZombieHandling zombieHandling;
+    public final HealthSync healthSync;
     public final MobFilter mobFilter;
     public final ModIdFilter modidFilter;
     public final DimensionFilter dimensionFilter;
-    // Combat
     public final RangedMeleeSwitching rangedMeleeSwitching;
-    // CombatDraft
     public final CombatDraft combatDraft;
-    // Presets
     public final MobPresets mobPresets;
-    // Passive Mob Aggression
     public final PassiveMobAggression passiveMobAggression;
 
     private BuffMobsConfig(ModConfigSpec.Builder builder) {
@@ -53,6 +45,9 @@ public class BuffMobsConfig {
         effects = new Effects(builder);
         harmfulEffects = new HarmfulEffects(builder);
         dimensionScaling = new DimensionScaling(builder);
+        dimensionMaxHealth = new DimensionMaxHealth(builder);
+        zombieHandling = new ZombieHandling(builder);
+        healthSync = new HealthSync(builder);
         mobFilter = new MobFilter(builder);
         modidFilter = new ModIdFilter(builder);
         dimensionFilter = new DimensionFilter(builder);
@@ -177,6 +172,72 @@ public class BuffMobsConfig {
                 builder.pop();
             }
         }
+    }
+
+    public static class DimensionMaxHealth {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final Slot slot1, slot2, slot3, slot4, slot5;
+
+        DimensionMaxHealth(ModConfigSpec.Builder builder) {
+            builder.push("dimensionMaxHealth");
+            enabled = builder.comment("Enable per-dimension base max health overrides for mobs").define("enabled", false);
+            slot1 = new Slot(builder, "slot1");
+            slot2 = new Slot(builder, "slot2");
+            slot3 = new Slot(builder, "slot3");
+            slot4 = new Slot(builder, "slot4");
+            slot5 = new Slot(builder, "slot5");
+            builder.pop();
+        }
+
+        public static class Slot {
+            public final ModConfigSpec.ConfigValue<String> dimensionId;
+            public final ModConfigSpec.DoubleValue maxHealth;
+            public final ModConfigSpec.BooleanValue useAllowlist;
+            public final ModConfigSpec.ConfigValue<List<? extends String>> allowlist;
+            public final ModConfigSpec.ConfigValue<List<? extends String>> denylist;
+
+            Slot(ModConfigSpec.Builder builder, String key) {
+                builder.push(key);
+                dimensionId = builder.comment("Dimension ID, e.g. minecraft:overworld").define("dimensionId", "");
+                maxHealth = builder.comment("Base max health applied to matching mobs before other multipliers").defineInRange("maxHealth", 20.0, 1.0, 999999.0);
+                useAllowlist = builder.comment("If true, only mobs in the allowlist receive this base max health").define("useAllowlist", false);
+                allowlist = builder.comment("Mob IDs to apply this base max health to (used when useAllowlist = true)").defineListAllowEmpty("allowlist", new ArrayList<>(), o -> o instanceof String);
+                denylist = builder.comment("Mob IDs to never apply this base max health to").defineListAllowEmpty("denylist", new ArrayList<>(), o -> o instanceof String);
+                builder.pop();
+            }
+        }
+    }
+
+    public static class ZombieHandling {
+        public final ModConfigSpec.BooleanValue disableLeaderZombies;
+        public final ModConfigSpec.BooleanValue excludeLeaderBonusFromMultiplier;
+
+        ZombieHandling(ModConfigSpec.Builder builder) {
+            builder.push("zombieHandling");
+            disableLeaderZombies = builder.comment("Remove the vanilla leader zombie bonus health modifier from zombies")
+                    .define("disableLeaderZombies", false);
+            excludeLeaderBonusFromMultiplier = builder.comment("Exclude the vanilla leader zombie bonus health from BuffMobs multiplier calculations")
+                    .define("excludeLeaderBonusFromMultiplier", false);
+            builder.pop();
+        }
+    }
+
+    public static class HealthSync {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.EnumValue<Mode> mode;
+
+        HealthSync(ModConfigSpec.Builder builder) {
+            builder.push("healthSync");
+            enabled = builder.comment("Keep current health in sync with max health when buffs are applied")
+                    .define("enabled", true);
+            mode = builder.comment(
+                            "OVERRIDE: always set current health to max health.\n" +
+                                    "STACK: add the max health increase to current health, preserving damage already taken.")
+                    .defineEnum("mode", Mode.OVERRIDE);
+            builder.pop();
+        }
+
+        public enum Mode { OVERRIDE, STACK }
     }
 
     public static class MobFilter {
@@ -330,12 +391,15 @@ public class BuffMobsConfig {
 
     public static class MobPresets {
         public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.BooleanValue overrideDimensionScaling;
         public final PresetSlot preset1, preset2, preset3, preset4, preset5;
         public final ModConfigSpec.ConfigValue<List<? extends String>> mobMapping;
 
         MobPresets(ModConfigSpec.Builder builder) {
             builder.push("mobPresets");
             enabled = builder.comment("Enable per-mob stat presets").define("enabled", false);
+            overrideDimensionScaling = builder.comment("When a preset is applied to a mob, ignore dimension scaling multipliers for that mob")
+                    .define("overrideDimensionScaling", false);
             preset1 = new PresetSlot(builder, "preset1", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
             preset2 = new PresetSlot(builder, "preset2", "", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
             preset3 = new PresetSlot(builder, "preset3", "", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);

@@ -7,6 +7,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
@@ -36,6 +37,7 @@ public class PassiveMobAggressionHandler {
     private static final Set<UUID> INITIALIZED_MOBS = new HashSet<>();
     private static final Set<UUID> PARTICLE_SHOWN_MOBS = new HashSet<>();
     private static final Map<UUID, List<Goal>> REMOVED_GOALS = new HashMap<>();
+    private static final Map<UUID, AddedGoals> ADDED_GOALS = new HashMap<>();
 
     public static void register() {
         NeoForge.EVENT_BUS.addListener(PassiveMobAggressionHandler::onEntityJoin);
@@ -47,6 +49,39 @@ public class PassiveMobAggressionHandler {
         INITIALIZED_MOBS.clear();
         PARTICLE_SHOWN_MOBS.clear();
         REMOVED_GOALS.clear();
+        ADDED_GOALS.clear();
+    }
+
+    public static void reload(Iterable<Entity> entities) {
+        for (Entity e : entities) {
+            if (!(e instanceof Mob mob) || !(mob instanceof PathfinderMob pathfinderMob)) continue;
+            UUID uuid = mob.getUUID();
+
+            AddedGoals added = ADDED_GOALS.remove(uuid);
+            if (added != null) {
+                pathfinderMob.targetSelector.removeGoal(added.targetGoal);
+                pathfinderMob.goalSelector.removeGoal(added.meleeGoal);
+            }
+
+            List<Goal> removedFlee = REMOVED_GOALS.remove(uuid);
+            if (removedFlee != null) {
+                for (Goal g : removedFlee) pathfinderMob.goalSelector.addGoal(2, g);
+            }
+
+            INITIALIZED_MOBS.remove(uuid);
+            PARTICLE_SHOWN_MOBS.remove(uuid);
+        }
+
+        for (Entity e : entities) {
+            if (e.level().isClientSide()) continue;
+            if (!(e instanceof Mob mob)) continue;
+            if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) continue;
+            if (!MobBuffUtil.isPassiveAggressiveMob(mob)) continue;
+            if (INITIALIZED_MOBS.contains(mob.getUUID())) continue;
+            if (!(mob instanceof PathfinderMob pathfinderMob)) continue;
+
+            initMob(pathfinderMob);
+        }
     }
 
     private static void onEntityJoin(EntityJoinLevelEvent event) {
@@ -57,12 +92,20 @@ public class PassiveMobAggressionHandler {
         if (INITIALIZED_MOBS.contains(mob.getUUID())) return;
         if (!(mob instanceof PathfinderMob pathfinderMob)) return;
 
+        initMob(pathfinderMob);
+    }
+
+    private static void initMob(PathfinderMob pathfinderMob) {
+        Mob mob = pathfinderMob;
         removeFleeGoals(pathfinderMob);
 
         double damage = resolveDamage(mob);
-        mob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
-        mob.goalSelector.addGoal(2, new PassiveMeleeGoal(pathfinderMob, damage));
+        HurtByTargetGoal targetGoal = new HurtByTargetGoal(pathfinderMob);
+        PassiveMeleeGoal meleeGoal = new PassiveMeleeGoal(pathfinderMob, damage);
+        mob.targetSelector.addGoal(1, targetGoal);
+        mob.goalSelector.addGoal(2, meleeGoal);
 
+        ADDED_GOALS.put(mob.getUUID(), new AddedGoals(targetGoal, meleeGoal));
         INITIALIZED_MOBS.add(mob.getUUID());
     }
 
@@ -72,6 +115,7 @@ public class PassiveMobAggressionHandler {
         INITIALIZED_MOBS.remove(uuid);
         PARTICLE_SHOWN_MOBS.remove(uuid);
         REMOVED_GOALS.remove(uuid);
+        ADDED_GOALS.remove(uuid);
     }
 
     private static void onLivingDamage(LivingDamageEvent.Post event) {
@@ -120,6 +164,16 @@ public class PassiveMobAggressionHandler {
             damage += mob.getMaxHealth() * cfg.healthScaleFactor.get();
         }
         return damage;
+    }
+
+    private static class AddedGoals {
+        final HurtByTargetGoal targetGoal;
+        final PassiveMeleeGoal meleeGoal;
+
+        AddedGoals(HurtByTargetGoal targetGoal, PassiveMeleeGoal meleeGoal) {
+            this.targetGoal = targetGoal;
+            this.meleeGoal = meleeGoal;
+        }
     }
 
     private static class PassiveMeleeGoal extends Goal {

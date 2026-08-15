@@ -3,6 +3,8 @@ package com.khotyz.buffmobs.command;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobTickHandler;
+import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
+import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
 import com.mojang.brigadier.CommandDispatcher;
@@ -184,13 +186,29 @@ public class DebugCommand {
     private static int reloadMobs(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
         src.sendSuccess(() -> lit("buffmobs.command.reload.start"), false);
+
+        CombatDraftHandler.reload();
+        PassiveMobAggressionHandler.forceReinit();
+
         int count = 0;
         for (Entity e : src.getLevel().getAllEntities()) {
             if (e instanceof Mob mob) {
-                try { MobBuffUtil.applyBuffs(mob); count++; }
-                catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to buff mob", ex); }
+                try {
+                    MobBuffUtil.applyBuffs(mob);
+                    CombatDraftHandler.onMobInitialized(mob);
+                    count++;
+                } catch (Exception ex) {
+                    BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
+                }
             }
         }
+
+        try {
+            PassiveMobAggressionHandler.reload(src.getLevel().getAllEntities());
+        } catch (Exception ex) {
+            BuffMobsMod.LOGGER.error("Failed to reload passive mob aggression", ex);
+        }
+
         final int fc = count;
         src.sendSuccess(() -> lit("buffmobs.command.reload.done", fc), false);
         return 1;
