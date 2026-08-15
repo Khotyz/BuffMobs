@@ -142,14 +142,12 @@ public class MobTickHandler {
         UUID uuid = mob.getUUID();
         if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
+            MobBuffUtil.applyBuffs(mob);
             if (MobBuffUtil.isValidMob(mob)) {
-                MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
-            } else {
-                MobBuffUtil.removeAllModifiers(mob);
             }
         } catch (Exception e) {
             BuffMobsMod.LOGGER.error("[BuffMobs] Failed to initialize mob: {}", mob.getType(), e);
