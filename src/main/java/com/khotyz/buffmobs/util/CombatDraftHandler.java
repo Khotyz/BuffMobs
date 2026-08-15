@@ -35,6 +35,10 @@ public class CombatDraftHandler {
         STATES.remove(mob.getUUID());
     }
 
+    public static void forceReinit() {
+        STATES.clear();
+    }
+
     // Kept for API compatibility with MobTickHandler; no-op now that offhand restore was removed.
     public static void tickRestore(Mob mob) {}
 
