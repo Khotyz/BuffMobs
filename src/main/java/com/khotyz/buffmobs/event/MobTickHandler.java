@@ -103,6 +103,7 @@ public class MobTickHandler {
                                 MobBuffUtil.refreshInfiniteEffects(mob);
                                 CombatDraftHandler.tick(mob);
                                 PassiveMobAggressionHandler.tick(mob);
+                                MobBuffUtil.enforceDimensionMaxHealth(mob);
                             } catch (Exception ex) {
                                 BuffMobsMod.LOGGER.warn("[BuffMobs] Error updating mob behavior", ex);
                             }
@@ -127,10 +128,12 @@ public class MobTickHandler {
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
             } else if (MobBuffUtil.isPassiveAggressiveMob(mob)) {
                 PassiveMobAggressionHandler.onMobInitialized(mob);
+                MobBuffUtil.enforceDimensionMaxHealth(mob);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression: {}", mob.getType().getDescriptionId());
             } else {
                 MobBuffUtil.removeAllModifiers(mob);
+                MobBuffUtil.enforceDimensionMaxHealth(mob);
             }
         } catch (Exception e) {
             BuffMobsMod.LOGGER.error("[BuffMobs] Failed to initialize mob: {}", mob.getType(), e);

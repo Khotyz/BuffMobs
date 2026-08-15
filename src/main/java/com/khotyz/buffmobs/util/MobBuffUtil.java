@@ -18,6 +18,7 @@ import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
@@ -33,9 +34,16 @@ public class MobBuffUtil {
     private static final Identifier LEADER_ZOMBIE_BONUS_ID = Identifier.fromNamespaceAndPath("minecraft", "leader_zombie_bonus");
 
     public static void applyBuffs(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.enabled || !isValidMob(mob)) {
+        if (!BuffMobsConfig.INSTANCE.enabled) {
             removeAllModifiers(mob);
             removeAllBuffEffects(mob);
+            return;
+        }
+
+        if (!isValidMob(mob)) {
+            removeAllModifiers(mob);
+            removeAllBuffEffects(mob);
+            enforceDimensionMaxHealth(mob);
             return;
         }
 
@@ -55,9 +63,16 @@ public class MobBuffUtil {
         removeAllBuffEffects(mob);
         applyStatusEffects(mob);
         syncHealth(mob, oldMaxHealth, oldHealth);
+        enforceDimensionMaxHealth(mob);
 
         int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier;
         if (absAmp > 0) mob.setAbsorptionAmount(absAmp * 4.0f);
+    }
+
+    public static void enforceDimensionMaxHealth(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.enabled) return;
+        Double target = getDimensionMaxHealthOverride(mob);
+        if (target != null) applyDimensionMaxHealthOverride(mob, target);
     }
 
     private static void syncHealth(Mob mob, double oldMaxHealth, double oldHealth) {
@@ -274,13 +289,8 @@ public class MobBuffUtil {
         } else {
             handleZombieLeaderBonus(mob);
 
-            Double dimMaxHealth = getDimensionMaxHealthOverride(mob);
-            if (dimMaxHealth != null) {
-                applyDimensionMaxHealthOverride(mob, dimMaxHealth);
-            } else {
-                applyMultiplier(mob, Attributes.MAX_HEALTH, HEALTH_MOD_ID,
-                        attrHp * effectiveDim.health * presetHp * dayMult, getHealthMultiplierOperation(mob));
-            }
+            applyMultiplier(mob, Attributes.MAX_HEALTH, HEALTH_MOD_ID,
+                    attrHp * effectiveDim.health * presetHp * dayMult, getHealthMultiplierOperation(mob));
 
             applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * effectiveDim.damage      * presetDmg  * dayMult);
             applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * effectiveDim.speed       * presetSpd  * dayMult);
@@ -335,12 +345,12 @@ public class MobBuffUtil {
     private static void applyDimensionMaxHealthOverride(Mob mob, double targetMaxHealth) {
         AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
         if (inst == null) return;
-        inst.removeModifier(HEALTH_MOD_ID);
-        double base = inst.getBaseValue();
-        double delta = targetMaxHealth - base;
-        if (delta != 0.0) {
-            inst.addPermanentModifier(new AttributeModifier(HEALTH_MOD_ID, delta,
-                    AttributeModifier.Operation.ADD_VALUE));
+        for (AttributeModifier modifier : new ArrayList<>(inst.getModifiers())) {
+            inst.removeModifier(modifier.id());
+        }
+        inst.setBaseValue(targetMaxHealth);
+        if (mob.getHealth() > inst.getValue()) {
+            mob.setHealth((float) inst.getValue());
         }
     }
 
