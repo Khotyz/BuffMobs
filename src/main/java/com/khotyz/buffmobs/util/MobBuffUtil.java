@@ -321,7 +321,7 @@ public class MobBuffUtil {
         }
     }
 
-    private static void applyDimensionMaxHealth(Mob mob) {
+    public static void applyDimensionMaxHealth(Mob mob) {
         AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
         if (inst == null) return;
         inst.removeModifier(DIMENSION_MAX_HEALTH_MOD_ID);
@@ -346,10 +346,17 @@ public class MobBuffUtil {
 
             double target = slot.maxHealth.get();
             double current = inst.getValue();
-            double diff = target - current;
-            if (diff != 0.0) {
-                inst.addPermanentModifier(new AttributeModifier(DIMENSION_MAX_HEALTH_MOD_ID, diff,
+            if (current > 0.0) {
+                double factor = target / current - 1.0;
+                inst.addPermanentModifier(new AttributeModifier(DIMENSION_MAX_HEALTH_MOD_ID, factor,
+                        AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+            } else {
+                inst.addPermanentModifier(new AttributeModifier(DIMENSION_MAX_HEALTH_MOD_ID, target,
                         AttributeModifier.Operation.ADD_VALUE));
+            }
+
+            if (mob.getHealth() > target) {
+                mob.setHealth((float) target);
             }
             return;
         }

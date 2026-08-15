@@ -150,6 +150,7 @@ public class MobTickHandler {
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
             } else {
                 MobBuffUtil.removeAllModifiers(mob);
+                MobBuffUtil.applyDimensionMaxHealth(mob);
             }
         } catch (Exception e) {
             BuffMobsMod.LOGGER.error("[BuffMobs] Failed to initialize mob: {}", mob.getType(), e);
