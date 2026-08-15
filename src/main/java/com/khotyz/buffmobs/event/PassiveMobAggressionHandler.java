@@ -49,9 +49,20 @@ public class PassiveMobAggressionHandler {
         REMOVED_GOALS.clear();
     }
 
+    public static void reload(Iterable<Mob> mobs) {
+        forceReinit();
+        for (Mob mob : mobs) {
+            initializeIfEligible(mob);
+        }
+    }
+
     private static void onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
+        initializeIfEligible(mob);
+    }
+
+    private static void initializeIfEligible(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (INITIALIZED_MOBS.contains(mob.getUUID())) return;

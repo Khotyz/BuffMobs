@@ -37,6 +37,13 @@ public class CombatDraftHandler {
         STATES.putIfAbsent(mob.getUUID(), new MobDraftState());
     }
 
+    public static void reload(Iterable<Mob> mobs) {
+        STATES.clear();
+        for (Mob mob : mobs) {
+            onMobInitialized(mob);
+        }
+    }
+
     public static void onMobRemoved(Mob mob) {
         MobDraftState state = STATES.remove(mob.getUUID());
         if (state != null && state.pendingRestore != null) {

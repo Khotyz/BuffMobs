@@ -41,6 +41,12 @@ public class BuffMobsConfig {
     public final MobPresets mobPresets;
     // Passive Mob Aggression
     public final PassiveMobAggression passiveMobAggression;
+    // Zombie Handling
+    public final ZombieHandling zombieHandling;
+    // Health Sync
+    public final HealthSync healthSync;
+    // Dimension Max Health
+    public final DimensionMaxHealth dimensionMaxHealth;
 
     private BuffMobsConfig(ModConfigSpec.Builder builder) {
         builder.push("general");
@@ -60,6 +66,9 @@ public class BuffMobsConfig {
         combatDraft = new CombatDraft(builder);
         mobPresets = new MobPresets(builder);
         passiveMobAggression = new PassiveMobAggression(builder);
+        zombieHandling = new ZombieHandling(builder);
+        healthSync = new HealthSync(builder);
+        dimensionMaxHealth = new DimensionMaxHealth(builder);
     }
 
     public static class DayScaling {
@@ -330,12 +339,15 @@ public class BuffMobsConfig {
 
     public static class MobPresets {
         public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.BooleanValue overrideDimensionScaling;
         public final PresetSlot preset1, preset2, preset3, preset4, preset5;
         public final ModConfigSpec.ConfigValue<List<? extends String>> mobMapping;
 
         MobPresets(ModConfigSpec.Builder builder) {
             builder.push("mobPresets");
             enabled = builder.comment("Enable per-mob stat presets").define("enabled", false);
+            overrideDimensionScaling = builder.comment("If true, mobPresets values override dimensionScaling multipliers instead of stacking with them")
+                    .define("overrideDimensionScaling", false);
             preset1 = new PresetSlot(builder, "preset1", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
             preset2 = new PresetSlot(builder, "preset2", "", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
             preset3 = new PresetSlot(builder, "preset3", "", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
@@ -392,6 +404,78 @@ public class BuffMobsConfig {
             whitelist = builder.comment("Mob IDs affected (if non-empty, only these mobs are affected)").defineListAllowEmpty("whitelist", new ArrayList<>(), o -> o instanceof String);
             blacklist = builder.comment("Mob IDs that are never affected").defineListAllowEmpty("blacklist", new ArrayList<>(), o -> o instanceof String);
             builder.pop();
+        }
+    }
+
+    public static class ZombieHandling {
+        public final ModConfigSpec.BooleanValue disableLeaderZombies;
+        public final ModConfigSpec.BooleanValue excludeLeaderBonusFromMultiplier;
+
+        ZombieHandling(ModConfigSpec.Builder builder) {
+            builder.push("zombieHandling");
+            disableLeaderZombies = builder.comment(
+                            "If true, removes vanilla's leader zombie bonus health entirely.")
+                    .define("disableLeaderZombies", false);
+            excludeLeaderBonusFromMultiplier = builder.comment(
+                            "If true, the leader zombie bonus health is not multiplied by BuffMobs' health scaling.")
+                    .define("excludeLeaderBonusFromMultiplier", true);
+            builder.pop();
+        }
+    }
+
+    public static class HealthSync {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.EnumValue<Mode> mode;
+
+        public enum Mode { OVERRIDE, STACK }
+
+        HealthSync(ModConfigSpec.Builder builder) {
+            builder.push("healthSync");
+            enabled = builder.comment(
+                            "If true, a mob's current health is synced to its new max health after BuffMobs applies its buffs.")
+                    .define("enabled", true);
+            mode = builder.comment(
+                            "OVERRIDE: current health is always set to the new max health.\n" +
+                                    "STACK: current health increases by the same amount the max health increased, preserving prior damage taken.")
+                    .defineEnum("mode", Mode.OVERRIDE);
+            builder.pop();
+        }
+    }
+
+    public static class DimensionMaxHealth {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final Slot slot1, slot2, slot3, slot4, slot5;
+
+        DimensionMaxHealth(ModConfigSpec.Builder builder) {
+            builder.push("dimensionMaxHealth");
+            enabled = builder.comment("Enable per-dimension flat max health overrides for mobs").define("enabled", false);
+            slot1 = new Slot(builder, "slot1");
+            slot2 = new Slot(builder, "slot2");
+            slot3 = new Slot(builder, "slot3");
+            slot4 = new Slot(builder, "slot4");
+            slot5 = new Slot(builder, "slot5");
+            builder.pop();
+        }
+
+        public static class Slot {
+            public final ModConfigSpec.ConfigValue<String> dimensionId;
+            public final ModConfigSpec.DoubleValue maxHealth;
+            public final ModConfigSpec.BooleanValue useAllowlist;
+            public final ModConfigSpec.ConfigValue<List<? extends String>> allowlist;
+            public final ModConfigSpec.ConfigValue<List<? extends String>> denylist;
+
+            Slot(ModConfigSpec.Builder builder, String key) {
+                builder.push(key);
+                dimensionId = builder.comment("Dimension ID this slot applies to, e.g. minecraft:the_end").define("dimensionId", "");
+                maxHealth = builder.comment("Flat max health value to apply to matching mobs in this dimension").defineInRange("maxHealth", 20.0, 1.0, 999999.0);
+                useAllowlist = builder.comment("If true, only mobs in 'allowlist' are affected; otherwise all mobs except those in 'denylist' are affected")
+                        .define("useAllowlist", false);
+                allowlist = builder.comment("Mob IDs affected (only used when useAllowlist = true)")
+                        .defineListAllowEmpty("allowlist", new ArrayList<>(), o -> o instanceof String);
+                denylist = builder.comment("Mob IDs never affected (used when useAllowlist = false)")
+                        .defineListAllowEmpty("denylist", new ArrayList<>(), o -> o instanceof String);
+                builder.pop();
+            }
         }
     }
 }

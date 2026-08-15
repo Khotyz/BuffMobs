@@ -185,12 +185,18 @@ public class DebugCommand {
         CommandSourceStack src = ctx.getSource();
         src.sendSuccess(() -> lit("buffmobs.command.reload.start"), false);
         int count = 0;
+        List<Mob> mobs = new java.util.ArrayList<>();
         for (Entity e : src.getLevel().getAllEntities()) {
             if (e instanceof Mob mob) {
+                mobs.add(mob);
                 try { MobBuffUtil.applyBuffs(mob); count++; }
                 catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to buff mob", ex); }
             }
         }
+        try { com.khotyz.buffmobs.util.CombatDraftHandler.reload(mobs); }
+        catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to reload combat draft", ex); }
+        try { com.khotyz.buffmobs.event.PassiveMobAggressionHandler.reload(mobs); }
+        catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to reload passive aggression", ex); }
         final int fc = count;
         src.sendSuccess(() -> lit("buffmobs.command.reload.done", fc), false);
         return 1;
