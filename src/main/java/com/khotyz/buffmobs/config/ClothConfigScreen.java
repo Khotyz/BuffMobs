@@ -368,6 +368,10 @@ public class ClothConfigScreen {
                 .setDefaultValue(false)
                 .setTooltip(tt("buffmobs.config.mobPresets.enabled.tooltip"))
                 .setSaveConsumer(cfg.mobPresets.enabled::set).build());
+        presets.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobPresets.overrideDimensionScaling"), cfg.mobPresets.overrideDimensionScaling.get())
+                .setDefaultValue(false)
+                .setTooltip(tt("buffmobs.config.mobPresets.overrideDimensionScaling.tooltip"))
+                .setSaveConsumer(cfg.mobPresets.overrideDimensionScaling::set).build());
 
         BuffMobsConfig.MobPresets.PresetSlot[] presetSlots = {
                 cfg.mobPresets.preset1, cfg.mobPresets.preset2, cfg.mobPresets.preset3,
@@ -435,6 +439,75 @@ public class ClothConfigScreen {
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.passiveMobAggression.blacklist.set(v)).build());
         passiveAggression.addEntry(passiveMobFilterSub.build());
+
+        // ── Zombie Handling ───────────────────────────────────────────────────
+        ConfigCategory zombieHandling = builder.getOrCreateCategory(Component.translatable("buffmobs.config.zombieHandling"));
+        zombieHandling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.disableLeaderZombies"), cfg.zombieHandling.disableLeaderZombies.get())
+                .setDefaultValue(false)
+                .setTooltip(tt("buffmobs.config.zombieHandling.disableLeaderZombies.tooltip"))
+                .setSaveConsumer(cfg.zombieHandling.disableLeaderZombies::set).build());
+        zombieHandling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier"), cfg.zombieHandling.excludeLeaderBonusFromMultiplier.get())
+                .setDefaultValue(true)
+                .setTooltip(tt("buffmobs.config.zombieHandling.excludeLeaderBonusFromMultiplier.tooltip"))
+                .setSaveConsumer(cfg.zombieHandling.excludeLeaderBonusFromMultiplier::set).build());
+
+        // ── Health Sync ───────────────────────────────────────────────────────
+        ConfigCategory healthSync = builder.getOrCreateCategory(Component.translatable("buffmobs.config.healthSync"));
+        healthSync.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.healthSync.enabled"), cfg.healthSync.enabled.get())
+                .setDefaultValue(true)
+                .setTooltip(tt("buffmobs.config.healthSync.enabled.tooltip"))
+                .setSaveConsumer(cfg.healthSync.enabled::set).build());
+        healthSync.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.healthSync.mode"),
+                        BuffMobsConfig.HealthSync.HealthSyncMode.class,
+                        cfg.healthSync.mode.get())
+                .setDefaultValue(BuffMobsConfig.HealthSync.HealthSyncMode.OVERRIDE)
+                .setEnumNameProvider(e -> switch ((BuffMobsConfig.HealthSync.HealthSyncMode) e) {
+                    case OVERRIDE -> Component.translatable("buffmobs.config.healthSync.mode.override");
+                    case STACK    -> Component.translatable("buffmobs.config.healthSync.mode.stack");
+                })
+                .setTooltip(tt("buffmobs.config.healthSync.mode.tooltip"))
+                .setSaveConsumer(cfg.healthSync.mode::set).build());
+
+        // ── Dimension Max Health ─────────────────────────────────────────────
+        ConfigCategory dimMaxHealth = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionMaxHealth"));
+        dimMaxHealth.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.dimensionMaxHealth.enabled"), cfg.dimensionMaxHealth.enabled.get())
+                .setDefaultValue(false)
+                .setTooltip(tt("buffmobs.config.dimensionMaxHealth.enabled.tooltip"))
+                .setSaveConsumer(cfg.dimensionMaxHealth.enabled::set).build());
+
+        BuffMobsConfig.DimensionMaxHealth.DimensionHealthSlot[] dimHealthSlots = {
+                cfg.dimensionMaxHealth.slot1, cfg.dimensionMaxHealth.slot2, cfg.dimensionMaxHealth.slot3,
+                cfg.dimensionMaxHealth.slot4, cfg.dimensionMaxHealth.slot5
+        };
+        for (int i = 0; i < dimHealthSlots.length; i++) {
+            BuffMobsConfig.DimensionMaxHealth.DimensionHealthSlot slot = dimHealthSlots[i];
+            int n = i + 1;
+            var dhSub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionMaxHealth.slot", n));
+            dhSub.add(eb.startStrField(Component.translatable("buffmobs.config.dimensionMaxHealth.dimensionId"), slot.dimensionName.get())
+                    .setDefaultValue("")
+                    .setTooltip(tt("buffmobs.config.dimensionMaxHealth.dimensionId.tooltip"))
+                    .setSaveConsumer(slot.dimensionName::set).build());
+            dhSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.dimensionMaxHealth.maxHealth"), slot.maxHealth.get())
+                    .setDefaultValue(0.0).setMin(0.0).setMax(999999.0)
+                    .setTooltip(tt("buffmobs.config.dimensionMaxHealth.maxHealth.tooltip"))
+                    .setSaveConsumer(slot.maxHealth::set).build());
+            dimMaxHealth.addEntry(dhSub.build());
+        }
+
+        var dimHealthFilterSub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionMaxHealth.mobFilter"));
+        dimHealthFilterSub.add(eb.startBooleanToggle(Component.translatable("buffmobs.config.dimensionMaxHealth.useAllowlist"), cfg.dimensionMaxHealth.useAllowlist.get())
+                .setDefaultValue(false)
+                .setTooltip(tt("buffmobs.config.dimensionMaxHealth.useAllowlist.tooltip"))
+                .setSaveConsumer(cfg.dimensionMaxHealth.useAllowlist::set).build());
+        dimHealthFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionMaxHealth.allowlist"), new ArrayList<>(cfg.dimensionMaxHealth.allowlist.get()))
+                .setDefaultValue(new ArrayList<>())
+                .setTooltip(tt("buffmobs.config.dimensionMaxHealth.allowlist.tooltip"))
+                .setSaveConsumer(v -> cfg.dimensionMaxHealth.allowlist.set(v)).build());
+        dimHealthFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionMaxHealth.denylist"), new ArrayList<>(cfg.dimensionMaxHealth.denylist.get()))
+                .setDefaultValue(new ArrayList<>())
+                .setTooltip(tt("buffmobs.config.dimensionMaxHealth.denylist.tooltip"))
+                .setSaveConsumer(v -> cfg.dimensionMaxHealth.denylist.set(v)).build());
+        dimMaxHealth.addEntry(dimHealthFilterSub.build());
 
         return builder.build();
     }

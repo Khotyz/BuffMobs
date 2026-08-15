@@ -15,32 +15,24 @@ public class BuffMobsConfig {
         SPEC = builder.build();
     }
 
-    // General
     public final ModConfigSpec.BooleanValue enabled;
     public final ModConfigSpec.BooleanValue visualEffects;
 
-    // Day Scaling
     public final DayScaling dayScaling;
-    // Attributes
     public final Attributes attributes;
-    // Effects
     public final Effects effects;
-    // Harmful Effects
     public final HarmfulEffects harmfulEffects;
-    // Dimension Scaling
     public final DimensionScaling dimensionScaling;
-    // Filters
     public final MobFilter mobFilter;
     public final ModIdFilter modidFilter;
     public final DimensionFilter dimensionFilter;
-    // Combat
     public final RangedMeleeSwitching rangedMeleeSwitching;
-    // CombatDraft
     public final CombatDraft combatDraft;
-    // Presets
     public final MobPresets mobPresets;
-    // Passive Mob Aggression
     public final PassiveMobAggression passiveMobAggression;
+    public final ZombieHandling zombieHandling;
+    public final HealthSync healthSync;
+    public final DimensionMaxHealth dimensionMaxHealth;
 
     private BuffMobsConfig(ModConfigSpec.Builder builder) {
         builder.push("general");
@@ -60,6 +52,9 @@ public class BuffMobsConfig {
         combatDraft = new CombatDraft(builder);
         mobPresets = new MobPresets(builder);
         passiveMobAggression = new PassiveMobAggression(builder);
+        zombieHandling = new ZombieHandling(builder);
+        healthSync = new HealthSync(builder);
+        dimensionMaxHealth = new DimensionMaxHealth(builder);
     }
 
     public static class DayScaling {
@@ -330,12 +325,16 @@ public class BuffMobsConfig {
 
     public static class MobPresets {
         public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.BooleanValue overrideDimensionScaling;
         public final PresetSlot preset1, preset2, preset3, preset4, preset5;
         public final ModConfigSpec.ConfigValue<List<? extends String>> mobMapping;
 
         MobPresets(ModConfigSpec.Builder builder) {
             builder.push("mobPresets");
             enabled = builder.comment("Enable per-mob stat presets").define("enabled", false);
+            overrideDimensionScaling = builder.comment(
+                            "If true, mobs that have a matching preset ignore dimensionScaling multipliers and only use the preset values.")
+                    .define("overrideDimensionScaling", false);
             preset1 = new PresetSlot(builder, "preset1", "", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
             preset2 = new PresetSlot(builder, "preset2", "", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
             preset3 = new PresetSlot(builder, "preset3", "", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
@@ -392,6 +391,77 @@ public class BuffMobsConfig {
             whitelist = builder.comment("Mob IDs affected (if non-empty, only these mobs are affected)").defineListAllowEmpty("whitelist", new ArrayList<>(), o -> o instanceof String);
             blacklist = builder.comment("Mob IDs that are never affected").defineListAllowEmpty("blacklist", new ArrayList<>(), o -> o instanceof String);
             builder.pop();
+        }
+    }
+
+    public static class ZombieHandling {
+        public final ModConfigSpec.BooleanValue disableLeaderZombies;
+        public final ModConfigSpec.BooleanValue excludeLeaderBonusFromMultiplier;
+
+        ZombieHandling(ModConfigSpec.Builder builder) {
+            builder.push("zombieHandling");
+            disableLeaderZombies = builder.comment(
+                            "Strip the vanilla leader zombie health bonus modifier from zombies entirely.")
+                    .define("disableLeaderZombies", false);
+            excludeLeaderBonusFromMultiplier = builder.comment(
+                            "Exclude the vanilla leader zombie health bonus from BuffMobs health scaling so leader zombies do not become overpowered. Ignored if disableLeaderZombies is true.")
+                    .define("excludeLeaderBonusFromMultiplier", true);
+            builder.pop();
+        }
+    }
+
+    public static class HealthSync {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.EnumValue<HealthSyncMode> mode;
+
+        HealthSync(ModConfigSpec.Builder builder) {
+            builder.push("healthSync");
+            enabled = builder.comment(
+                            "Synchronize a mob's current health with its new max health after BuffMobs modifies it, fixing structure mob health desync.")
+                    .define("enabled", true);
+            mode = builder.comment(
+                            "OVERRIDE: fully heal the mob to its new max health.\n" +
+                                    "STACK: preserve the mob's existing damage taken and add the health delta on top.")
+                    .defineEnum("mode", HealthSyncMode.OVERRIDE);
+            builder.pop();
+        }
+
+        public enum HealthSyncMode { OVERRIDE, STACK }
+    }
+
+    public static class DimensionMaxHealth {
+        public final ModConfigSpec.BooleanValue enabled;
+        public final DimensionHealthSlot slot1, slot2, slot3, slot4, slot5;
+        public final ModConfigSpec.BooleanValue useAllowlist;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> allowlist;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> denylist;
+
+        DimensionMaxHealth(ModConfigSpec.Builder builder) {
+            builder.push("dimensionMaxHealth");
+            enabled = builder.comment("Enable fixed max health overrides per dimension").define("enabled", false);
+            slot1 = new DimensionHealthSlot(builder, "slot1");
+            slot2 = new DimensionHealthSlot(builder, "slot2");
+            slot3 = new DimensionHealthSlot(builder, "slot3");
+            slot4 = new DimensionHealthSlot(builder, "slot4");
+            slot5 = new DimensionHealthSlot(builder, "slot5");
+            useAllowlist = builder.comment("If true, only mobs in 'allowlist' receive dimension max health overrides").define("useAllowlist", false);
+            allowlist = builder.comment("Mob IDs eligible for dimension max health overrides (used when useAllowlist = true)")
+                    .defineListAllowEmpty("allowlist", new ArrayList<>(), o -> o instanceof String);
+            denylist = builder.comment("Mob IDs that never receive dimension max health overrides")
+                    .defineListAllowEmpty("denylist", new ArrayList<>(), o -> o instanceof String);
+            builder.pop();
+        }
+
+        public static class DimensionHealthSlot {
+            public final ModConfigSpec.ConfigValue<String> dimensionName;
+            public final ModConfigSpec.DoubleValue maxHealth;
+
+            DimensionHealthSlot(ModConfigSpec.Builder builder, String name) {
+                builder.push(name);
+                dimensionName = builder.comment("Dimension ID, e.g. minecraft:the_nether").define("dimensionName", "");
+                maxHealth = builder.comment("Fixed max health applied to mobs in this dimension (0 = disabled)").defineInRange("maxHealth", 0.0, 0.0, 999999.0);
+                builder.pop();
+            }
         }
     }
 }

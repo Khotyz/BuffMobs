@@ -49,6 +49,20 @@ public class PassiveMobAggressionHandler {
         REMOVED_GOALS.clear();
     }
 
+    public static void reloadMob(Mob mob) {
+        UUID uuid = mob.getUUID();
+        boolean shouldBeAggressive = BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()
+                && MobBuffUtil.isPassiveAggressiveMob(mob)
+                && mob instanceof PathfinderMob;
+        boolean isAggressive = INITIALIZED_MOBS.contains(uuid);
+
+        if (shouldBeAggressive && !isAggressive) {
+            enablePassiveAggression((PathfinderMob) mob);
+        } else if (!shouldBeAggressive && isAggressive) {
+            disablePassiveAggression(mob);
+        }
+    }
+
     private static void onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
@@ -57,13 +71,7 @@ public class PassiveMobAggressionHandler {
         if (INITIALIZED_MOBS.contains(mob.getUUID())) return;
         if (!(mob instanceof PathfinderMob pathfinderMob)) return;
 
-        removeFleeGoals(pathfinderMob);
-
-        double damage = resolveDamage(mob);
-        mob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
-        mob.goalSelector.addGoal(2, new PassiveMeleeGoal(pathfinderMob, damage));
-
-        INITIALIZED_MOBS.add(mob.getUUID());
+        enablePassiveAggression(pathfinderMob);
     }
 
     private static void onEntityLeave(EntityLeaveLevelEvent event) {
@@ -87,6 +95,44 @@ public class PassiveMobAggressionHandler {
                 8, 0.3, 0.3, 0.3, 0.0);
 
         PARTICLE_SHOWN_MOBS.add(mob.getUUID());
+    }
+
+    private static void enablePassiveAggression(PathfinderMob pathfinderMob) {
+        removeFleeGoals(pathfinderMob);
+
+        double damage = resolveDamage(pathfinderMob);
+        pathfinderMob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
+        pathfinderMob.goalSelector.addGoal(2, new PassiveMeleeGoal(pathfinderMob, damage));
+
+        INITIALIZED_MOBS.add(pathfinderMob.getUUID());
+        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression: enabled for {}",
+                pathfinderMob.getType().getDescriptionId());
+    }
+
+    private static void disablePassiveAggression(Mob mob) {
+        UUID uuid = mob.getUUID();
+        if (mob instanceof PathfinderMob pathfinderMob) {
+            List<WrappedGoal> goalsToRemove = new ArrayList<>();
+            for (WrappedGoal wrapped : pathfinderMob.goalSelector.getAvailableGoals()) {
+                if (wrapped.getGoal() instanceof PassiveMeleeGoal) goalsToRemove.add(wrapped);
+            }
+            for (WrappedGoal wrapped : goalsToRemove) pathfinderMob.goalSelector.removeGoal(wrapped.getGoal());
+
+            List<WrappedGoal> targetsToRemove = new ArrayList<>();
+            for (WrappedGoal wrapped : pathfinderMob.targetSelector.getAvailableGoals()) {
+                if (wrapped.getGoal() instanceof HurtByTargetGoal) targetsToRemove.add(wrapped);
+            }
+            for (WrappedGoal wrapped : targetsToRemove) pathfinderMob.targetSelector.removeGoal(wrapped.getGoal());
+
+            List<Goal> removedFleeGoals = REMOVED_GOALS.remove(uuid);
+            if (removedFleeGoals != null) {
+                for (Goal goal : removedFleeGoals) pathfinderMob.goalSelector.addGoal(2, goal);
+            }
+        }
+
+        INITIALIZED_MOBS.remove(uuid);
+        PARTICLE_SHOWN_MOBS.remove(uuid);
+        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression: disabled for {}", mob.getType().getDescriptionId());
     }
 
     private static void removeFleeGoals(PathfinderMob mob) {

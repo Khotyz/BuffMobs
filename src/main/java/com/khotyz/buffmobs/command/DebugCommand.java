@@ -3,8 +3,11 @@ package com.khotyz.buffmobs.command;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobTickHandler;
+import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
+import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
+import com.khotyz.buffmobs.util.RangedMobAIManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
@@ -187,8 +190,13 @@ public class DebugCommand {
         int count = 0;
         for (Entity e : src.getLevel().getAllEntities()) {
             if (e instanceof Mob mob) {
-                try { MobBuffUtil.applyBuffs(mob); count++; }
-                catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to buff mob", ex); }
+                try {
+                    MobBuffUtil.applyBuffs(mob);
+                    RangedMobAIManager.updateMobBehavior(mob);
+                    CombatDraftHandler.reloadMob(mob);
+                    PassiveMobAggressionHandler.reloadMob(mob);
+                    count++;
+                } catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to buff mob", ex); }
             }
         }
         final int fc = count;
