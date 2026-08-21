@@ -474,13 +474,7 @@ public class ClothConfigScreen {
                 .setSaveConsumer(v -> cfg.mobPresets.mobMapping.set(v)).build());
 
         ConfigCategory passiveMobAggression = builder.getOrCreateCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
-        passiveMobAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.enabled"), cfg.passiveMobAggression.enabled.get())
-                .setDefaultValue(false)
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.enabled.tooltip"))
-                .setSaveConsumer(v -> {
-                    cfg.passiveMobAggression.enabled.set(v);
-                    PassiveMobAggressionHandler.forceReinit();
-                }).build());
+        // O botão 'enabled' foi removido – agora o comportamento é controlado exclusivamente pelo seletor 'mode'
         passiveMobAggression.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.passiveMobAggression.mode"),
                         BuffMobsConfig.PassiveMobAggression.Mode.class,
                         cfg.passiveMobAggression.mode.get())
