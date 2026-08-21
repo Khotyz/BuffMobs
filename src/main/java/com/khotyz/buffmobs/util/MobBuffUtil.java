@@ -218,7 +218,8 @@ public class MobBuffUtil {
     }
 
     public static boolean isPassiveAggressiveMob(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return false;
+        BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        if (mode == BuffMobsConfig.PassiveMobAggression.Mode.OFF) return false;
         if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
         if (mob instanceof Enemy) return false;
         if (isNeutralMob(mob)) return false;
@@ -282,21 +283,47 @@ public class MobBuffUtil {
         boolean overrideDim = preset != null && BuffMobsConfig.INSTANCE.mobPresets.overrideDimensionScaling;
         DimensionMultipliers effectiveDim = overrideDim ? DimensionMultipliers.IDENTITY : dim;
 
+        BuffMobsConfig.DimensionScaling.Mode dimMode = BuffMobsConfig.INSTANCE.dimensionScaling.mode;
+
         boolean isPassive = isPassiveAggressiveMob(mob);
 
+        // Apply dimension scaling and attribute multipliers to ALL mobs (including passive)
+        handleZombieLeaderBonus(mob);
+
+        double finalHealth, finalDamage, finalSpeed, finalAttackSpeed;
+        double finalArmor, finalToughness;
+
+        if (dimMode == BuffMobsConfig.DimensionScaling.Mode.OVERRIDE) {
+            finalHealth = dim.health * dayMult;
+            finalDamage = dim.damage * dayMult;
+            finalSpeed = dim.speed * dayMult;
+            finalAttackSpeed = dim.attackSpeed * dayMult;
+            finalArmor = dim.armor * dayMult;
+            finalToughness = dim.armorToughness * dayMult;
+        } else {
+            finalHealth = attrHp * effectiveDim.health * presetHp * dayMult;
+            finalDamage = attrDmg * effectiveDim.damage * presetDmg * dayMult;
+            finalSpeed = attrSpd * effectiveDim.speed * presetSpd * dayMult;
+            finalAttackSpeed = attrAspd * effectiveDim.attackSpeed * presetAspd * dayMult;
+            finalArmor = (attrArm + effectiveDim.armor + presetArm) * dayMult;
+            finalToughness = (attrTough + effectiveDim.armorToughness + presetTough) * dayMult;
+        }
+
+        // Apply health, speed, attack speed, armor, toughness to ALL mobs
+        applyMultiplier(mob, Attributes.MAX_HEALTH, HEALTH_MOD_ID,
+                finalHealth, getHealthMultiplierOperation(mob));
+        applySpeedBonus(mob, SPEED_MOD_ID, finalSpeed);
+        applyMultiplier(mob, Attributes.ATTACK_SPEED, ATTACK_SPEED_MOD_ID, finalAttackSpeed);
+        applyAddition(mob, Attributes.ARMOR, ARMOR_MOD_ID, finalArmor);
+        applyAddition(mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID, finalToughness);
+
+        // Apply damage separately:
+        // - For passive mobs, we set their damage to the configured passive damage (no multiplier)
+        // - For other mobs, apply damage multiplier normally
         if (isPassive) {
             applyPassiveAggressionDamage(mob);
         } else {
-            handleZombieLeaderBonus(mob);
-
-            applyMultiplier(mob, Attributes.MAX_HEALTH, HEALTH_MOD_ID,
-                    attrHp * effectiveDim.health * presetHp * dayMult, getHealthMultiplierOperation(mob));
-
-            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * effectiveDim.damage      * presetDmg  * dayMult);
-            applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * effectiveDim.speed       * presetSpd  * dayMult);
-            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * effectiveDim.attackSpeed * presetAspd * dayMult);
-            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + effectiveDim.armor          + presetArm)   * dayMult);
-            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + effectiveDim.armorToughness + presetTough) * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_DAMAGE, DAMAGE_MOD_ID, finalDamage);
         }
     }
 
@@ -413,24 +440,27 @@ public class MobBuffUtil {
         boolean show   = BuffMobsConfig.INSTANCE.visualEffects;
         boolean undead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        addEffect(mob, MobEffects.STRENGTH,       BuffMobsConfig.INSTANCE.effects.strengthAmplifier,   duration, show);
-        addEffect(mob, MobEffects.SPEED , BuffMobsConfig.INSTANCE.effects.speedAmplifier,      duration, show);
-        addEffect(mob, MobEffects.RESISTANCE,     BuffMobsConfig.INSTANCE.effects.resistanceAmplifier, duration, show);
+        // Only apply status effects to non-passive mobs
+        if (!isPassiveAggressiveMob(mob)) {
+            addEffect(mob, MobEffects.STRENGTH,       BuffMobsConfig.INSTANCE.effects.strengthAmplifier,   duration, show);
+            addEffect(mob, MobEffects.SPEED , BuffMobsConfig.INSTANCE.effects.speedAmplifier,      duration, show);
+            addEffect(mob, MobEffects.RESISTANCE,     BuffMobsConfig.INSTANCE.effects.resistanceAmplifier, duration, show);
 
-        int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier;
-        if (absAmp > 0) {
-            float absAmount = absAmp * 4.0f;
-            if (undead) {
-                mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, absAmp - 1, false, show, true));
-                mob.setAbsorptionAmount(absAmount);
-            } else {
-                addEffect(mob, MobEffects.ABSORPTION, absAmp, duration, show);
-                mob.setAbsorptionAmount(absAmount);
+            int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier;
+            if (absAmp > 0) {
+                float absAmount = absAmp * 4.0f;
+                if (undead) {
+                    mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, absAmp - 1, false, show, true));
+                    mob.setAbsorptionAmount(absAmount);
+                } else {
+                    addEffect(mob, MobEffects.ABSORPTION, absAmp, duration, show);
+                    mob.setAbsorptionAmount(absAmount);
+                }
             }
-        }
 
-        if (!undead)
-            addEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier, duration, show);
+            if (!undead)
+                addEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier, duration, show);
+        }
     }
 
     private static void refreshEffect(Mob mob, Holder<MobEffect> effect, int amp, boolean show) {

@@ -120,6 +120,9 @@ public class BuffMobsConfig {
         public DimensionSlot slot3 = new DimensionSlot();
         public DimensionSlot slot4 = new DimensionSlot();
         public DimensionSlot slot5 = new DimensionSlot();
+        public Mode mode = Mode.SCALING;
+
+        public enum Mode { SCALING, OVERRIDE }
 
         public static class DimensionSlot {
             public String dimensionName = "";
@@ -233,12 +236,14 @@ public class BuffMobsConfig {
     }
 
     public static class PassiveMobAggression {
-        public boolean enabled = false;
+        public Mode mode = Mode.NEUTRAL;
         public double baseDamage = 3.0;
         public boolean scaleWithHealth = false;
         public double healthScaleFactor = 0.1;
         public List<String> whitelist = new ArrayList<>();
         public List<String> blacklist = new ArrayList<>();
+
+        public enum Mode { OFF, NEUTRAL, HOSTILE }
     }
 
     public static class ZombieHandling {

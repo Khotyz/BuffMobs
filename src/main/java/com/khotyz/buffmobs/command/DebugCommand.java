@@ -202,6 +202,7 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)),          false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling", String.valueOf(BuffMobsConfig.INSTANCE.dayScaling.enabled)),                   false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",     String.valueOf(BuffMobsConfig.INSTANCE.mobPresets.enabled)),                   false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.passive_mode", BuffMobsConfig.INSTANCE.passiveMobAggression.mode.name()), false);
         return 1;
     }
 }
