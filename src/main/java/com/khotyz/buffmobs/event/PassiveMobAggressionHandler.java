@@ -14,6 +14,8 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.PanicGoal;
 import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
@@ -64,6 +66,8 @@ public class PassiveMobAggressionHandler {
 
     private static void initializeIfEligible(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) return;
+        BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        if (mode == BuffMobsConfig.PassiveMobAggression.Mode.OFF) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (INITIALIZED_MOBS.contains(mob.getUUID())) return;
         if (!(mob instanceof PathfinderMob pathfinderMob)) return;
@@ -71,8 +75,12 @@ public class PassiveMobAggressionHandler {
         removeFleeGoals(pathfinderMob);
 
         double damage = resolveDamage(mob);
-        mob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
-        mob.goalSelector.addGoal(2, new PassiveMeleeGoal(pathfinderMob, damage));
+        if (mode == BuffMobsConfig.PassiveMobAggression.Mode.NEUTRAL) {
+            pathfinderMob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
+        } else if (mode == BuffMobsConfig.PassiveMobAggression.Mode.HOSTILE) {
+            pathfinderMob.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(pathfinderMob, Player.class, true));
+        }
+        pathfinderMob.goalSelector.addGoal(2, new PassiveMeleeGoal(pathfinderMob, damage));
 
         INITIALIZED_MOBS.add(mob.getUUID());
     }

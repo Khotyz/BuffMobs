@@ -154,6 +154,9 @@ public class BuffMobsConfig {
 
     public static class DimensionScaling {
         public final DimensionSlot slot1, slot2, slot3, slot4, slot5;
+        public final ModConfigSpec.EnumValue<Mode> mode;
+
+        public enum Mode { SCALING, OVERRIDE }
 
         DimensionScaling(ModConfigSpec.Builder builder) {
             builder.push("dimensionScaling");
@@ -162,6 +165,8 @@ public class BuffMobsConfig {
             slot3 = new DimensionSlot(builder, "slot3");
             slot4 = new DimensionSlot(builder, "slot4");
             slot5 = new DimensionSlot(builder, "slot5");
+            mode = builder.comment("Dimension scaling mode: SCALING applies as multiplier, OVERRIDE replaces attributes with dimension values.")
+                    .defineEnum("mode", Mode.SCALING);
             builder.pop();
         }
 
@@ -389,15 +394,20 @@ public class BuffMobsConfig {
 
     public static class PassiveMobAggression {
         public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.EnumValue<Mode> mode;
         public final ModConfigSpec.DoubleValue baseDamage;
         public final ModConfigSpec.BooleanValue scaleWithHealth;
         public final ModConfigSpec.DoubleValue healthScaleFactor;
         public final ModConfigSpec.ConfigValue<List<? extends String>> whitelist;
         public final ModConfigSpec.ConfigValue<List<? extends String>> blacklist;
 
+        public enum Mode { OFF, NEUTRAL, HOSTILE }
+
         PassiveMobAggression(ModConfigSpec.Builder builder) {
             builder.push("passiveMobAggression");
             enabled = builder.comment("Enable Passive Mob Aggression: passive mobs retaliate when hit").define("enabled", false);
+            mode = builder.comment("Passive mob aggression mode: OFF disables, NEUTRAL retaliates when hit, HOSTILE attacks players on sight.")
+                    .defineEnum("mode", Mode.NEUTRAL);
             baseDamage = builder.comment("Base attack damage given to affected passive mobs").defineInRange("baseDamage", 3.0, 0.5, 100.0);
             scaleWithHealth = builder.comment("Add bonus damage based on the mob's max health").define("scaleWithHealth", false);
             healthScaleFactor = builder.comment("Scaling factor: totalDamage = baseDamage + (maxHealth * healthScaleFactor)").defineInRange("healthScaleFactor", 0.1, 0.0, 100.0);

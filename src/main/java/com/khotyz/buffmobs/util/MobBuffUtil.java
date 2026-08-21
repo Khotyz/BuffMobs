@@ -261,12 +261,33 @@ public class MobBuffUtil {
                 || (!BuffMobsConfig.INSTANCE.zombieHandling.disableLeaderZombies.get()
                 && BuffMobsConfig.INSTANCE.zombieHandling.excludeLeaderBonusFromMultiplier.get());
 
-        applyHealthMultiplier(mob, HEALTH_MOD_ID, attrHp * dim.health * presetHp * dayMult, excludeLeaderBonus);
-        applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
-        applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
-        applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
-        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor           + presetArm)   * dayMult);
-        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness  + presetTough) * dayMult);
+        BuffMobsConfig.DimensionScaling.Mode mode = BuffMobsConfig.INSTANCE.dimensionScaling.mode.get();
+
+        double finalHealth, finalDamage, finalSpeed, finalAttackSpeed;
+        double finalArmor, finalToughness;
+
+        if (mode == BuffMobsConfig.DimensionScaling.Mode.OVERRIDE) {
+            finalHealth = dim.health;
+            finalDamage = dim.damage;
+            finalSpeed = dim.speed;
+            finalAttackSpeed = dim.attackSpeed;
+            finalArmor = dim.armor;
+            finalToughness = dim.armorToughness;
+        } else {
+            finalHealth = attrHp * dim.health * presetHp * dayMult;
+            finalDamage = attrDmg * dim.damage * presetDmg * dayMult;
+            finalSpeed = attrSpd * dim.speed * presetSpd * dayMult;
+            finalAttackSpeed = attrAspd * dim.attackSpeed * presetAspd * dayMult;
+            finalArmor = (attrArm + dim.armor + presetArm) * dayMult;
+            finalToughness = (attrTough + dim.armorToughness + presetTough) * dayMult;
+        }
+
+        applyHealthMultiplier(mob, HEALTH_MOD_ID, finalHealth, excludeLeaderBonus);
+        applyMultiplier(mob, Attributes.ATTACK_DAMAGE, DAMAGE_MOD_ID, finalDamage);
+        applySpeedBonus(mob, SPEED_MOD_ID, finalSpeed);
+        applyMultiplier(mob, Attributes.ATTACK_SPEED, ATTACK_SPEED_MOD_ID, finalAttackSpeed);
+        applyAddition(mob, Attributes.ARMOR, ARMOR_MOD_ID, finalArmor);
+        applyAddition(mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID, finalToughness);
     }
 
     private static void applyHealthMultiplier(Mob mob, Identifier id, double finalMult, boolean excludeFlatBonuses) {
