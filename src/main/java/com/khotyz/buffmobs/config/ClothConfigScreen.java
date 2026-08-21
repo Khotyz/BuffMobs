@@ -161,6 +161,17 @@ public class ClothConfigScreen {
                 .setSaveConsumer(cfg.dayScaling.notificationMode::set).build());
 
         ConfigCategory dimScaling = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionScaling"));
+        dimScaling.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.dimensionScaling.mode"),
+                        BuffMobsConfig.DimensionScaling.DimensionScalingMode.class,
+                        cfg.dimensionScaling.mode.get())
+                .setDefaultValue(BuffMobsConfig.DimensionScaling.DimensionScalingMode.SCALING)
+                .setEnumNameProvider(e -> switch ((BuffMobsConfig.DimensionScaling.DimensionScalingMode) e) {
+                    case SCALING  -> Component.translatable("buffmobs.config.dimensionScaling.mode.scaling");
+                    case OVERRIDE -> Component.translatable("buffmobs.config.dimensionScaling.mode.override");
+                })
+                .setTooltip(tt("buffmobs.config.dimensionScaling.mode.tooltip"))
+                .setSaveConsumer(cfg.dimensionScaling.mode::set).build());
+
         BuffMobsConfig.DimensionScaling.DimensionSlot[] dimSlots = {
                 cfg.dimensionScaling.slot1, cfg.dimensionScaling.slot2, cfg.dimensionScaling.slot3,
                 cfg.dimensionScaling.slot4, cfg.dimensionScaling.slot5
@@ -397,11 +408,18 @@ public class ClothConfigScreen {
                 .setSaveConsumer(v -> cfg.mobPresets.mobMapping.set(v)).build());
 
         ConfigCategory passiveAggression = builder.getOrCreateCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
-        passiveAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.enabled"), cfg.passiveMobAggression.enabled.get())
-                .setDefaultValue(false)
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.enabled.tooltip"))
+        passiveAggression.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.passiveMobAggression.mode"),
+                        BuffMobsConfig.PassiveMobAggression.PassiveMode.class,
+                        cfg.passiveMobAggression.mode.get())
+                .setDefaultValue(BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF)
+                .setEnumNameProvider(e -> switch ((BuffMobsConfig.PassiveMobAggression.PassiveMode) e) {
+                    case OFF     -> Component.translatable("buffmobs.config.passiveMobAggression.mode.off");
+                    case NEUTRAL -> Component.translatable("buffmobs.config.passiveMobAggression.mode.neutral");
+                    case HOSTILE -> Component.translatable("buffmobs.config.passiveMobAggression.mode.hostile");
+                })
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.mode.tooltip"))
                 .setSaveConsumer(v -> {
-                    cfg.passiveMobAggression.enabled.set(v);
+                    cfg.passiveMobAggression.mode.set(v);
                     com.khotyz.buffmobs.event.PassiveMobAggressionHandler.forceReinit();
                 }).build());
         passiveAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.baseDamage"), cfg.passiveMobAggression.baseDamage.get())

@@ -14,6 +14,8 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.PanicGoal;
 import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
@@ -51,13 +53,14 @@ public class PassiveMobAggressionHandler {
 
     public static void reloadMob(Mob mob) {
         UUID uuid = mob.getUUID();
-        boolean shouldBeAggressive = BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()
+        BuffMobsConfig.PassiveMobAggression.PassiveMode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        boolean shouldBeAggressive = mode != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF
                 && MobBuffUtil.isPassiveAggressiveMob(mob)
                 && mob instanceof PathfinderMob;
         boolean isAggressive = INITIALIZED_MOBS.contains(uuid);
 
         if (shouldBeAggressive && !isAggressive) {
-            enablePassiveAggression((PathfinderMob) mob);
+            enablePassiveAggression((PathfinderMob) mob, mode);
         } else if (!shouldBeAggressive && isAggressive) {
             disablePassiveAggression(mob);
         }
@@ -66,12 +69,13 @@ public class PassiveMobAggressionHandler {
     private static void onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) return;
+        BuffMobsConfig.PassiveMobAggression.PassiveMode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (INITIALIZED_MOBS.contains(mob.getUUID())) return;
         if (!(mob instanceof PathfinderMob pathfinderMob)) return;
 
-        enablePassiveAggression(pathfinderMob);
+        enablePassiveAggression(pathfinderMob, mode);
     }
 
     private static void onEntityLeave(EntityLeaveLevelEvent event) {
@@ -83,7 +87,8 @@ public class PassiveMobAggressionHandler {
     }
 
     private static void onLivingDamage(LivingDamageEvent.Post event) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) return;
+        BuffMobsConfig.PassiveMobAggression.PassiveMode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (mob.getTarget() == null) return;
@@ -97,16 +102,23 @@ public class PassiveMobAggressionHandler {
         PARTICLE_SHOWN_MOBS.add(mob.getUUID());
     }
 
-    private static void enablePassiveAggression(PathfinderMob pathfinderMob) {
+    private static void enablePassiveAggression(PathfinderMob pathfinderMob, BuffMobsConfig.PassiveMobAggression.PassiveMode mode) {
         removeFleeGoals(pathfinderMob);
 
         double damage = resolveDamage(pathfinderMob);
-        pathfinderMob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
+
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMode.NEUTRAL) {
+            pathfinderMob.targetSelector.addGoal(1, new HurtByTargetGoal(pathfinderMob));
+        } else if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMode.HOSTILE) {
+            pathfinderMob.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(pathfinderMob, Player.class, true));
+            pathfinderMob.targetSelector.addGoal(2, new HurtByTargetGoal(pathfinderMob));
+        }
+
         pathfinderMob.goalSelector.addGoal(2, new PassiveMeleeGoal(pathfinderMob, damage));
 
         INITIALIZED_MOBS.add(pathfinderMob.getUUID());
-        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression: enabled for {}",
-                pathfinderMob.getType().getDescriptionId());
+        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression: enabled for {} with mode {}",
+                pathfinderMob.getType().getDescriptionId(), mode);
     }
 
     private static void disablePassiveAggression(Mob mob) {
@@ -120,7 +132,10 @@ public class PassiveMobAggressionHandler {
 
             List<WrappedGoal> targetsToRemove = new ArrayList<>();
             for (WrappedGoal wrapped : pathfinderMob.targetSelector.getAvailableGoals()) {
-                if (wrapped.getGoal() instanceof HurtByTargetGoal) targetsToRemove.add(wrapped);
+                Goal g = wrapped.getGoal();
+                if (g instanceof HurtByTargetGoal || g instanceof NearestAttackableTargetGoal) {
+                    targetsToRemove.add(wrapped);
+                }
             }
             for (WrappedGoal wrapped : targetsToRemove) pathfinderMob.targetSelector.removeGoal(wrapped.getGoal());
 

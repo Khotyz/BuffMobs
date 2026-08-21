@@ -87,7 +87,7 @@ public class DebugCommand {
 
         boolean passiveAggressive = MobBuffUtil.isPassiveAggressiveMob(mob);
         src.sendSuccess(() -> lit("buffmobs.command.debug.passive_aggression",
-                BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get() && passiveAggressive), false);
+                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF && passiveAggressive), false);
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
@@ -213,7 +213,7 @@ public class DebugCommand {
         src.sendSuccess(() -> lit("buffmobs.command.info.damage_mult",  BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.day_scaling",  BuffMobsConfig.INSTANCE.dayScaling.enabled.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.presets",      BuffMobsConfig.INSTANCE.mobPresets.enabled.get()), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF), false);
         return 1;
     }
 }

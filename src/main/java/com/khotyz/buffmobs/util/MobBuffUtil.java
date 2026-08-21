@@ -215,9 +215,10 @@ public class MobBuffUtil {
         if (mob instanceof Enemy) return false;
         if (mob instanceof NeutralMob) return false;
 
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+        if (cfg.mode.get() == BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF) return false;
 
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         if (cfg.blacklist.get().contains(mobId)) return false;
         if (!cfg.whitelist.get().isEmpty()) return cfg.whitelist.get().contains(mobId);
         return true;
@@ -327,6 +328,22 @@ public class MobBuffUtil {
 
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
                                        MobPresetUtil.PresetMultipliers preset, boolean dimensionHealthCapActive) {
+        BuffMobsConfig.DimensionScaling.DimensionScalingMode dimMode = BuffMobsConfig.INSTANCE.dimensionScaling.mode.get();
+
+        if (dimMode == BuffMobsConfig.DimensionScaling.DimensionScalingMode.OVERRIDE) {
+            if (dimensionHealthCapActive) {
+                removeModifier(mob, Attributes.MAX_HEALTH, HEALTH_MOD_ID);
+            } else {
+                applyMultiplier(mob, Attributes.MAX_HEALTH, HEALTH_MOD_ID, dim.health * dayMult);
+            }
+            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       dim.damage * dayMult);
+            applySpeedBonus(mob,                             SPEED_MOD_ID,        dim.speed * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, dim.attackSpeed * dayMult);
+            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,        dim.armor * dayMult);
+            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,    dim.armorToughness * dayMult);
+            return;
+        }
+
         double attrHp    = BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get();
         double attrDmg   = BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get();
         double attrSpd   = BuffMobsConfig.INSTANCE.attributes.speedMultiplier.get();
