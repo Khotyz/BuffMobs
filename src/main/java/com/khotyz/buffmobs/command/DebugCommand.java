@@ -66,6 +66,12 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable(
                 isValid ? "buffmobs.command.debug.valid.yes" : "buffmobs.command.debug.valid.no"), false);
 
+        // Exibe o modo de agressão passiva
+        BuffMobsConfig.PassiveMobAggression.PassiveMode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        boolean passiveActive = mode != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF;
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.passive_aggression",
+                passiveActive ? mode.name() : "OFF"), false);
+
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled;
         src.sendSuccess(() -> Component.translatable(
@@ -196,6 +202,8 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)),          false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling", String.valueOf(BuffMobsConfig.INSTANCE.dayScaling.enabled)),                   false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",     String.valueOf(BuffMobsConfig.INSTANCE.mobPresets.enabled)),                   false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.passive_aggression",
+                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.name()), false);
         return 1;
     }
 }

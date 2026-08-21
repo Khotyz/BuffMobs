@@ -215,6 +215,18 @@ public class ClothConfigScreen {
 
     private static void buildDimensionScalingCategory(ConfigBuilder builder, ConfigEntryBuilder eb, BuffMobsConfig cfg) {
         ConfigCategory cat = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionScaling"));
+        // Adiciona seletor de modo
+        cat.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.dimensionScaling.mode"),
+                        BuffMobsConfig.DimensionScaling.DimensionScalingMode.class,
+                        cfg.dimensionScaling.mode)
+                .setDefaultValue(BuffMobsConfig.DimensionScaling.DimensionScalingMode.SCALING)
+                .setEnumNameProvider(e -> switch ((BuffMobsConfig.DimensionScaling.DimensionScalingMode) e) {
+                    case SCALING  -> Component.translatable("buffmobs.config.dimensionScaling.mode.scaling");
+                    case OVERRIDE -> Component.translatable("buffmobs.config.dimensionScaling.mode.override");
+                })
+                .setTooltip(tt("buffmobs.config.dimensionScaling.mode.tooltip"))
+                .setSaveConsumer(v -> cfg.dimensionScaling.mode = v).build());
+
         BuffMobsConfig.DimensionScaling.DimensionSlot[] dimSlots = {
                 cfg.dimensionScaling.slot1, cfg.dimensionScaling.slot2, cfg.dimensionScaling.slot3,
                 cfg.dimensionScaling.slot4, cfg.dimensionScaling.slot5
@@ -505,10 +517,18 @@ public class ClothConfigScreen {
 
     private static void buildPassiveMobAggressionCategory(ConfigBuilder builder, ConfigEntryBuilder eb, BuffMobsConfig cfg) {
         ConfigCategory cat = builder.getOrCreateCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
-        cat.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.enabled"), cfg.passiveMobAggression.enabled)
-                .setDefaultValue(false)
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.enabled.tooltip"))
-                .setSaveConsumer(v -> cfg.passiveMobAggression.enabled = v).build());
+        // Substitui o toggle booleano por um seletor enum
+        cat.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.passiveMobAggression.mode"),
+                        BuffMobsConfig.PassiveMobAggression.PassiveMode.class,
+                        cfg.passiveMobAggression.mode)
+                .setDefaultValue(BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF)
+                .setEnumNameProvider(e -> switch ((BuffMobsConfig.PassiveMobAggression.PassiveMode) e) {
+                    case OFF     -> Component.translatable("buffmobs.config.passiveMobAggression.mode.off");
+                    case NEUTRAL -> Component.translatable("buffmobs.config.passiveMobAggression.mode.neutral");
+                    case HOSTILE -> Component.translatable("buffmobs.config.passiveMobAggression.mode.hostile");
+                })
+                .setTooltip(tt("buffmobs.config.passiveMobAggression.mode.tooltip"))
+                .setSaveConsumer(v -> cfg.passiveMobAggression.mode = v).build());
         cat.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.baseDamage"), cfg.passiveMobAggression.baseDamage)
                 .setDefaultValue(3.0).setMin(0.5)
                 .setTooltip(tt("buffmobs.config.passiveMobAggression.baseDamage.tooltip"))

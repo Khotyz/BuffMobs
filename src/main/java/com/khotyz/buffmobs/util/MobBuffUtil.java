@@ -208,14 +208,13 @@ public class MobBuffUtil {
     }
 
     public static boolean isPassiveAggressiveMob(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return false;
+        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
+        if (cfg.mode == BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF) return false;
         if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
         if (mob instanceof Enemy) return false;
         if (isNeutralMob(mob)) return false;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
-
         if (cfg.blacklist.contains(mobId)) return false;
         if (!cfg.whitelist.isEmpty()) return cfg.whitelist.contains(mobId);
         return true;
@@ -262,6 +261,13 @@ public class MobBuffUtil {
 
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
                                        MobPresetUtil.PresetMultipliers preset) {
+        BuffMobsConfig.DimensionScaling.DimensionScalingMode dimMode = BuffMobsConfig.INSTANCE.dimensionScaling.mode;
+
+        if (dimMode == BuffMobsConfig.DimensionScaling.DimensionScalingMode.OVERRIDE) {
+            applyOverrideMode(mob, dayMult, dim);
+            return;
+        }
+
         double attrHp    = BuffMobsConfig.INSTANCE.attributes.healthMultiplier;
         double attrDmg   = BuffMobsConfig.INSTANCE.attributes.damageMultiplier;
         double attrSpd   = BuffMobsConfig.INSTANCE.attributes.speedMultiplier;
@@ -292,6 +298,16 @@ public class MobBuffUtil {
             applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + effectiveDim.armor          + presetArm)   * dayMult);
             applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + effectiveDim.armorToughness + presetTough) * dayMult);
         }
+    }
+
+    private static void applyOverrideMode(Mob mob, double dayMult, DimensionMultipliers dim) {
+        // Ignora atributos globais e presets; usa apenas os multiplicadores de dimensão * dayScaling
+        applyHealthMultiplier(mob, dim.health * dayMult);
+        applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID, dim.damage * dayMult);
+        applySpeedBonus(mob,                             SPEED_MOD_ID,  dim.speed  * dayMult);
+        applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, dim.attackSpeed * dayMult);
+        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID, dim.armor * dayMult);
+        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID, dim.armorToughness * dayMult);
     }
 
     private static void applyPassiveAggressionDamage(Mob mob) {
