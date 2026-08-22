@@ -1,3 +1,4 @@
+// FILE: com/khotyz/buffmobs/config/BuffMobsConfig.java
 package com.khotyz.buffmobs.config;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -139,10 +140,15 @@ public class BuffMobsConfig {
     }
 
     public static class DimensionScaling {
+        public final ModConfigSpec.EnumValue<DimensionScalingMode> mode;
         public final DimensionSlot slot1, slot2, slot3, slot4, slot5;
+
+        public enum DimensionScalingMode { SCALING, OVERRIDE }
 
         DimensionScaling(ModConfigSpec.Builder builder) {
             builder.push("dimensionScaling");
+            mode = builder.comment("Dimension scaling mode: SCALING (multiply with other multipliers) or OVERRIDE (directly override base value)")
+                    .defineEnum("mode", DimensionScalingMode.SCALING);
             slot1 = new DimensionSlot(builder, "slot1");
             slot2 = new DimensionSlot(builder, "slot2");
             slot3 = new DimensionSlot(builder, "slot3");
@@ -440,16 +446,19 @@ public class BuffMobsConfig {
     }
 
     public static class PassiveMobAggression {
-        public final ModConfigSpec.BooleanValue enabled;
+        public final ModConfigSpec.EnumValue<PassiveMobMode> mode;
         public final ModConfigSpec.DoubleValue baseDamage;
         public final ModConfigSpec.BooleanValue scaleWithHealth;
         public final ModConfigSpec.DoubleValue healthScaleFactor;
         public final ModConfigSpec.ConfigValue<List<? extends String>> whitelist;
         public final ModConfigSpec.ConfigValue<List<? extends String>> blacklist;
 
+        public enum PassiveMobMode { OFF, NEUTRAL, HOSTILE }
+
         PassiveMobAggression(ModConfigSpec.Builder builder) {
             builder.push("passiveMobAggression");
-            enabled = builder.comment("Enable Passive Mob Aggression: passive mobs retaliate when hit").define("enabled", false);
+            mode = builder.comment("Passive mob behaviour: OFF (vanilla), NEUTRAL (retaliate when hit), HOSTILE (attack players on sight)")
+                    .defineEnum("mode", PassiveMobMode.OFF);
             baseDamage = builder.comment("Base attack damage given to affected passive mobs").defineInRange("baseDamage", 3.0, 0.5, 100.0);
             scaleWithHealth = builder.comment("Add bonus damage based on the mob's max health").define("scaleWithHealth", false);
             healthScaleFactor = builder.comment("Scaling factor: totalDamage = baseDamage + (maxHealth * healthScaleFactor)").defineInRange("healthScaleFactor", 0.1, 0.0, 100.0);

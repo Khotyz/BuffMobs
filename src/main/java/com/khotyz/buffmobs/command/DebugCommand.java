@@ -1,3 +1,4 @@
+// FILE: com/khotyz/buffmobs/command/DebugCommand.java
 package com.khotyz.buffmobs.command;
 
 import com.khotyz.buffmobs.BuffMobsMod;
@@ -85,8 +86,10 @@ public class DebugCommand {
                 : "buffmobs.command.debug.valid.no"), false);
 
         boolean passiveAggressive = MobBuffUtil.isPassiveAggressiveMob(mob);
+        boolean passiveActive = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get()
+                != BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF;
         src.sendSuccess(() -> lit("buffmobs.command.debug.passive_aggression",
-                BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get() && passiveAggressive), false);
+                passiveActive && passiveAggressive), false);
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
@@ -223,7 +226,9 @@ public class DebugCommand {
         src.sendSuccess(() -> lit("buffmobs.command.info.damage_mult",  BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.day_scaling",  BuffMobsConfig.INSTANCE.dayScaling.enabled.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.presets",      BuffMobsConfig.INSTANCE.mobPresets.enabled.get()), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()), false);
+        boolean passiveActive = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get()
+                != BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF;
+        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", passiveActive), false);
         return 1;
     }
 }

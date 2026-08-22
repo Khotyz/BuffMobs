@@ -1,3 +1,4 @@
+// FILE: com/khotyz/buffmobs/util/MobBuffUtil.java
 package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
@@ -82,7 +83,8 @@ public class MobBuffUtil {
 
         double leaderBonusExclude = handleZombieLeaderBonus(mob, hp);
 
-        applyAllLayers(mob, dayMult, dim, preset, leaderBonusExclude, dimBaseHealth != null);
+        BuffMobsConfig.DimensionScaling.DimensionScalingMode dimMode = BuffMobsConfig.INSTANCE.dimensionScaling.mode.get();
+        applyAllLayers(mob, dayMult, dim, preset, leaderBonusExclude, dimBaseHealth != null, dimMode);
 
         applyStatusEffects(mob);
 
@@ -231,6 +233,14 @@ public class MobBuffUtil {
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
                 || isNeutralMob(mob);
 
+        if (!hostile) {
+            BuffMobsConfig.PassiveMobAggression.PassiveMobMode mode =
+                    BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+            if (mode != BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF && isPassiveAggressiveMob(mob)) {
+                hostile = true;
+            }
+        }
+
         if (!hostile && !isExplicitlyAllowed(mobId)) return false;
 
         boolean validDim = isValidDimension(dimId);
@@ -283,7 +293,8 @@ public class MobBuffUtil {
 
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
                                        MobPresetUtil.PresetMultipliers preset, double leaderBonusExclude,
-                                       boolean dimensionHealthCapped) {
+                                       boolean dimensionHealthCapped,
+                                       BuffMobsConfig.DimensionScaling.DimensionScalingMode dimMode) {
         double attrHp    = BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get();
         double attrDmg   = BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get();
         double attrSpd   = BuffMobsConfig.INSTANCE.attributes.speedMultiplier.get();
@@ -298,17 +309,31 @@ public class MobBuffUtil {
         double presetArm   = preset != null ? preset.armor       : 0.0;
         double presetTough = preset != null ? preset.armorToughness : 0.0;
 
-        if (dimensionHealthCapped) {
-            AttributeInstance hpInst = mob.getAttribute(Attributes.MAX_HEALTH);
-            if (hpInst != null) hpInst.removeModifier(HEALTH_MOD_ID);
+        if (dimMode == BuffMobsConfig.DimensionScaling.DimensionScalingMode.OVERRIDE) {
+            if (dimensionHealthCapped) {
+                AttributeInstance hpInst = mob.getAttribute(Attributes.MAX_HEALTH);
+                if (hpInst != null) hpInst.removeModifier(HEALTH_MOD_ID);
+            } else {
+                applyHealthMultiplier(mob, dim.health, leaderBonusExclude);
+            }
+            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       dim.damage);
+            applySpeedBonus(mob,                             SPEED_MOD_ID,        dim.speed);
+            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, dim.attackSpeed);
+            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,        dim.armor);
+            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,    dim.armorToughness);
         } else {
-            applyHealthMultiplier(mob, attrHp * dim.health * presetHp * dayMult, leaderBonusExclude);
+            if (dimensionHealthCapped) {
+                AttributeInstance hpInst = mob.getAttribute(Attributes.MAX_HEALTH);
+                if (hpInst != null) hpInst.removeModifier(HEALTH_MOD_ID);
+            } else {
+                applyHealthMultiplier(mob, attrHp * dim.health * presetHp * dayMult, leaderBonusExclude);
+            }
+            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
+            applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
+            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
+            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor           + presetArm)   * dayMult);
+            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness  + presetTough) * dayMult);
         }
-        applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dim.damage      * presetDmg  * dayMult);
-        applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * dim.speed       * presetSpd  * dayMult);
-        applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * dim.attackSpeed * presetAspd * dayMult);
-        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dim.armor           + presetArm)   * dayMult);
-        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dim.armorToughness  + presetTough) * dayMult);
     }
 
     private static void applyHealthMultiplier(Mob mob, double finalMult, double leaderBonusExclude) {

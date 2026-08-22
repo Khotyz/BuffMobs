@@ -1,3 +1,4 @@
+// FILE: com/khotyz/buffmobs/event/PassiveMobAggressionHandler.java
 package com.khotyz.buffmobs.event;
 
 import com.khotyz.buffmobs.BuffMobsMod;
@@ -15,6 +16,8 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.PanicGoal;
 import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
@@ -72,35 +75,46 @@ public class PassiveMobAggressionHandler {
             PARTICLE_SHOWN_MOBS.remove(uuid);
         }
 
+        BuffMobsConfig.PassiveMobAggression.PassiveMobMode mode =
+                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF) return;
+
         for (Entity e : entities) {
             if (e.level().isClientSide()) continue;
             if (!(e instanceof Mob mob)) continue;
-            if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) continue;
             if (!MobBuffUtil.isPassiveAggressiveMob(mob)) continue;
             if (INITIALIZED_MOBS.contains(mob.getUUID())) continue;
             if (!(mob instanceof PathfinderMob pathfinderMob)) continue;
 
-            initMob(pathfinderMob);
+            initMob(pathfinderMob, mode);
         }
     }
 
     private static void onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) return;
+        BuffMobsConfig.PassiveMobAggression.PassiveMobMode mode =
+                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (INITIALIZED_MOBS.contains(mob.getUUID())) return;
         if (!(mob instanceof PathfinderMob pathfinderMob)) return;
 
-        initMob(pathfinderMob);
+        initMob(pathfinderMob, mode);
     }
 
-    private static void initMob(PathfinderMob pathfinderMob) {
+    private static void initMob(PathfinderMob pathfinderMob,
+                                BuffMobsConfig.PassiveMobAggression.PassiveMobMode mode) {
         Mob mob = pathfinderMob;
         removeFleeGoals(pathfinderMob);
 
         double damage = resolveDamage(mob);
-        HurtByTargetGoal targetGoal = new HurtByTargetGoal(pathfinderMob);
+        Goal targetGoal;
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMobMode.HOSTILE) {
+            targetGoal = new NearestAttackableTargetGoal<>(pathfinderMob, Player.class, true);
+        } else {
+            targetGoal = new HurtByTargetGoal(pathfinderMob);
+        }
         PassiveMeleeGoal meleeGoal = new PassiveMeleeGoal(pathfinderMob, damage);
         mob.targetSelector.addGoal(1, targetGoal);
         mob.goalSelector.addGoal(2, meleeGoal);
@@ -119,7 +133,9 @@ public class PassiveMobAggressionHandler {
     }
 
     private static void onLivingDamage(LivingDamageEvent.Post event) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled.get()) return;
+        BuffMobsConfig.PassiveMobAggression.PassiveMobMode mode =
+                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
+        if (mode == BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF) return;
         if (!(event.getEntity() instanceof Mob mob)) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (mob.getTarget() == null) return;
@@ -167,10 +183,10 @@ public class PassiveMobAggressionHandler {
     }
 
     private static class AddedGoals {
-        final HurtByTargetGoal targetGoal;
+        final Goal targetGoal;
         final PassiveMeleeGoal meleeGoal;
 
-        AddedGoals(HurtByTargetGoal targetGoal, PassiveMeleeGoal meleeGoal) {
+        AddedGoals(Goal targetGoal, PassiveMeleeGoal meleeGoal) {
             this.targetGoal = targetGoal;
             this.meleeGoal = meleeGoal;
         }
