@@ -188,8 +188,6 @@
   "buffmobs.config.mobPresets.toughnessAddition": "Toughness Addition",
 
   "buffmobs.config.passiveMobAggression": "Passive Mob Aggression",
-  "buffmobs.config.passiveMobAggression.enabled": "Enable Passive Aggression",
-  "buffmobs.config.passiveMobAggression.enabled.tooltip": "When enabled, passive mobs (cows, pigs, chickens, etc.) become neutral and will attack players. Use the Allowlist to restrict which mobs are affected.",
   "buffmobs.config.passiveMobAggression.baseDamage": "Base Damage",
   "buffmobs.config.passiveMobAggression.baseDamage.tooltip": "Base attack damage dealt by passive mobs when they attack players.",
   "buffmobs.config.passiveMobAggression.scaleWithHealth": "Scale Damage with HP%",
@@ -297,6 +295,17 @@
   "buffmobs.config.dimensionMaxHealth.denylist": "Denylist",
   "buffmobs.config.dimensionMaxHealth.denylist.tooltip": "Mob IDs that never receive dimension max health overrides.",
   "buffmobs.config.mobPresets.overrideDimensionScaling": "Override Dimension Scaling",
-  "buffmobs.config.mobPresets.overrideDimensionScaling.tooltip": "If true, mobs that have a matching preset ignore dimension scaling multipliers and only use the preset values."
+  "buffmobs.config.mobPresets.overrideDimensionScaling.tooltip": "If true, mobs that have a matching preset ignore dimension scaling multipliers and only use the preset values.",
+
+  "buffmobs.config.dimensionScaling.mode": "Dimension Scaling Mode",
+  "buffmobs.config.dimensionScaling.mode.tooltip": "SCALING: multiplies base attributes by dimension multipliers. OVERRIDE: replaces base attributes with dimension multipliers (global and preset multipliers are ignored).",
+  "buffmobs.config.dimensionScaling.mode.scaling": "Scaling",
+  "buffmobs.config.dimensionScaling.mode.override": "Override",
+
+  "buffmobs.config.passiveMobAggression.mode": "Passive Mob Aggression Mode",
+  "buffmobs.config.passiveMobAggression.mode.tooltip": "OFF: passive mobs behave normally. NEUTRAL: they attack back when hit. HOSTILE: they actively attack players on sight.",
+  "buffmobs.config.passiveMobAggression.mode.off": "Off",
+  "buffmobs.config.passiveMobAggression.mode.neutral": "Neutral",
+  "buffmobs.config.passiveMobAggression.mode.hostile": "Hostile"
 
 }

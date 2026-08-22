@@ -1,3 +1,4 @@
+// MobEventHandler.java
 package com.khotyz.buffmobs.event;
 
 import com.khotyz.buffmobs.config.BuffMobsConfig;
@@ -30,7 +31,10 @@ public class MobEventHandler {
             if (entity instanceof Mob mob && MobBuffUtil.isPassiveAggressiveMob(mob)) {
                 Entity attacker = source.getEntity();
                 if (attacker instanceof Player player) {
-                    PassiveMobAggressionHandler.onMobHurtByPlayer(mob, player);
+                    BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+                    if (mode == BuffMobsConfig.PassiveMobAggression.Mode.NEUTRAL) {
+                        PassiveMobAggressionHandler.onMobHurtByPlayer(mob, player);
+                    }
                 }
             }
 

@@ -163,19 +163,39 @@ public class MobBuffUtil {
                 BuffMobsConfig.INSTANCE.dimensionScaling.slot4,
                 BuffMobsConfig.INSTANCE.dimensionScaling.slot5
         };
+        BuffMobsConfig.DimensionScaling.Mode mode = BuffMobsConfig.INSTANCE.dimensionScaling.mode;
+        boolean override = (mode == BuffMobsConfig.DimensionScaling.Mode.OVERRIDE);
+
         for (BuffMobsConfig.DimensionScaling.DimensionSlot slot : slots) {
             if (slot.dimensionName != null && !slot.dimensionName.isEmpty() && slot.dimensionName.equals(dim)) {
-                return new DimensionMultipliers(
-                        slot.healthMultiplier      / 100.0,
-                        slot.damageMultiplier      / 100.0,
-                        slot.speedMultiplier       / 100.0,
-                        slot.attackSpeedMultiplier / 100.0,
-                        (double) slot.armorAddition,
-                        (double) slot.armorToughnessAddition
-                );
+                if (override) {
+                    return new DimensionMultipliers(
+                            slot.healthMultiplier,
+                            slot.damageMultiplier,
+                            slot.speedMultiplier,
+                            slot.attackSpeedMultiplier,
+                            slot.armorAddition,
+                            slot.armorToughnessAddition,
+                            true
+                    );
+                } else {
+                    return new DimensionMultipliers(
+                            slot.healthMultiplier / 100.0,
+                            slot.damageMultiplier / 100.0,
+                            slot.speedMultiplier / 100.0,
+                            slot.attackSpeedMultiplier / 100.0,
+                            slot.armorAddition,
+                            slot.armorToughnessAddition,
+                            false
+                    );
+                }
             }
         }
-        return new DimensionMultipliers(1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        if (override) {
+            return new DimensionMultipliers(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true);
+        } else {
+            return new DimensionMultipliers(1.0, 1.0, 1.0, 1.0, 0.0, 0.0, false);
+        }
     }
 
     public static void refreshInfiniteEffects(Mob mob) {
@@ -248,7 +268,8 @@ public class MobBuffUtil {
     }
 
     public static boolean isPassiveAggressiveMob(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return false;
+        BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        if (mode == BuffMobsConfig.PassiveMobAggression.Mode.OFF) return false;
         if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
         if (mob instanceof Enemy) return false;
         if (isNeutralMob(mob)) return false;
@@ -317,11 +338,17 @@ public class MobBuffUtil {
         double dimArmor       = presetOverridesDim ? 0.0 : dim.armor;
         double dimToughness   = presetOverridesDim ? 0.0 : dim.armorToughness;
 
-        boolean isPassive = isPassiveAggressiveMob(mob);
         boolean isZombie  = mob instanceof Zombie;
+        boolean isPassive = isPassiveAggressiveMob(mob);
 
-        if (isPassive) {
-            applyPassiveAggressionDamage(mob);
+        // Aplica todos os buffs de atributos para todos os mobs (inclusive passivos)
+        if (dim.override) {
+            applyHealthOverride(mob, dimHealth, isZombie);
+            applyOverride(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       dimDamage);
+            applyOverride(mob, Attributes.MOVEMENT_SPEED,  SPEED_MOD_ID,        dimSpeed);
+            applyOverride(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, dimAttackSpeed);
+            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + presetArm + dimArmor)   * dayMult);
+            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + presetTough + dimToughness) * dayMult);
         } else {
             applyHealthMultiplier(mob, attrHp * dimHealth * presetHp * dayMult, isZombie);
             applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * dimDamage      * presetDmg  * dayMult);
@@ -330,6 +357,37 @@ public class MobBuffUtil {
             applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + dimArmor      + presetArm)   * dayMult);
             applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + dimToughness  + presetTough) * dayMult);
         }
+
+        // Se for passivo, sobrescreve o dano com o valor específico da agressão passiva
+        if (isPassive) {
+            applyPassiveAggressionDamage(mob);
+        }
+    }
+
+    private static void applyHealthOverride(Mob mob, double value, boolean isZombie) {
+        AttributeInstance inst = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (inst == null) return;
+        inst.removeModifier(HEALTH_MOD_ID);
+        if (value > 0) {
+            double base = inst.getBaseValue();
+            double bonus = value - base;
+            inst.addPermanentModifier(new AttributeModifier(HEALTH_MOD_ID, bonus,
+                    AttributeModifier.Operation.ADD_VALUE));
+        }
+    }
+
+    private static void applyOverride(Mob mob,
+                                      Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr,
+                                      Identifier id, double value) {
+        AttributeInstance inst = mob.getAttribute(attr);
+        if (inst == null) return;
+        inst.removeModifier(id);
+        if (value > 0) {
+            double base = inst.getBaseValue();
+            double bonus = value - base;
+            inst.addPermanentModifier(new AttributeModifier(id, bonus,
+                    AttributeModifier.Operation.ADD_VALUE));
+        }
     }
 
     private static void applyPassiveAggressionDamage(Mob mob) {
@@ -337,6 +395,9 @@ public class MobBuffUtil {
         if (dmgAttr == null) return;
         dmgAttr.removeModifier(DAMAGE_MOD_ID);
         double baseDmg = BuffMobsConfig.INSTANCE.passiveMobAggression.baseDamage;
+        if (BuffMobsConfig.INSTANCE.passiveMobAggression.scaleWithHealth) {
+            baseDmg += mob.getMaxHealth() * BuffMobsConfig.INSTANCE.passiveMobAggression.healthScaleFactor;
+        }
         double current = dmgAttr.getBaseValue();
         if (baseDmg > current) {
             double bonus = baseDmg - current;
@@ -465,10 +526,18 @@ public class MobBuffUtil {
 
     public static class DimensionMultipliers {
         public final double health, damage, speed, attackSpeed, armor, armorToughness;
+        public final boolean override;
+
         public DimensionMultipliers(double health, double damage, double speed,
-                                    double attackSpeed, double armor, double armorToughness) {
-            this.health = health; this.damage = damage; this.speed = speed;
-            this.attackSpeed = attackSpeed; this.armor = armor; this.armorToughness = armorToughness;
+                                    double attackSpeed, double armor, double armorToughness,
+                                    boolean override) {
+            this.health = health;
+            this.damage = damage;
+            this.speed = speed;
+            this.attackSpeed = attackSpeed;
+            this.armor = armor;
+            this.armorToughness = armorToughness;
+            this.override = override;
         }
     }
 }

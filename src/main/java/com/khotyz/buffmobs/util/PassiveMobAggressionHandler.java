@@ -6,6 +6,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
@@ -16,8 +17,8 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.ai.goal.PanicGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.InteractionHand;
 
 import java.lang.reflect.Field;
 import java.util.EnumSet;
@@ -72,16 +73,17 @@ public class PassiveMobAggressionHandler {
     }
 
     public static void onMobInitialized(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return;
+        BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        if (mode == BuffMobsConfig.PassiveMobAggression.Mode.OFF) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
         if (INITIALIZED.contains(mob.getUUID())) return;
 
         applyDamageModifierIfPresent(mob);
-        addAIGoals(mob);
+        addAIGoals(mob, mode);
 
         INITIALIZED.add(mob.getUUID());
-        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression initialized: {}",
-                BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()));
+        BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression initialized: {} (mode {})",
+                BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), mode);
     }
 
     public static void onMobRemoved(Mob mob) {
@@ -91,7 +93,8 @@ public class PassiveMobAggressionHandler {
     }
 
     public static void onMobHurtByPlayer(Mob mob, Player player) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return;
+        BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        if (mode != BuffMobsConfig.PassiveMobAggression.Mode.NEUTRAL) return;
         if (!MobBuffUtil.isPassiveAggressiveMob(mob)) return;
 
         if (!ENRAGED.contains(mob.getUUID())) {
@@ -108,7 +111,8 @@ public class PassiveMobAggressionHandler {
     }
 
     public static void tick(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.passiveMobAggression.enabled) return;
+        BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        if (mode != BuffMobsConfig.PassiveMobAggression.Mode.NEUTRAL) return;
         if (!ENRAGED.contains(mob.getUUID())) return;
 
         if (mob.getTarget() == null || !mob.getTarget().isAlive()) {
@@ -150,13 +154,20 @@ public class PassiveMobAggressionHandler {
         }
     }
 
-    private static void addAIGoals(Mob mob) {
+    private static void addAIGoals(Mob mob, BuffMobsConfig.PassiveMobAggression.Mode mode) {
         if (!(mob instanceof PathfinderMob pathMob)) return;
         try {
             GoalSelector gs = getGoalSelector(mob);
             GoalSelector ts = getTargetSelector(mob);
-            if (gs != null) gs.addGoal(2, new PassiveAggressionMeleeGoal(pathMob, 1.2));
-            if (ts != null) ts.addGoal(1, new HurtByTargetGoal(pathMob));
+            if (gs == null || ts == null) return;
+
+            if (mode == BuffMobsConfig.PassiveMobAggression.Mode.NEUTRAL) {
+                gs.addGoal(2, new PassiveAggressionMeleeGoal(pathMob, 1.2, mode));
+                ts.addGoal(1, new HurtByTargetGoal(pathMob));
+            } else if (mode == BuffMobsConfig.PassiveMobAggression.Mode.HOSTILE) {
+                gs.addGoal(2, new PassiveAggressionMeleeGoal(pathMob, 1.2, mode));
+                ts.addGoal(1, new NearestAttackableTargetGoal<>(pathMob, Player.class, true));
+            }
         } catch (Exception e) {
             BuffMobsMod.LOGGER.warn("[BuffMobs] Could not add AI goals to {}: {}",
                     BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), e.getMessage());
@@ -187,26 +198,39 @@ public class PassiveMobAggressionHandler {
     private static class PassiveAggressionMeleeGoal extends Goal {
         private final PathfinderMob owner;
         private final double speedModifier;
+        private final BuffMobsConfig.PassiveMobAggression.Mode mode;
         private int attackCooldown;
 
-        PassiveAggressionMeleeGoal(PathfinderMob mob, double speedModifier) {
+        PassiveAggressionMeleeGoal(PathfinderMob mob, double speedModifier,
+                                   BuffMobsConfig.PassiveMobAggression.Mode mode) {
             this.owner = mob;
             this.speedModifier = speedModifier;
+            this.mode = mode;
             this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
         }
 
         @Override
         public boolean canUse() {
-            if (!ENRAGED.contains(this.owner.getUUID())) return false;
-            LivingEntity target = this.owner.getTarget();
-            return target != null && target.isAlive();
+            if (this.mode == BuffMobsConfig.PassiveMobAggression.Mode.HOSTILE) {
+                LivingEntity target = this.owner.getTarget();
+                return target != null && target.isAlive();
+            } else {
+                if (!ENRAGED.contains(this.owner.getUUID())) return false;
+                LivingEntity target = this.owner.getTarget();
+                return target != null && target.isAlive();
+            }
         }
 
         @Override
         public boolean canContinueToUse() {
-            if (!ENRAGED.contains(this.owner.getUUID())) return false;
-            LivingEntity target = this.owner.getTarget();
-            return target != null && target.isAlive() && this.owner.getTarget() == target;
+            if (this.mode == BuffMobsConfig.PassiveMobAggression.Mode.HOSTILE) {
+                LivingEntity target = this.owner.getTarget();
+                return target != null && target.isAlive();
+            } else {
+                if (!ENRAGED.contains(this.owner.getUUID())) return false;
+                LivingEntity target = this.owner.getTarget();
+                return target != null && target.isAlive() && this.owner.getTarget() == target;
+            }
         }
 
         @Override
