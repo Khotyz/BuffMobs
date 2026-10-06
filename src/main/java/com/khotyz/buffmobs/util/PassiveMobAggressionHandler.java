@@ -263,7 +263,7 @@ public class PassiveMobAggressionHandler {
                 this.owner.getNavigation().stop();
                 if (this.attackCooldown <= 0) {
                     this.attackCooldown = 20;
-                    this.owner.swing(InteractionHand.MAIN_HAND);
+                    SwingUtil.swing(this.owner, InteractionHand.MAIN_HAND);
                     double damage = getConfiguredDamage(this.owner);
                     target.hurt(this.owner.level().damageSources().mobAttack(this.owner), (float) damage);
                 }

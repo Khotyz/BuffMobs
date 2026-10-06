@@ -210,7 +210,7 @@ public class RangedMobAIManager {
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
         mob.doHurtTarget(serverLevel, target);
-        mob.swing(InteractionHand.MAIN_HAND);
+        SwingUtil.swing(mob, InteractionHand.MAIN_HAND);
     }
 
     private static void enterKiteMode(Mob mob, MobState state, long now) {
