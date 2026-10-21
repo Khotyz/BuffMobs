@@ -17,7 +17,7 @@ public class BuffMobsClient {
                     net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
                     (mc, parent) -> ConfigScreenFactory.create(parent)
             );
-            BuffMobsMod.LOGGER.info("[BuffMobs] Config screen registered via Cloth Config");
+            BuffMobsMod.LOGGER.info("[BuffMobs] Config screen registered");
         }
     }
 }

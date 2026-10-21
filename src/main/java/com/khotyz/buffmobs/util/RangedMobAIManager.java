@@ -143,6 +143,10 @@ public class RangedMobAIManager {
         if (s.kiteGoal  != null) mob.goalSelector.removeGoal(s.kiteGoal);
     }
 
+    public static void clearAllStates() {
+        MOB_STATES.clear();
+    }
+
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
         mob.setItemSlot(EquipmentSlot.MAINHAND, MeleeWeaponManager.generateMeleeWeapon(mob));
         if (state.meleeGoal == null) {

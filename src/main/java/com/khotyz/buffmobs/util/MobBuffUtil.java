@@ -2,6 +2,9 @@ package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.data.BuffMobsWorldData;
+import com.khotyz.buffmobs.event.AdaptiveDifficultyHandler;
+import com.khotyz.buffmobs.event.BloodMoonHandler;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -36,6 +39,21 @@ public class MobBuffUtil {
     private static final ResourceLocation DIMENSION_HEALTH_OVERRIDE_ID = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "dimension_health_override");
     private static final ResourceLocation LEADER_ZOMBIE_BONUS_ID = ResourceLocation.withDefaultNamespace("leader_zombie_bonus");
     private static final DimensionMultipliers NEUTRAL_DIMENSION_MULTIPLIERS = new DimensionMultipliers(1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+    private static final BuffMobsConfig.EliteMobs.EliteParticle[] RANDOM_PARTICLES = {
+            BuffMobsConfig.EliteMobs.EliteParticle.ENCHANT,
+            BuffMobsConfig.EliteMobs.EliteParticle.FLAME,
+            BuffMobsConfig.EliteMobs.EliteParticle.SOUL_FIRE_FLAME,
+            BuffMobsConfig.EliteMobs.EliteParticle.PORTAL,
+            BuffMobsConfig.EliteMobs.EliteParticle.END_ROD,
+            BuffMobsConfig.EliteMobs.EliteParticle.HAPPY_VILLAGER,
+            BuffMobsConfig.EliteMobs.EliteParticle.HEART,
+            BuffMobsConfig.EliteMobs.EliteParticle.SNOWFLAKE,
+            BuffMobsConfig.EliteMobs.EliteParticle.ELECTRIC_SPARK
+    };
+
+    public static BuffMobsConfig.EliteMobs.EliteParticle randomParticleFor(Mob mob) {
+        return RANDOM_PARTICLES[Math.floorMod(mob.getUUID().hashCode(), RANDOM_PARTICLES.length)];
+    }
 
     public static long getOverworldDayTime(Level level) {
         if (level instanceof ServerLevel sl) {
@@ -70,7 +88,9 @@ public class MobBuffUtil {
             return;
         }
 
-        double dayMult = getDayMultiplier(getOverworldDayTime(mob.level()));
+        double dayMult = getDayMultiplier(mob.level())
+                * AdaptiveDifficultyHandler.getAdaptiveMultiplier(mob.level())
+                * BloodMoonHandler.getActiveMultiplier(mob.level());
         DimensionMultipliers dim = getDimensionMultipliers(mob);
         MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
 
@@ -113,13 +133,74 @@ public class MobBuffUtil {
         if (inst != null) inst.removeModifier(id);
     }
 
+    public static long getRawDays(Level level) {
+        return getOverworldDayTime(level) / 24000L;
+    }
+
+    public static long getEffectiveDays(Level level) {
+        long rawDays = getRawDays(level);
+        BuffMobsWorldData data = BuffMobsWorldData.get(level);
+        long offset = data != null ? data.getScalingDayOffset() : 0L;
+        return Math.max(0L, rawDays - offset);
+    }
+
     public static double getDayMultiplier(long overworldDayTime) {
+        return computeDayMultiplier(overworldDayTime / 24000L);
+    }
+
+    public static double getDayMultiplier(Level level) {
+        return computeDayMultiplier(getEffectiveDays(level));
+    }
+
+    private static double computeDayMultiplier(long days) {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()) return 1.0;
-        long days      = overworldDayTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
         double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier.get());
         double max = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier.get();
         return max == 0.0 ? mult : Math.min(mult, max);
+    }
+
+    public static double getEffectiveHealthMultiplier(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) return 1.0;
+        double fixedHealthTarget = resolveActiveDimensionMaxHealth(mob);
+        if (fixedHealthTarget > 0.0) {
+            AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
+            double baseHealth = health != null ? health.getBaseValue() : 0.0;
+            if (baseHealth > 0.0) return Math.max(1.0, fixedHealthTarget / baseHealth);
+        }
+        DimensionMultipliers dim = getDimensionMultipliers(mob);
+        MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
+        if (preset != null && BuffMobsConfig.INSTANCE.mobPresets.overrideDimensionScaling.get()) {
+            dim = NEUTRAL_DIMENSION_MULTIPLIERS;
+        }
+        double progression = getDayMultiplier(mob.level())
+                * AdaptiveDifficultyHandler.getAdaptiveMultiplier(mob.level());
+        if (BuffMobsConfig.INSTANCE.dimensionScaling.mode.get()
+                == BuffMobsConfig.DimensionScaling.DimensionScalingMode.OVERRIDE) {
+            return Math.max(1.0, dim.health * progression);
+        }
+        double presetHealth = preset != null ? preset.health : 1.0;
+        return Math.max(1.0, BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get()
+                * dim.health * presetHealth * progression);
+    }
+
+    public static double getEffectiveDamageMultiplier(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.enabled.get()) return 1.0;
+        DimensionMultipliers dim = getDimensionMultipliers(mob);
+        MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
+        if (preset != null && BuffMobsConfig.INSTANCE.mobPresets.overrideDimensionScaling.get()) {
+            dim = NEUTRAL_DIMENSION_MULTIPLIERS;
+        }
+        double progression = getDayMultiplier(mob.level())
+                * AdaptiveDifficultyHandler.getAdaptiveMultiplier(mob.level())
+                * BloodMoonHandler.getActiveMultiplier(mob.level());
+        if (BuffMobsConfig.INSTANCE.dimensionScaling.mode.get()
+                == BuffMobsConfig.DimensionScaling.DimensionScalingMode.OVERRIDE) {
+            return Math.max(1.0, dim.damage * progression);
+        }
+        double presetDamage = preset != null ? preset.damage : 1.0;
+        return Math.max(1.0, BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()
+                * dim.damage * presetDamage * progression);
     }
 
     public static DimensionMultipliers getDimensionMultipliers(Mob mob) {
@@ -183,7 +264,8 @@ public class MobBuffUtil {
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
-                || isNeutralMob(mob);
+                || isNeutralMob(mob)
+                || isPassiveAggressiveMob(mob);
 
         if (!hostile && !isExplicitlyAllowed(mobId)) return false;
 

@@ -33,10 +33,3 @@ type = "optional"
 versionRange = "[2.6.0,)"
 ordering = "NONE"
 side = "CLIENT"
-
-[[dependencies.${mod_id}]]
-modId = "cloth_config"
-type = "optional"
-versionRange = "[15.0.128,)"
-ordering = "NONE"
-side = "CLIENT"

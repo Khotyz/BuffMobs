@@ -2,9 +2,13 @@ package com.khotyz.buffmobs.command;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.event.EliteMobHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
 import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
+import com.khotyz.buffmobs.event.SpecialAbilityHandler;
+import com.khotyz.buffmobs.event.TraitsHandler;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
+import com.khotyz.buffmobs.util.MobArmorManager;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
@@ -52,6 +56,10 @@ public class DebugCommand {
         return Component.translatable(key, args);
     }
 
+    private static Component yesNo(boolean value) {
+        return Component.translatable(value ? "buffmobs.command.debug.yes" : "buffmobs.command.debug.no");
+    }
+
     private static int debugNearestMob(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
         if (src.getPlayer() == null) {
@@ -87,7 +95,7 @@ public class DebugCommand {
 
         boolean passiveAggressive = MobBuffUtil.isPassiveAggressiveMob(mob);
         src.sendSuccess(() -> lit("buffmobs.command.debug.passive_aggression",
-                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF && passiveAggressive), false);
+                yesNo(BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF && passiveAggressive)), false);
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
@@ -115,7 +123,7 @@ public class DebugCommand {
         }
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.scaling_header"), false);
-        final double dayMult = MobBuffUtil.getDayMultiplier(MobBuffUtil.getOverworldDayTime(mob.level()));
+        final double dayMult = MobBuffUtil.getDayMultiplier(mob.level());
         src.sendSuccess(() -> lit("buffmobs.command.debug.day_mult", dayMult), false);
         final MobBuffUtil.DimensionMultipliers dm = MobBuffUtil.getDimensionMultipliers(mob);
         src.sendSuccess(() -> lit("buffmobs.command.debug.dim_hp_mult",  String.valueOf(dm.health)), false);
@@ -132,6 +140,15 @@ public class DebugCommand {
             src.sendSuccess(() -> lit("buffmobs.command.debug.damage",
                     dmg.getValue(), dmg.getBaseValue()), false);
         }
+        src.sendSuccess(() -> lit("buffmobs.command.debug.elite", yesNo(EliteMobHandler.isElite(mob))), false);
+        TraitsHandler.Trait trait = TraitsHandler.getTrait(mob);
+        src.sendSuccess(() -> lit("buffmobs.command.debug.trait",
+                trait != null ? Component.translatable(trait.translationKey()) : Component.translatable("buffmobs.command.debug.none")), false);
+        Component abilityNames = SpecialAbilityHandler.getAbilities(mob).stream()
+                .map(ability -> (Component) Component.translatable(ability.translationKey()))
+                .reduce((first, second) -> first.copy().append(", ").append(second))
+                .orElse(Component.translatable("buffmobs.command.debug.none"));
+        src.sendSuccess(() -> lit("buffmobs.command.debug.abilities", abilityNames), false);
         src.sendSuccess(() -> lit("buffmobs.command.debug.effects_count", mob.getActiveEffects().size()), false);
         mob.getActiveEffects().forEach(eff -> {
             Component effectName = eff.getEffect().value().getDisplayName();
@@ -159,10 +176,11 @@ public class DebugCommand {
         };
         int[] n = {1};
         for (BuffMobsConfig.MobPresets.PresetSlot p : presets) {
-            if (!p.presetName.get().isEmpty()) {
+            String effectivePresetName = MobPresetUtil.effectivePresetName(p, n[0] - 1);
+            if (!effectivePresetName.isEmpty()) {
                 int num = n[0];
                 src.sendSuccess(() -> lit("buffmobs.command.presets.entry",
-                        num, p.presetName.get(),
+                        num, effectivePresetName,
                         p.healthMultiplier.get(), p.damageMultiplier.get(),
                         p.speedMultiplier.get(), p.attackSpeedMultiplier.get(),
                         p.armorAddition.get(), p.armorToughnessAddition.get()), false);
@@ -194,6 +212,10 @@ public class DebugCommand {
                     MobBuffUtil.applyBuffs(mob);
                     RangedMobAIManager.updateMobBehavior(mob);
                     CombatDraftHandler.reloadMob(mob);
+                    MobArmorManager.equipArmor(mob, true);
+                    EliteMobHandler.onMobInitialized(mob);
+                    TraitsHandler.onMobInitialized(mob);
+                    SpecialAbilityHandler.onMobInitialized(mob);
                     PassiveMobAggressionHandler.reloadMob(mob);
                     count++;
                 } catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to buff mob", ex); }
@@ -207,13 +229,13 @@ public class DebugCommand {
     private static int showInfo(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
         src.sendSuccess(() -> lit("buffmobs.command.info.header"), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.enabled",      BuffMobsConfig.INSTANCE.enabled.get()), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.enabled",      yesNo(BuffMobsConfig.INSTANCE.enabled.get())), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.initialized",  MobTickHandler.getInitializedCount()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.health_mult",  BuffMobsConfig.INSTANCE.attributes.healthMultiplier.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.damage_mult",  BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.day_scaling",  BuffMobsConfig.INSTANCE.dayScaling.enabled.get()), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.presets",      BuffMobsConfig.INSTANCE.mobPresets.enabled.get()), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.day_scaling",  yesNo(BuffMobsConfig.INSTANCE.dayScaling.enabled.get())), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.presets",      yesNo(BuffMobsConfig.INSTANCE.mobPresets.enabled.get())), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", yesNo(BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF)), false);
         return 1;
     }
 }
