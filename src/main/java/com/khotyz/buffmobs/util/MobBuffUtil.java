@@ -175,8 +175,11 @@ public class MobBuffUtil {
     }
 
     public static double getDayMultiplier(long worldTime) {
+        return computeDayMultiplier(worldTime / 24000L);
+    }
+
+    private static double computeDayMultiplier(long days) {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled) return 1.0;
-        long days      = worldTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval);
         double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier);
         double max     = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier;
