@@ -20,17 +20,6 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-repositories {
-    maven {
-        name = "Cloth Config Maven"
-        url = "https://maven.shedaniel.me/"
-    }
-    maven {
-        name = "Configured Maven"
-        url = "https://maven.blamejared.com"
-    }
-}
-
 neoForge {
     version = project.neo_version
 
@@ -64,15 +53,6 @@ neoForge {
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
-}
-
-dependencies {
-    // Cloth Config — optional at runtime, required to compile ClothConfigScreen
-    compileOnly "me.shedaniel.cloth:cloth-config-neoforge:21.11.153"
-    localRuntime "me.shedaniel.cloth:cloth-config-neoforge:21.11.153"
-
-    // Configured — optional GUI mod; add jar manually to run/test locally if needed
-    // compileOnly "com.blamejared.configured:Configured-neoforge-1.21.11:<version>"
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {

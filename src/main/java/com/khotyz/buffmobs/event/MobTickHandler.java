@@ -3,6 +3,7 @@ package com.khotyz.buffmobs.event;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
+import com.khotyz.buffmobs.util.MobArmorManager;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import net.minecraft.server.level.ServerLevel;
@@ -61,6 +62,11 @@ public class MobTickHandler {
         PENDING_INIT.remove(uuid);
         RangedMobAIManager.cleanup(mob);
         CombatDraftHandler.onMobRemoved(mob);
+        EliteMobHandler.onMobRemoved(mob);
+        TraitsHandler.onMobRemoved(mob);
+        SpecialAbilityHandler.onMobRemoved(mob);
+        PackAggressionHandler.onMobRemoved(mob);
+        MobArmorManager.onMobRemoved(mob);
     }
 
     @SubscribeEvent
@@ -114,14 +120,18 @@ public class MobTickHandler {
     private static boolean checkScalingIntervalChanged(ServerLevel serverLevel) {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()) return false;
 
-        long overworldDayTime = MobBuffUtil.getOverworldDayTime(serverLevel);
-        long days = overworldDayTime / 24000L;
+        long days = MobBuffUtil.getEffectiveDays(serverLevel);
         int interval = Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
         long currentInterval = days / interval;
 
         ResourceKey<net.minecraft.world.level.Level> dimKey = serverLevel.dimension();
         String dimKeyStr = com.khotyz.buffmobs.util.DimensionUtil.getDimensionId(serverLevel);
         Long lastInterval = lastScalingInterval.get(dimKeyStr);
+
+        if (lastInterval != null && currentInterval < lastInterval) {
+            lastScalingInterval.put(dimKeyStr, currentInterval);
+            return false;
+        }
 
         if (lastInterval == null || currentInterval > lastInterval) {
             lastScalingInterval.put(dimKeyStr, currentInterval);
@@ -146,6 +156,10 @@ public class MobTickHandler {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
+                MobArmorManager.equipArmor(mob);
+                EliteMobHandler.onMobInitialized(mob);
+                TraitsHandler.onMobInitialized(mob);
+                SpecialAbilityHandler.onMobInitialized(mob);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
             } else {
@@ -159,5 +173,19 @@ public class MobTickHandler {
 
     public static int getInitializedCount() {
         return INITIALIZED_MOBS.size();
+    }
+
+    public static boolean isInitialized(UUID uuid) {
+        return INITIALIZED_MOBS.contains(uuid);
+    }
+
+    public static void reinitializeMob(Mob mob) {
+        initializeMob(mob, true);
+    }
+
+    public static void clearCaches() {
+        INITIALIZED_MOBS.clear();
+        PENDING_INIT.clear();
+        lastScalingInterval.clear();
     }
 }

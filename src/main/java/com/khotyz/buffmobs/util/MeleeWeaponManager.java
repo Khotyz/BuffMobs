@@ -24,7 +24,7 @@ public class MeleeWeaponManager {
     public static ItemStack generateMeleeWeapon(Mob mob) {
         Level level = mob.level();
         String dim      = getDimensionId(level);
-        long   worldDays = MobBuffUtil.getOverworldDayTime(level) / 24000L;
+        long   worldDays = MobBuffUtil.getEffectiveDays(level);
 
         ItemStack weapon = createWeapon(dim, worldDays);
         if (BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enchantmentsEnabled.get()) {

@@ -116,15 +116,10 @@ public class RangedMobAIManager {
                 || mob instanceof Piglin || mob instanceof Pillager;
     }
 
-    /**
-     * Mobs whose hostility toward a player depends on conditions managed entirely by vanilla AI.
-     * These must never have their target forced by this mod.
-     */
     private static boolean hasConditionalHostility(Mob mob) {
         return mob instanceof Piglin;
     }
 
-    // Returns true only when there is an unobstructed line of sight between mob eyes and target eyes
     private static boolean hasLineOfSight(Mob mob, LivingEntity target) {
         Vec3 from = mob.getEyePosition();
         Vec3 to   = target.getEyePosition();
@@ -146,6 +141,10 @@ public class RangedMobAIManager {
         if (s == null) return;
         if (s.meleeGoal != null) mob.goalSelector.removeGoal(s.meleeGoal);
         if (s.kiteGoal  != null) mob.goalSelector.removeGoal(s.kiteGoal);
+    }
+
+    public static void clearAllStates() {
+        MOB_STATES.clear();
     }
 
     private static void enterMeleeMode(Mob mob, MobState state, Player target, long now) {
