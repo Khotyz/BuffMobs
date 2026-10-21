@@ -3,6 +3,8 @@ package com.khotyz.buffmobs.event;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
+import com.khotyz.buffmobs.util.DimensionUtil;
+import com.khotyz.buffmobs.util.MobArmorManager;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
@@ -24,12 +26,14 @@ public class MobTickHandler {
     private static final Set<UUID> INITIALIZED_MOBS = ConcurrentHashMap.newKeySet();
     private static final ConcurrentHashMap<UUID, ResourceKey<Level>> PENDING_INIT = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ResourceKey<Level>, Integer> DIM_TICK = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Long> LAST_SCALING_INTERVAL = new ConcurrentHashMap<>();
 
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             INITIALIZED_MOBS.clear();
             PENDING_INIT.clear();
             DIM_TICK.clear();
+            LAST_SCALING_INTERVAL.clear();
             int count = 0;
             for (ServerLevel world : server.getAllLevels()) {
                 for (Entity entity : world.getAllEntities()) {
@@ -54,6 +58,10 @@ public class MobTickHandler {
             RangedMobAIManager.cleanup(mob);
             CombatDraftHandler.onMobRemoved(mob);
             PassiveMobAggressionHandler.onMobRemoved(mob);
+            EliteMobHandler.onMobRemoved(mob);
+            TraitsHandler.onMobRemoved(mob);
+            SpecialAbilityHandler.onMobRemoved(mob);
+            MobArmorManager.onMobRemoved(mob);
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -86,12 +94,16 @@ public class MobTickHandler {
                     try {
                         RangedMobAIManager.driveTick(mob);
                         CombatDraftHandler.tickRestore(mob);
+                        EliteMobHandler.tick(mob);
+                        TraitsHandler.tick(mob);
+                        SpecialAbilityHandler.tick(mob);
                     } catch (Exception ex) {
                         BuffMobsMod.LOGGER.warn("[BuffMobs] Error in high-frequency tick", ex);
                     }
                 }
 
                 if (tick % 20 == 0) {
+                    boolean scalingIntervalChanged = checkScalingIntervalChanged(serverLevel);
                     for (Entity e : serverLevel.getAllEntities()) {
                         if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
                         UUID uuid = mob.getUUID();
@@ -99,6 +111,7 @@ public class MobTickHandler {
                             initializeMob(mob, false);
                         } else {
                             try {
+                                if (scalingIntervalChanged) MobBuffUtil.applyBuffs(mob);
                                 RangedMobAIManager.updateMobBehavior(mob);
                                 MobBuffUtil.refreshInfiniteEffects(mob);
                                 CombatDraftHandler.tick(mob);
@@ -112,6 +125,32 @@ public class MobTickHandler {
                 }
             }
         });
+    }
+
+    private static boolean checkScalingIntervalChanged(ServerLevel serverLevel) {
+        if (!BuffMobsConfig.INSTANCE.dayScaling.enabled) return false;
+
+        long days = MobBuffUtil.getEffectiveDays(serverLevel);
+        int interval = Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval);
+        long currentInterval = days / interval;
+
+        String dimKey = DimensionUtil.getDimensionId(serverLevel);
+        Long lastInterval = LAST_SCALING_INTERVAL.get(dimKey);
+
+        if (lastInterval != null && currentInterval < lastInterval) {
+            LAST_SCALING_INTERVAL.put(dimKey, currentInterval);
+            return false;
+        }
+
+        if (lastInterval == null || currentInterval > lastInterval) {
+            LAST_SCALING_INTERVAL.put(dimKey, currentInterval);
+            if (lastInterval != null) {
+                BuffMobsMod.LOGGER.info("[BuffMobs] Day scaling interval changed to {} in {}, reapplying buffs",
+                        currentInterval, dimKey);
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void initializeMob(Mob mob, boolean forceReapply) {
@@ -129,6 +168,10 @@ public class MobTickHandler {
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
                 PassiveMobAggressionHandler.onMobInitialized(mob);
+                EliteMobHandler.onMobInitialized(mob);
+                TraitsHandler.onMobInitialized(mob);
+                SpecialAbilityHandler.onMobInitialized(mob);
+                MobArmorManager.equipArmor(mob, forceReapply);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
             } else if (MobBuffUtil.isPassiveAggressiveMob(mob)) {
@@ -145,6 +188,15 @@ public class MobTickHandler {
     }
 
     public static int getInitializedCount() { return INITIALIZED_MOBS.size(); }
+
+    public static boolean isInitialized(UUID uuid) { return INITIALIZED_MOBS.contains(uuid); }
+
+    public static void clearCaches() {
+        INITIALIZED_MOBS.clear();
+        PENDING_INIT.clear();
+        DIM_TICK.clear();
+        LAST_SCALING_INTERVAL.clear();
+    }
 
     public static void markInitialized(Mob mob) {
         INITIALIZED_MOBS.add(mob.getUUID());

@@ -2,9 +2,14 @@ package com.khotyz.buffmobs.util;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.data.BuffMobsWorldData;
+import com.khotyz.buffmobs.event.AdaptiveDifficultyHandler;
+import com.khotyz.buffmobs.event.BloodMoonHandler;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -17,6 +22,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 
@@ -32,6 +38,88 @@ public class MobBuffUtil {
     private static final ResourceLocation TOUGHNESS_MOD_ID    = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "toughness");
     private static final ResourceLocation DIMENSION_MAX_HEALTH_MOD_ID = ResourceLocation.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "dimension_max_health");
     private static final ResourceLocation LEADER_ZOMBIE_BONUS_ID = ResourceLocation.fromNamespaceAndPath("minecraft", "leader_zombie_bonus");
+    private static final BuffMobsConfig.EliteMobs.EliteParticle[] RANDOM_PARTICLES = {
+            BuffMobsConfig.EliteMobs.EliteParticle.ENCHANT,
+            BuffMobsConfig.EliteMobs.EliteParticle.FLAME,
+            BuffMobsConfig.EliteMobs.EliteParticle.SOUL_FIRE_FLAME,
+            BuffMobsConfig.EliteMobs.EliteParticle.PORTAL,
+            BuffMobsConfig.EliteMobs.EliteParticle.END_ROD,
+            BuffMobsConfig.EliteMobs.EliteParticle.HAPPY_VILLAGER,
+            BuffMobsConfig.EliteMobs.EliteParticle.HEART,
+            BuffMobsConfig.EliteMobs.EliteParticle.SNOWFLAKE,
+            BuffMobsConfig.EliteMobs.EliteParticle.ELECTRIC_SPARK
+    };
+
+    public static BuffMobsConfig.EliteMobs.EliteParticle randomParticleFor(Mob mob) {
+        return RANDOM_PARTICLES[Math.floorMod(mob.getUUID().hashCode(), RANDOM_PARTICLES.length)];
+    }
+
+    public static long getOverworldDayTime(Level level) {
+        if (level instanceof ServerLevel serverLevel) {
+            MinecraftServer server = serverLevel.getServer();
+            if (server != null) {
+                ServerLevel overworld = server.overworld();
+                if (overworld != null) {
+                    return overworld.getDayTime();
+                }
+            }
+            return serverLevel.getDayTime();
+        }
+        return 0L;
+    }
+
+    public static long getRawDays(Level level) {
+        return getOverworldDayTime(level) / 24000L;
+    }
+
+    public static long getEffectiveDays(Level level) {
+        long rawDays = getRawDays(level);
+        BuffMobsWorldData data = BuffMobsWorldData.get(level);
+        long offset = data != null ? data.getScalingDayOffset() : 0L;
+        return Math.max(0L, rawDays - offset);
+    }
+
+    public static double getDayMultiplier(Level level) {
+        return computeDayMultiplier(getEffectiveDays(level));
+    }
+
+    private static double getEffectiveProgressionMultiplier(Level level) {
+        return getDayMultiplier(level)
+                * AdaptiveDifficultyHandler.getAdaptiveMultiplier(level)
+                * BloodMoonHandler.getActiveMultiplier(level);
+    }
+
+    public static double getEffectiveHealthMultiplier(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.enabled) return 1.0;
+        double fixedHealthTarget = resolveActiveDimensionMaxHealth(mob);
+        if (fixedHealthTarget > 0.0) {
+            AttributeInstance health = mob.getAttribute(Attributes.MAX_HEALTH);
+            double baseHealth = health != null ? health.getBaseValue() : 0.0;
+            if (baseHealth > 0.0) return Math.max(1.0, fixedHealthTarget / baseHealth);
+        }
+        DimensionMultipliers dim = getDimensionMultipliers(mob);
+        MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
+        boolean presetOverride = preset != null && BuffMobsConfig.INSTANCE.mobPresets.overrideDimensionScaling;
+        if (presetOverride) dim = DimensionMultipliers.NEUTRAL;
+        double progression = getDayMultiplier(mob.level())
+                * AdaptiveDifficultyHandler.getAdaptiveMultiplier(mob.level());
+        if (BuffMobsConfig.INSTANCE.dimensionScaling.mode
+                == BuffMobsConfig.DimensionScaling.DimensionScalingMode.OVERRIDE) {
+            return Math.max(1.0, dim.health * progression);
+        }
+        double presetHealth = preset != null ? preset.health : 1.0;
+        return Math.max(1.0, BuffMobsConfig.INSTANCE.attributes.healthMultiplier
+                * dim.health * presetHealth * progression);
+    }
+
+    private static double resolveActiveDimensionMaxHealth(Mob mob) {
+        if (!BuffMobsConfig.INSTANCE.dimensionMaxHealth.enabled) return 0.0;
+        BuffMobsConfig.DimensionMaxHealth.Slot slot = findDimensionMaxHealthSlot(getDimensionId(mob.level()));
+        if (slot == null || slot.maxHealth <= 0) return 0.0;
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        if (!isAllowedByDimensionMaxHealthFilter(mobId, slot)) return 0.0;
+        return slot.maxHealth;
+    }
 
     public static void applyBuffs(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.enabled || !isValidMob(mob)) {
@@ -42,7 +130,7 @@ public class MobBuffUtil {
 
         handleZombieLeaderBonus(mob);
 
-        double dayMult = getDayMultiplier(mob.level().getDayTime());
+        double dayMult = getEffectiveProgressionMultiplier(mob.level());
         DimensionMultipliers dim = getDimensionMultipliers(mob);
         MobPresetUtil.PresetMultipliers preset = MobPresetUtil.getPresetForMob(mob);
 
@@ -87,8 +175,11 @@ public class MobBuffUtil {
     }
 
     public static double getDayMultiplier(long worldTime) {
+        return computeDayMultiplier(worldTime / 24000L);
+    }
+
+    private static double computeDayMultiplier(long days) {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled) return 1.0;
-        long days      = worldTime / 24000L;
         long intervals = days / Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval);
         double mult    = 1.0 + (intervals * BuffMobsConfig.INSTANCE.dayScaling.multiplier);
         double max     = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier;
@@ -419,6 +510,9 @@ public class MobBuffUtil {
     }
 
     private static boolean isAllowedByDimensionMaxHealthFilter(String mobId, BuffMobsConfig.DimensionMaxHealth.Slot slot) {
+        BuffMobsConfig.DimensionMaxHealth cfg = BuffMobsConfig.INSTANCE.dimensionMaxHealth;
+        if (cfg.denylist.contains(mobId)) return false;
+        if (cfg.useAllowlist && !cfg.allowlist.contains(mobId)) return false;
         if (slot.denylist.contains(mobId)) return false;
         if (slot.useAllowlist) return slot.allowlist.contains(mobId);
         return true;

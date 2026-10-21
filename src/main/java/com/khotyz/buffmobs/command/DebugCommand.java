@@ -2,9 +2,13 @@ package com.khotyz.buffmobs.command;
 
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.event.EliteMobHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
+import com.khotyz.buffmobs.event.SpecialAbilityHandler;
+import com.khotyz.buffmobs.event.TraitsHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
+import com.khotyz.buffmobs.util.ResetManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
@@ -31,7 +35,8 @@ public class DebugCommand {
                 .then(Commands.literal("debug")  .executes(DebugCommand::debugNearestMob))
                 .then(Commands.literal("reload")  .executes(DebugCommand::reloadMobs))
                 .then(Commands.literal("info")    .executes(DebugCommand::showInfo))
-                .then(Commands.literal("presets") .executes(DebugCommand::showPresets)));
+                .then(Commands.literal("presets") .executes(DebugCommand::showPresets))
+                .then(ResetCommand.node()));
     }
 
     private static int debugNearestMob(CommandContext<CommandSourceStack> ctx) {
@@ -97,7 +102,7 @@ public class DebugCommand {
         }
 
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.scaling_header"), false);
-        final String dayMultStr = String.format("%.2f", MobBuffUtil.getDayMultiplier(mob.level().getDayTime()));
+        final String dayMultStr = String.format("%.2f", MobBuffUtil.getDayMultiplier(mob.level()));
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.day_mult", dayMultStr), false);
         final MobBuffUtil.DimensionMultipliers dm = MobBuffUtil.getDimensionMultipliers(mob);
         final String dimHp  = String.format("%.2f", dm.health);
@@ -119,6 +124,17 @@ public class DebugCommand {
             final String dmgBase = String.format("%.1f", dmg.getBaseValue());
             src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.damage", dmgVal, dmgBase), false);
         }
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.elite",
+                yesNo(EliteMobHandler.isElite(mob))), false);
+        TraitsHandler.Trait trait = TraitsHandler.getTrait(mob);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.trait",
+                trait != null ? Component.translatable(trait.translationKey())
+                        : Component.translatable("buffmobs.command.debug.none")), false);
+        Component abilityNames = SpecialAbilityHandler.getAbilities(mob).stream()
+                .map(ability -> (Component) Component.translatable(ability.translationKey()))
+                .reduce((first, second) -> first.copy().append(", ").append(second))
+                .orElse(Component.translatable("buffmobs.command.debug.none"));
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.abilities", abilityNames), false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.effects_count",
                 String.valueOf(mob.getActiveEffects().size())), false);
         mob.getActiveEffects().forEach(eff ->
@@ -127,6 +143,10 @@ public class DebugCommand {
                         String.valueOf(eff.getAmplifier() + 1)), false));
 
         return 1;
+    }
+
+    private static Component yesNo(boolean value) {
+        return Component.translatable(value ? "buffmobs.command.debug.yes" : "buffmobs.command.debug.no");
     }
 
     private static int showPresets(CommandContext<CommandSourceStack> ctx) {
@@ -174,20 +194,7 @@ public class DebugCommand {
         CommandSourceStack src = ctx.getSource();
         BuffMobsConfig.load();
         src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.start"), false);
-        int count = 0;
-        MobTickHandler.forceReinitAll();
-        for (ServerLevel level : src.getServer().getAllLevels()) {
-            for (Entity e : level.getAllEntities()) {
-                if (e instanceof Mob mob) {
-                    try {
-                        MobTickHandler.reinitializeMob(mob);
-                        count++;
-                    } catch (Exception ex) {
-                        BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
-                    }
-                }
-            }
-        }
+        int count = ResetManager.resetMobs(src.getServer());
         final int fc = count;
         src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.done", String.valueOf(fc)), false);
         return 1;

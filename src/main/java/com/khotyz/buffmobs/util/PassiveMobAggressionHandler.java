@@ -129,6 +129,28 @@ public class PassiveMobAggressionHandler {
         removePanicGoals(mob);
     }
 
+    public static void reloadMob(Mob mob) {
+        UUID uuid = mob.getUUID();
+        BuffMobsConfig.PassiveMobAggression.PassiveMode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
+        boolean shouldBeAggressive = mode != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF
+                && MobBuffUtil.isPassiveAggressiveMob(mob)
+                && mob instanceof PathfinderMob;
+        boolean isAggressive = INITIALIZED.contains(uuid);
+
+        if (shouldBeAggressive && !isAggressive) {
+            onMobInitialized(mob);
+        } else if (!shouldBeAggressive && isAggressive) {
+            INITIALIZED.remove(uuid);
+            PARTICLES_SHOWN.remove(uuid);
+            ENRAGED.remove(uuid);
+            mob.setTarget(null);
+            GoalSelector goalSelector = getGoalSelector(mob);
+            if (goalSelector != null) {
+                goalSelector.getAvailableGoals().removeIf(goal -> goal.getGoal() instanceof PassiveAggressionMeleeGoal);
+            }
+        }
+    }
+
     public static void forceReinit() {
         INITIALIZED.clear();
         PARTICLES_SHOWN.clear();

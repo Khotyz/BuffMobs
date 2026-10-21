@@ -129,6 +129,10 @@ public class RangedMobAIManager {
         return s != null && s.active && s.usesMelee;
     }
 
+    public static void clearAllStates() {
+        MOB_STATES.clear();
+    }
+
     public static void cleanup(Mob mob) {
         MobState s = MOB_STATES.remove(mob.getUUID());
         if (s == null) return;
