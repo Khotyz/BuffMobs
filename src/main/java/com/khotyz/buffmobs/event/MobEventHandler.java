@@ -70,11 +70,14 @@ public class MobEventHandler {
                 || !BuffMobsConfig.INSTANCE.dayScaling.showNotifications
                 || world.players().isEmpty()) return;
 
-        long currentTime = world.getDayTime();
-        long currentDay  = currentTime / 24000L;
-        String worldKey  = getDimensionId(world);
+        long currentDay = MobBuffUtil.getEffectiveDays(world);
+        String worldKey = getDimensionId(world);
 
         Long lastChecked = lastDayCheck.get(worldKey);
+        if (lastChecked != null && currentDay < lastChecked) {
+            lastDayCheck.put(worldKey, currentDay);
+            lastChecked = currentDay;
+        }
         if (lastChecked == null || currentDay > lastChecked) {
             lastDayCheck.put(worldKey, currentDay);
 
@@ -93,7 +96,7 @@ public class MobEventHandler {
     }
 
     private static void sendDayScalingNotification(ServerLevel world, long currentDay) {
-        double mult     = MobBuffUtil.getDayMultiplier(world.getDayTime());
+        double mult     = MobBuffUtil.getDayMultiplier(world);
         double maxMult  = BuffMobsConfig.INSTANCE.dayScaling.maxMultiplier;
         int    interval = BuffMobsConfig.INSTANCE.dayScaling.interval;
         long   daysUntil = interval - (currentDay % interval);
@@ -112,10 +115,30 @@ public class MobEventHandler {
     }
 
     private static void applyRandomHarmfulEffect(Player player) {
-        switch (random.nextInt(3)) {
-            case 0 -> MobBuffUtil.applyPoisonToPlayer  (player, BuffMobsConfig.INSTANCE.harmfulEffects.poisonDuration);
-            case 1 -> MobBuffUtil.applySlownessToPlayer(player, BuffMobsConfig.INSTANCE.harmfulEffects.slownessDuration);
-            case 2 -> MobBuffUtil.applyWitherToPlayer  (player, BuffMobsConfig.INSTANCE.harmfulEffects.witherDuration);
+        BuffMobsConfig.HarmfulEffects cfg = BuffMobsConfig.INSTANCE.harmfulEffects;
+        int enabled = 0;
+        if (cfg.poisonEnabled) enabled++;
+        if (cfg.slownessEnabled) enabled++;
+        if (cfg.witherEnabled) enabled++;
+        if (enabled == 0) return;
+
+        int roll = random.nextInt(enabled);
+        if (cfg.poisonEnabled) {
+            if (roll == 0) {
+                MobBuffUtil.applyPoisonToPlayer(player, cfg.poisonDuration);
+                return;
+            }
+            roll--;
+        }
+        if (cfg.slownessEnabled) {
+            if (roll == 0) {
+                MobBuffUtil.applySlownessToPlayer(player, cfg.slownessDuration);
+                return;
+            }
+            roll--;
+        }
+        if (cfg.witherEnabled) {
+            MobBuffUtil.applyWitherToPlayer(player, cfg.witherDuration);
         }
     }
 }

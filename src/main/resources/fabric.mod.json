@@ -18,14 +18,15 @@
     "client": ["com.khotyz.buffmobs.BuffMobsClient"],
     "modmenu": ["com.khotyz.buffmobs.config.ModMenuIntegration"]
   },
-  "mixins": [],
+  "mixins": [
+    "buffmobs.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.15.0",
     "fabric-api": "*",
     "minecraft": ">=1.21.1 <=1.21.3"
   },
   "suggests": {
-    "cloth-config": ">=15.0.0",
     "modmenu": ">=11.0.0"
   },
   "accessWidener": "buffmobs.accesswidener"
