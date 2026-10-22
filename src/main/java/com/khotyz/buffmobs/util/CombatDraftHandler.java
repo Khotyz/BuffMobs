@@ -12,7 +12,6 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
-import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.HashMap;
@@ -127,7 +126,7 @@ public class CombatDraftHandler {
         if (mob.isRemoved() || !mob.isAlive()) return false;
         if (mob instanceof TamableAnimal t && t.isTame()) return false;
 
-        boolean hostile = mob instanceof Enemy
+        boolean hostile = MobBuffUtil.isHostileType(mob)
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
                 || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
