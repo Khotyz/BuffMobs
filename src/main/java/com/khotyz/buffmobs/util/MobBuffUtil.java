@@ -13,6 +13,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -278,7 +279,7 @@ public class MobBuffUtil {
     public static boolean isValidMob(Mob mob) {
         if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
 
-        boolean isHostile = mob instanceof Enemy;
+        boolean isHostile = isHostileType(mob);
         boolean isNeutral = isNeutralMob(mob);
         boolean isPassiveAggressive = isPassiveAggressiveMob(mob);
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
@@ -298,11 +299,15 @@ public class MobBuffUtil {
         return validDim && validMod && validMob;
     }
 
+    public static boolean isHostileType(Mob mob) {
+        return mob instanceof Enemy || mob.getType().getCategory() == MobCategory.MONSTER;
+    }
+
     public static boolean isPassiveAggressiveMob(Mob mob) {
         BuffMobsConfig.PassiveMobAggression.Mode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
         if (mode == BuffMobsConfig.PassiveMobAggression.Mode.OFF) return false;
         if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
-        if (mob instanceof Enemy) return false;
+        if (isHostileType(mob)) return false;
         if (isNeutralMob(mob)) return false;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
