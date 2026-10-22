@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "com.khotyz.buffmobs.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityLootXpMixin",
+    "MobSpawnDuplicateMixin"
+  ],
+  "client": [
+    "InputConstantsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

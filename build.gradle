@@ -11,7 +11,6 @@ base {
 }
 
 repositories {
-	maven { url "https://maven.shedaniel.me/" }
 	maven { url "https://maven.terraformersmc.com/releases/" }
 }
 
@@ -30,13 +29,6 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-
-	compileOnly("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
-		exclude group: "net.fabricmc.fabric-api"
-	}
-	localRuntime("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
-		exclude group: "net.fabricmc.fabric-api"
-	}
 
 	compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 	localRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"

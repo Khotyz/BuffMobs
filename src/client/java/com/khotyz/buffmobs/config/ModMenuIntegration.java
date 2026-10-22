@@ -10,9 +10,6 @@ public class ModMenuIntegration implements ModMenuApi {
 
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        if (com.khotyz.buffmobs.config.ConfigScreenFactory.isAvailable()) {
-            return com.khotyz.buffmobs.config.ConfigScreenFactory::create;
-        }
-        return parent -> null;
+        return com.khotyz.buffmobs.config.ConfigScreenFactory::create;
     }
 }

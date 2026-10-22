@@ -29,7 +29,7 @@ public class MobPresetUtil {
         if (presetName == null || presetName.isEmpty()) return null;
 
         BuffMobsConfig.MobPresets.PresetSlot preset = findPresetByName(presetName);
-        if (preset == null || preset.presetName == null || preset.presetName.isEmpty()) {
+        if (preset == null) {
             BuffMobsMod.LOGGER.warn("Preset '{}' not found for mob '{}'", presetName, mobId);
             return null;
         }
@@ -52,10 +52,20 @@ public class MobPresetUtil {
                 BuffMobsConfig.INSTANCE.mobPresets.preset4,
                 BuffMobsConfig.INSTANCE.mobPresets.preset5
         };
-        for (BuffMobsConfig.MobPresets.PresetSlot preset : presets) {
-            if (preset.presetName != null && preset.presetName.equals(name)) return preset;
+        for (int index = 0; index < presets.length; index++) {
+            if (effectivePresetName(presets[index], index).equals(name)) return presets[index];
         }
         return null;
+    }
+
+    public static String effectivePresetName(BuffMobsConfig.MobPresets.PresetSlot preset, int zeroBasedIndex) {
+        String configuredName = preset.presetName;
+        if (configuredName != null && !configuredName.isEmpty()) return configuredName;
+        return switch (zeroBasedIndex) {
+            case 0 -> "default";
+            case 1 -> "boss";
+            default -> "";
+        };
     }
 
     public static class PresetMultipliers {

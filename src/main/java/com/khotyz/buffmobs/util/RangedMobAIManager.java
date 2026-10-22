@@ -5,7 +5,6 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -35,7 +34,6 @@ public class RangedMobAIManager {
     private static final double KITE_FLEE_SPEED    = 1.35;
     private static final double KITE_SAFE_DISTANCE = 12.0;
     private static final int    SWITCH_COOLDOWN    = 60;
-    private static final double MELEE_ATTACK_REACH = 2.5;
     private static final double HYSTERESIS         = 2.5;
 
     private static final Identifier MELEE_SPEED_ID =
@@ -130,9 +128,21 @@ public class RangedMobAIManager {
     }
 
     public static void cleanup(Mob mob) {
-        MobState s = MOB_STATES.remove(mob.getUUID());
-        if (s == null) return;
+        MobState state = MOB_STATES.remove(mob.getUUID());
+        if (state == null) return;
+        if (state.active) {
+            ItemStack rangedWeapon = !state.originalWeapon.isEmpty()
+                    ? state.originalWeapon.copy()
+                    : getDefaultRangedWeapon(mob);
+            mob.setItemSlot(EquipmentSlot.MAINHAND, rangedWeapon);
+            mob.setTarget(null);
+            mob.getNavigation().stop();
+        }
         removeMeleeSpeedModifier(mob);
+    }
+
+    public static void clearAllStates() {
+        MOB_STATES.clear();
     }
 
     private static boolean hasConditionalHostility(Mob mob) {
@@ -191,8 +201,9 @@ public class RangedMobAIManager {
         }
         if (mob.getTarget() != target) mob.setTarget(target);
 
-        double dist = mob.distanceTo(target);
-        if (dist > MELEE_ATTACK_REACH) {
+        double dist  = mob.distanceTo(target);
+        double reach = getMeleeAttackReach(mob, target);
+        if (dist > reach) {
             mob.getNavigation().moveTo(target, MELEE_CHASE_SPEED);
         } else {
             mob.getNavigation().stop();
@@ -204,13 +215,18 @@ public class RangedMobAIManager {
         }
     }
 
+    private static double getMeleeAttackReach(Mob mob, LivingEntity target) {
+        double reachSqr = mob.getBbWidth() * 2.0 * mob.getBbWidth() * 2.0 + target.getBbWidth();
+        return Math.sqrt(reachSqr);
+    }
+
     private static void performMeleeHit(Mob mob, LivingEntity target) {
         if (!(mob.level() instanceof ServerLevel serverLevel)) return;
         Vec3 dir = new Vec3(target.getX() - mob.getX(), 0, target.getZ() - mob.getZ())
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
         mob.doHurtTarget(serverLevel, target);
-        SwingUtil.swing(mob, InteractionHand.MAIN_HAND);
+        SwingUtil.swing(mob, net.minecraft.world.InteractionHand.MAIN_HAND);
     }
 
     private static void enterKiteMode(Mob mob, MobState state, long now) {

@@ -3,10 +3,8 @@ package com.khotyz.buffmobs.command;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.MobTickHandler;
-import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
-import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -15,7 +13,8 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -33,7 +32,8 @@ public class DebugCommand {
                 .then(Commands.literal("debug")  .executes(DebugCommand::debugNearestMob))
                 .then(Commands.literal("reload")  .executes(DebugCommand::reloadMobs))
                 .then(Commands.literal("info")    .executes(DebugCommand::showInfo))
-                .then(Commands.literal("presets") .executes(DebugCommand::showPresets)));
+                .then(Commands.literal("presets") .executes(DebugCommand::showPresets))
+                .then(ResetCommand.resetNode()));
     }
 
     private static int debugNearestMob(CommandContext<CommandSourceStack> ctx) {
@@ -93,7 +93,7 @@ public class DebugCommand {
         }
 
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.scaling_header"), false);
-        final String dayMultStr = String.format("%.2f", MobBuffUtil.getDayMultiplier(mob.level().getOverworldClockTime()));
+        final String dayMultStr = String.format("%.2f", MobBuffUtil.getDayMultiplier(mob.level()));
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.day_mult", dayMultStr), false);
         final MobBuffUtil.DimensionMultipliers dm = MobBuffUtil.getDimensionMultipliers(mob);
         final String dimHp  = String.format("%.2f", dm.health);
@@ -138,18 +138,17 @@ public class DebugCommand {
                 BuffMobsConfig.INSTANCE.mobPresets.preset3, BuffMobsConfig.INSTANCE.mobPresets.preset4,
                 BuffMobsConfig.INSTANCE.mobPresets.preset5
         };
-        int[] n = {1};
-        for (BuffMobsConfig.MobPresets.PresetSlot p : presets) {
-            if (p.presetName != null && !p.presetName.isEmpty()) {
-                int num = n[0];
+        for (int index = 0; index < presets.length; index++) {
+            BuffMobsConfig.MobPresets.PresetSlot preset = presets[index];
+            String presetName = MobPresetUtil.effectivePresetName(preset, index);
+            if (!presetName.isEmpty()) {
                 final String entry = String.format("%d. %s (HP:%.1fx DMG:%.1fx SPD:%.1fx ASPD:%.1fx ARM:+%.0f TOUGH:+%.0f)",
-                        num, p.presetName,
-                        p.healthMultiplier, p.damageMultiplier,
-                        p.speedMultiplier, p.attackSpeedMultiplier,
-                        p.armorAddition, p.armorToughnessAddition);
+                        index + 1, presetName,
+                        preset.healthMultiplier, preset.damageMultiplier,
+                        preset.speedMultiplier, preset.attackSpeedMultiplier,
+                        preset.armorAddition, preset.armorToughnessAddition);
                 src.sendSuccess(() -> Component.literal(entry), false);
             }
-            n[0]++;
         }
 
         src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mappings_header"), false);
@@ -168,28 +167,29 @@ public class DebugCommand {
 
     private static int reloadMobs(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
+        MinecraftServer server = src.getServer();
         BuffMobsConfig.load();
         src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.start"), false);
+        for (ServerLevel level : server.getAllLevels()) {
+            for (var entity : level.getAllEntities()) {
+                if (entity instanceof Mob mob) RangedMobAIManager.cleanup(mob);
+            }
+        }
         int count = 0;
         MobTickHandler.forceReinitAll();
-        for (Entity e : src.getLevel().getAllEntities()) {
-            if (e instanceof Mob mob) {
+        for (ServerLevel level : server.getAllLevels()) {
+            for (var entity : level.getAllEntities()) {
+                if (!(entity instanceof Mob mob)) continue;
                 try {
-                    MobBuffUtil.removeAllModifiers(mob);
-                    MobBuffUtil.removeAllBuffEffects(mob);
-                    MobBuffUtil.applyBuffs(mob);
-                    RangedMobAIManager.initializeMob(mob);
-                    CombatDraftHandler.onMobInitialized(mob);
-                    PassiveMobAggressionHandler.onMobInitialized(mob);
-                    MobTickHandler.markInitialized(mob);
+                    MobTickHandler.reinitializeMob(mob);
                     count++;
-                } catch (Exception ex) {
-                    BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
+                } catch (Exception exception) {
+                    BuffMobsMod.LOGGER.error("[BuffMobs] Failed to reinitialize mob", exception);
                 }
             }
         }
-        final int fc = count;
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.done", String.valueOf(fc)), false);
+        int reinitialized = count;
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.done", reinitialized), false);
         return 1;
     }
 
@@ -202,6 +202,7 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)),          false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling", String.valueOf(BuffMobsConfig.INSTANCE.dayScaling.enabled)),                   false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",     String.valueOf(BuffMobsConfig.INSTANCE.mobPresets.enabled)),                   false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.passive_mode", BuffMobsConfig.INSTANCE.passiveMobAggression.mode.name()), false);
         return 1;
     }
 }

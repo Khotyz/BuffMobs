@@ -22,7 +22,7 @@ public class MeleeWeaponManager {
     public static ItemStack generateMeleeWeapon(Mob mob) {
         Level level   = mob.level();
         String dim    = getDimensionId(level);
-        long worldDays = level.getOverworldClockTime() / 24000L;
+        long worldDays = MobBuffUtil.getEffectiveDays(level);
 
         ItemStack weapon = createWeapon(dim, worldDays);
         if (BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enchantmentsEnabled) {
@@ -107,7 +107,7 @@ public class MeleeWeaponManager {
 
     private static int calcMaxEnchants(long days) {
         int max      = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.maxEnchantmentsPerWeapon;
-        int interval = BuffMobsConfig.INSTANCE.dayScaling.interval;
+        int interval = Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval);
         if (days >= interval * 20L) return Math.min(4, max);
         if (days >= interval * 10L) return Math.min(3, max);
         if (days >= interval * 5L)  return Math.min(2, max);
@@ -117,7 +117,7 @@ public class MeleeWeaponManager {
     private static int calcEnchantLevel(int maxLevel, int unlockDay, long days) {
         if (maxLevel <= 1) return 1;
         long after   = Math.max(0, days - unlockDay);
-        int perLevel = BuffMobsConfig.INSTANCE.rangedMeleeSwitching.daysPerEnchantmentLevel;
+        int perLevel = Math.max(1, BuffMobsConfig.INSTANCE.rangedMeleeSwitching.daysPerEnchantmentLevel);
         return Math.min(1 + (int)(after / perLevel), maxLevel);
     }
 

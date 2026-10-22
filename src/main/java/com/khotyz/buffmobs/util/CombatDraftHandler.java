@@ -31,12 +31,12 @@ public class CombatDraftHandler {
         STATES.putIfAbsent(mob.getUUID(), new MobDraftState());
     }
 
-    public static void onMobRemoved(Mob mob) {
-        STATES.remove(mob.getUUID());
+    public static void clearStates() {
+        STATES.clear();
     }
 
-    public static void forceReinit() {
-        STATES.clear();
+    public static void onMobRemoved(Mob mob) {
+        STATES.remove(mob.getUUID());
     }
 
     // Kept for API compatibility with MobTickHandler; no-op now that offhand restore was removed.
