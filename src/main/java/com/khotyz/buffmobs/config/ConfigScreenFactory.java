@@ -1,34 +1,29 @@
 package com.khotyz.buffmobs.config;
 
-import com.khotyz.buffmobs.BuffMobsMod;
+import com.khotyz.buffmobs.util.Guard;
 import net.minecraft.client.gui.screens.Screen;
 
-public class ConfigScreenFactory {
+public final class ConfigScreenFactory {
 
-    private static final boolean CLOTH_AVAILABLE = detectCloth();
+    private ConfigScreenFactory() {
+    }
 
-    private static boolean detectCloth() {
+    public static boolean isAvailable() {
         try {
-            Class.forName("me.shedaniel.clothconfig2.api.ConfigBuilder");
-            BuffMobsMod.LOGGER.info("[BuffMobs] Cloth Config detected — GUI enabled");
+            Class.forName("com.khotyz.buffmobs.config.BuffMobsConfigScreen", false, ConfigScreenFactory.class.getClassLoader());
             return true;
-        } catch (ClassNotFoundException e) {
-            BuffMobsMod.LOGGER.info("[BuffMobs] Cloth Config not found — using fallback notice");
+        } catch (Throwable throwable) {
+            Guard.report("BuffMobs config screen availability", throwable);
             return false;
         }
     }
 
-    public static boolean isAvailable() {
-        return CLOTH_AVAILABLE;
-    }
-
     public static Screen create(Screen parent) {
-        if (!CLOTH_AVAILABLE) return null;
         try {
-            return ClothConfigScreen.create(parent);
-        } catch (Exception e) {
-            BuffMobsMod.LOGGER.error("[BuffMobs] Failed to create Cloth Config screen", e);
-            return null;
+            return new BuffMobsConfigScreen(parent);
+        } catch (Throwable throwable) {
+            Guard.report("BuffMobs config screen", throwable);
+            return parent;
         }
     }
 }

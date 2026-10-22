@@ -1,8 +1,10 @@
 package com.khotyz.buffmobs.event;
 
+import com.khotyz.buffmobs.util.Guard;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
+import com.khotyz.buffmobs.util.MobArmorManager;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import net.minecraft.server.level.ServerLevel;
@@ -29,99 +31,136 @@ public class MobTickHandler {
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
-        INITIALIZED_MOBS.clear();
-        PENDING_INIT.clear();
-        lastScalingInterval.clear();
-        initialScanDone = false;
-        int count = 0;
-        for (ServerLevel world : event.getServer().getAllLevels()) {
-            for (Entity entity : world.getAllEntities()) {
-                if (entity instanceof Mob mob) {
-                    initializeMob(mob, true);
-                    count++;
+        try {
+            INITIALIZED_MOBS.clear();
+            PENDING_INIT.clear();
+            lastScalingInterval.clear();
+            initialScanDone = false;
+            BloodMoonHandler.clearCaches();
+            int count = 0;
+            for (ServerLevel world : event.getServer().getAllLevels()) {
+                for (Entity entity : world.getAllEntities()) {
+                    if (entity instanceof Mob mob) {
+                        initializeMob(mob, true);
+                        count++;
+                    }
                 }
             }
+            BuffMobsMod.LOGGER.info("[BuffMobs] Initialized {} existing mobs on startup", count);
+            initialScanDone = true;
+        } catch (Throwable throwable) {
+            Guard.report("MobTickHandler.onServerStarted", throwable);
         }
-        BuffMobsMod.LOGGER.info("[BuffMobs] Initialized {} existing mobs on startup", count);
-        initialScanDone = true;
     }
 
     @SubscribeEvent
     public void onEntityJoin(EntityJoinLevelEvent event) {
-        if (event.getLevel().isClientSide()) return;
-        if (!(event.getEntity() instanceof Mob mob)) return;
-        if (!INITIALIZED_MOBS.contains(mob.getUUID())) PENDING_INIT.add(mob.getUUID());
+        try {
+            if (event.getLevel().isClientSide()) return;
+            if (!(event.getEntity() instanceof Mob mob)) return;
+            if (!INITIALIZED_MOBS.contains(mob.getUUID())) PENDING_INIT.add(mob.getUUID());
+        } catch (Throwable throwable) {
+            Guard.report("MobTickHandler.onEntityJoin", throwable);
+        }
     }
 
     @SubscribeEvent
     public void onEntityLeave(EntityLeaveLevelEvent event) {
-        if (!(event.getEntity() instanceof Mob mob)) return;
-        UUID uuid = mob.getUUID();
-        INITIALIZED_MOBS.remove(uuid);
-        PENDING_INIT.remove(uuid);
-        RangedMobAIManager.cleanup(mob);
-        CombatDraftHandler.onMobRemoved(mob);
+        try {
+            if (!(event.getEntity() instanceof Mob mob)) return;
+            UUID uuid = mob.getUUID();
+            INITIALIZED_MOBS.remove(uuid);
+            PENDING_INIT.remove(uuid);
+            RangedMobAIManager.cleanup(mob);
+            CombatDraftHandler.onMobRemoved(mob);
+            PassiveMobAggressionHandler.onMobRemoved(mob);
+            EliteMobHandler.onMobRemoved(mob);
+            TraitsHandler.onMobRemoved(mob);
+            SpecialAbilityHandler.onMobRemoved(mob);
+            PackAggressionHandler.onMobRemoved(mob);
+            MobArmorManager.onMobRemoved(mob);
+        } catch (Throwable throwable) {
+            Guard.report("MobTickHandler.onEntityLeave", throwable);
+        }
     }
 
     @SubscribeEvent
     public void onWorldTick(LevelTickEvent.Post event) {
-        if (!BuffMobsConfig.INSTANCE.enabled.get()) return;
-        if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
+        try {
+            if (!BuffMobsConfig.INSTANCE.enabled.get()) return;
+            if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
 
-        globalTickCounter++;
+            globalTickCounter++;
 
-        if (!PENDING_INIT.isEmpty()) {
-            for (Entity e : serverLevel.getAllEntities()) {
-                if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
-                if (PENDING_INIT.contains(mob.getUUID())) {
-                    PENDING_INIT.remove(mob.getUUID());
-                    initializeMob(mob, false);
-                }
-            }
-            PENDING_INIT.clear();
-        }
-
-        if (globalTickCounter % 20 == 0) {
-            boolean scalingIntervalChanged = checkScalingIntervalChanged(serverLevel);
-
-            for (Entity e : serverLevel.getAllEntities()) {
-                if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
-                UUID uuid = mob.getUUID();
-                if (!INITIALIZED_MOBS.contains(uuid)) {
-                    initializeMob(mob, false);
-                } else if (scalingIntervalChanged) {
-                    try {
-                        MobBuffUtil.applyBuffs(mob);
-                        RangedMobAIManager.updateMobBehavior(mob);
-                        MobBuffUtil.refreshInfiniteEffects(mob);
-                        CombatDraftHandler.tick(mob);
-                    } catch (Exception ex) {
-                        BuffMobsMod.LOGGER.warn("[BuffMobs] Error reapplying buffs on scaling change", ex);
-                    }
-                } else {
-                    try {
-                        RangedMobAIManager.updateMobBehavior(mob);
-                        MobBuffUtil.refreshInfiniteEffects(mob);
-                        CombatDraftHandler.tick(mob);
-                    } catch (Exception ex) {
-                        BuffMobsMod.LOGGER.warn("[BuffMobs] Error updating mob behavior", ex);
+            if (!PENDING_INIT.isEmpty()) {
+                for (Entity e : serverLevel.getAllEntities()) {
+                    if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
+                    if (PENDING_INIT.contains(mob.getUUID())) {
+                        PENDING_INIT.remove(mob.getUUID());
+                        initializeMob(mob, false);
                     }
                 }
+                PENDING_INIT.clear();
             }
+
+            if (globalTickCounter % 20 == 0) {
+                boolean scalingIntervalChanged = checkScalingIntervalChanged(serverLevel);
+
+                for (Entity e : serverLevel.getAllEntities()) {
+                    if (!(e instanceof Mob mob) || mob.isRemoved()) continue;
+                    UUID uuid = mob.getUUID();
+                    if (!INITIALIZED_MOBS.contains(uuid)) {
+                        initializeMob(mob, false);
+                    } else if (scalingIntervalChanged) {
+                        try {
+                            MobBuffUtil.applyBuffs(mob);
+                            RangedMobAIManager.updateMobBehavior(mob);
+                            MobBuffUtil.refreshInfiniteEffects(mob);
+                            CombatDraftHandler.tick(mob);
+                            PassiveMobAggressionHandler.tick(mob);
+                            MobBuffUtil.enforceDimensionMaxHealth(mob);
+                            EliteMobHandler.tick(mob);
+                            TraitsHandler.tick(mob);
+                            SpecialAbilityHandler.tick(mob);
+                        } catch (Exception ex) {
+                            BuffMobsMod.LOGGER.warn("[BuffMobs] Error reapplying buffs on scaling change", ex);
+                        }
+                    } else {
+                        try {
+                            RangedMobAIManager.updateMobBehavior(mob);
+                            MobBuffUtil.refreshInfiniteEffects(mob);
+                            CombatDraftHandler.tick(mob);
+                            PassiveMobAggressionHandler.tick(mob);
+                            MobBuffUtil.enforceDimensionMaxHealth(mob);
+                            EliteMobHandler.tick(mob);
+                            TraitsHandler.tick(mob);
+                            SpecialAbilityHandler.tick(mob);
+                        } catch (Exception ex) {
+                            BuffMobsMod.LOGGER.warn("[BuffMobs] Error updating mob behavior", ex);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable throwable) {
+            Guard.report("MobTickHandler.onWorldTick", throwable);
         }
     }
 
     private static boolean checkScalingIntervalChanged(ServerLevel serverLevel) {
         if (!BuffMobsConfig.INSTANCE.dayScaling.enabled.get()) return false;
 
-        long overworldDayTime = MobBuffUtil.getOverworldDayTime(serverLevel);
-        long days = overworldDayTime / 24000L;
+        long days = MobBuffUtil.getEffectiveDays(serverLevel);
         int interval = Math.max(1, BuffMobsConfig.INSTANCE.dayScaling.interval.get());
         long currentInterval = days / interval;
 
         ResourceKey<net.minecraft.world.level.Level> dimKey = serverLevel.dimension();
         String dimKeyStr = com.khotyz.buffmobs.util.DimensionUtil.getDimensionId(serverLevel);
         Long lastInterval = lastScalingInterval.get(dimKeyStr);
+
+        if (lastInterval != null && currentInterval < lastInterval) {
+            lastScalingInterval.put(dimKeyStr, currentInterval);
+            return false;
+        }
 
         if (lastInterval == null || currentInterval > lastInterval) {
             lastScalingInterval.put(dimKeyStr, currentInterval);
@@ -135,8 +174,14 @@ public class MobTickHandler {
     }
 
     private static void initializeMob(Mob mob, boolean forceReapply) {
+        BloodMoonHandler.onMobLoaded(mob);
         if (!BuffMobsConfig.INSTANCE.enabled.get()) {
             MobBuffUtil.removeAllModifiers(mob);
+            MobBuffUtil.removeAllBuffEffects(mob);
+            RangedMobAIManager.cleanup(mob);
+            PassiveMobAggressionHandler.resetMob(mob);
+            EliteMobHandler.deactivateMob(mob);
+            TraitsHandler.deactivateMob(mob);
             return;
         }
         UUID uuid = mob.getUUID();
@@ -146,6 +191,11 @@ public class MobTickHandler {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
+                PassiveMobAggressionHandler.onMobInitialized(mob);
+                MobArmorManager.equipArmor(mob);
+                EliteMobHandler.onMobInitialized(mob);
+                TraitsHandler.onMobInitialized(mob);
+                SpecialAbilityHandler.onMobInitialized(mob);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
             } else {
@@ -158,5 +208,30 @@ public class MobTickHandler {
 
     public static int getInitializedCount() {
         return INITIALIZED_MOBS.size();
+    }
+
+    public static boolean isInitialized(UUID uuid) {
+        return INITIALIZED_MOBS.contains(uuid);
+    }
+
+    public static void reinitializeMob(Mob mob) {
+        initializeMob(mob, true);
+    }
+
+    public static void markInitialized(Mob mob) {
+        INITIALIZED_MOBS.add(mob.getUUID());
+        PENDING_INIT.remove(mob.getUUID());
+    }
+
+    public static void clearCaches() {
+        INITIALIZED_MOBS.clear();
+        PENDING_INIT.clear();
+        lastScalingInterval.clear();
+    }
+
+    public static void forceReinitAll() {
+        INITIALIZED_MOBS.clear();
+        PENDING_INIT.clear();
+        PassiveMobAggressionHandler.forceReinit();
     }
 }

@@ -1,13 +1,15 @@
-// FILE: com/khotyz/buffmobs/command/DebugCommand.java
 package com.khotyz.buffmobs.command;
 
+import com.khotyz.buffmobs.util.Guard;
 import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
+import com.khotyz.buffmobs.event.EliteMobHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
-import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
-import com.khotyz.buffmobs.util.CombatDraftHandler;
+import com.khotyz.buffmobs.event.SpecialAbilityHandler;
+import com.khotyz.buffmobs.event.TraitsHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
+import com.khotyz.buffmobs.util.RangedMobAIManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandBuildContext;
@@ -17,8 +19,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -32,7 +34,11 @@ public class DebugCommand {
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
-        register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
+        try {
+            register(event.getDispatcher(), event.getBuildContext(), event.getCommandSelection());
+        } catch (Throwable throwable) {
+            Guard.report("DebugCommand.onRegisterCommands", throwable);
+        }
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
@@ -41,7 +47,8 @@ public class DebugCommand {
                 .then(Commands.literal("debug")  .executes(DebugCommand::debugNearestMob))
                 .then(Commands.literal("reload")  .executes(DebugCommand::reloadMobs))
                 .then(Commands.literal("info")    .executes(DebugCommand::showInfo))
-                .then(Commands.literal("presets") .executes(DebugCommand::showPresets)));
+                .then(Commands.literal("presets") .executes(DebugCommand::showPresets))
+                .then(ResetCommand.resetNode()));
     }
 
     private static Component lit(String key) {
@@ -50,6 +57,10 @@ public class DebugCommand {
 
     private static Component lit(String key, Object... args) {
         return Component.translatable(key, args);
+    }
+
+    private static Component yesNo(boolean value) {
+        return Component.translatable(value ? "buffmobs.command.debug.yes" : "buffmobs.command.debug.no");
     }
 
     private static int debugNearestMob(CommandContext<CommandSourceStack> ctx) {
@@ -89,7 +100,7 @@ public class DebugCommand {
         boolean passiveActive = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get()
                 != BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF;
         src.sendSuccess(() -> lit("buffmobs.command.debug.passive_aggression",
-                passiveActive && passiveAggressive), false);
+                yesNo(passiveActive && passiveAggressive)), false);
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
@@ -117,7 +128,7 @@ public class DebugCommand {
         }
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.scaling_header"), false);
-        final double dayMult = MobBuffUtil.getDayMultiplier(MobBuffUtil.getOverworldDayTime(mob.level()));
+        final double dayMult = MobBuffUtil.getDayMultiplier(mob.level());
         src.sendSuccess(() -> lit("buffmobs.command.debug.day_mult", dayMult), false);
         final MobBuffUtil.DimensionMultipliers dm = MobBuffUtil.getDimensionMultipliers(mob);
         src.sendSuccess(() -> lit("buffmobs.command.debug.dim_hp_mult",  String.valueOf(dm.health)), false);
@@ -134,6 +145,16 @@ public class DebugCommand {
             src.sendSuccess(() -> lit("buffmobs.command.debug.damage",
                     dmg.getValue(), dmg.getBaseValue()), false);
         }
+        src.sendSuccess(() -> lit("buffmobs.command.debug.elite", yesNo(EliteMobHandler.isElite(mob))), false);
+        TraitsHandler.Trait trait = TraitsHandler.getTrait(mob);
+        src.sendSuccess(() -> lit("buffmobs.command.debug.trait",
+                trait != null ? Component.translatable(trait.translationKey())
+                        : Component.translatable("buffmobs.command.debug.none")), false);
+        Component abilityNames = SpecialAbilityHandler.getAbilities(mob).stream()
+                .map(ability -> (Component) Component.translatable(ability.translationKey()))
+                .reduce((first, second) -> first.copy().append(", ").append(second))
+                .orElse(Component.translatable("buffmobs.command.debug.none"));
+        src.sendSuccess(() -> lit("buffmobs.command.debug.abilities", abilityNames), false);
         src.sendSuccess(() -> lit("buffmobs.command.debug.effects_count", mob.getActiveEffects().size()), false);
         mob.getActiveEffects().forEach(eff -> {
             Component effectName = eff.getEffect().value().getDisplayName();
@@ -161,10 +182,11 @@ public class DebugCommand {
         };
         int[] n = {1};
         for (BuffMobsConfig.MobPresets.PresetSlot p : presets) {
-            if (!p.presetName.get().isEmpty()) {
+            String effectivePresetName = MobPresetUtil.effectivePresetName(p, n[0] - 1);
+            if (!effectivePresetName.isEmpty()) {
                 int num = n[0];
                 src.sendSuccess(() -> lit("buffmobs.command.presets.entry",
-                        num, p.presetName.get(),
+                        num, effectivePresetName,
                         p.healthMultiplier.get(), p.damageMultiplier.get(),
                         p.speedMultiplier.get(), p.attackSpeedMultiplier.get(),
                         p.armorAddition.get(), p.armorToughnessAddition.get()), false);
@@ -188,32 +210,28 @@ public class DebugCommand {
 
     private static int reloadMobs(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
+        MinecraftServer server = src.getServer();
         src.sendSuccess(() -> lit("buffmobs.command.reload.start"), false);
-
-        CombatDraftHandler.reload();
-        PassiveMobAggressionHandler.forceReinit();
-
+        for (ServerLevel level : server.getAllLevels()) {
+            for (var entity : level.getAllEntities()) {
+                if (entity instanceof Mob mob) RangedMobAIManager.cleanup(mob);
+            }
+        }
         int count = 0;
-        for (Entity e : src.getLevel().getAllEntities()) {
-            if (e instanceof Mob mob) {
+        MobTickHandler.forceReinitAll();
+        for (ServerLevel level : server.getAllLevels()) {
+            for (var entity : level.getAllEntities()) {
+                if (!(entity instanceof Mob mob)) continue;
                 try {
-                    MobBuffUtil.applyBuffs(mob);
-                    CombatDraftHandler.onMobInitialized(mob);
+                    MobTickHandler.reinitializeMob(mob);
                     count++;
-                } catch (Exception ex) {
-                    BuffMobsMod.LOGGER.error("Failed to buff mob", ex);
+                } catch (Exception exception) {
+                    BuffMobsMod.LOGGER.error("[BuffMobs] Failed to reinitialize mob", exception);
                 }
             }
         }
-
-        try {
-            PassiveMobAggressionHandler.reload(src.getLevel().getAllEntities());
-        } catch (Exception ex) {
-            BuffMobsMod.LOGGER.error("Failed to reload passive mob aggression", ex);
-        }
-
-        final int fc = count;
-        src.sendSuccess(() -> lit("buffmobs.command.reload.done", fc), false);
+        int reinitialized = count;
+        src.sendSuccess(() -> lit("buffmobs.command.reload.done", reinitialized), false);
         return 1;
     }
 
@@ -229,6 +247,8 @@ public class DebugCommand {
         boolean passiveActive = BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get()
                 != BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF;
         src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", passiveActive), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.passive_mode",
+                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get().name()), false);
         return 1;
     }
 }

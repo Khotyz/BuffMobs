@@ -136,6 +136,10 @@ public class RangedMobAIManager {
         return hit.getType() == HitResult.Type.MISS;
     }
 
+    public static void clearAllStates() {
+        MOB_STATES.clear();
+    }
+
     public static boolean isInMeleeMode(Mob mob) {
         MobState s = MOB_STATES.get(mob.getUUID());
         return s != null && s.active && s.usesMelee;
@@ -187,9 +191,9 @@ public class RangedMobAIManager {
         Vec3 dir = new Vec3(target.getX() - mob.getX(), 0, target.getZ() - mob.getZ())
                 .normalize().scale(0.15);
         mob.setDeltaMovement(dir.x, 0.1, dir.z);
-        mob.hurtMarked = true;
+        EntityCompat.markHurt(mob);
         mob.doHurtTarget(sl, target);
-        mob.swing(InteractionHand.MAIN_HAND);
+        SwingUtil.swing(mob, InteractionHand.MAIN_HAND);
     }
 
     private static void enterKiteMode(Mob mob, MobState state, long now) {
@@ -243,36 +247,62 @@ public class RangedMobAIManager {
 
         @Override
         public boolean canUse() {
-            if (hasConditionalHostility(mob)) {
-                if (!(mob.getTarget() instanceof Player p)) return false;
-                target = p;
-            } else {
-                target = mob.getTarget() instanceof Player p ? p
-                        : mob.level().getNearestPlayer(mob, 32.0);
+            try {
+                if (hasConditionalHostility(mob)) {
+                    if (!(mob.getTarget() instanceof Player p)) return false;
+                    target = p;
+                } else {
+                    target = mob.getTarget() instanceof Player p ? p
+                            : mob.level().getNearestPlayer(mob, 32.0);
+                }
+                if (target == null || target.isSpectator() || target.isCreative()) return false;
+                return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get();
+            } catch (Throwable throwable) {
+                Guard.report("KiteGoal.canUse", throwable);
+                return false;
             }
-            if (target == null || target.isSpectator() || target.isCreative()) return false;
-            return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get();
         }
 
         @Override
         public boolean canContinueToUse() {
-            if (target == null || !target.isAlive()) return false;
-            if (hasConditionalHostility(mob) && mob.getTarget() != target) return false;
-            return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get() + HYSTERESIS;
+            try {
+                if (target == null || !target.isAlive()) return false;
+                if (hasConditionalHostility(mob) && mob.getTarget() != target) return false;
+                return mob.distanceTo(target) <= BuffMobsConfig.INSTANCE.rangedMeleeSwitching.switchDistance.get() + HYSTERESIS;
+            } catch (Throwable throwable) {
+                Guard.report("KiteGoal.canContinueToUse", throwable);
+                return false;
+            }
         }
 
         @Override
-        public void start() { flee(); }
+        public void start() {
+            try {
+                flee();
+            } catch (Throwable throwable) {
+                Guard.report("KiteGoal.start", throwable);
+            }
+        }
 
         @Override
         public void tick() {
-            if (target == null) return;
-            mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
-            if (mob.tickCount % 10 == 0 || mob.getNavigation().isDone()) flee();
+            try {
+                if (target == null) return;
+                mob.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
+                if (mob.tickCount % 10 == 0 || mob.getNavigation().isDone()) flee();
+            } catch (Throwable throwable) {
+                Guard.report("KiteGoal.tick", throwable);
+            }
         }
 
         @Override
-        public void stop() { mob.getNavigation().stop(); }
+        public void stop() {
+            try {
+                mob.getNavigation().stop();
+            } catch (Throwable throwable) {
+                Guard.report("KiteGoal.stop", throwable);
+            }
+        }
 
         private void flee() {
             if (target == null) return;
@@ -294,26 +324,42 @@ public class RangedMobAIManager {
 
         @Override
         public boolean canUse() {
-            LivingEntity t = mob.getTarget();
-            return t != null && t.isAlive() && mob.distanceTo(t) <= MELEE_ATTACK_REACH + 4.0;
+            try {
+                LivingEntity t = mob.getTarget();
+                return t != null && t.isAlive() && mob.distanceTo(t) <= MELEE_ATTACK_REACH + 4.0;
+            } catch (Throwable throwable) {
+                Guard.report("FallbackMeleeGoal.canUse", throwable);
+                return false;
+            }
         }
 
         @Override
-        public boolean canContinueToUse() { return canUse(); }
+        public boolean canContinueToUse() {
+            try {
+                return canUse();
+            } catch (Throwable throwable) {
+                Guard.report("FallbackMeleeGoal.canContinueToUse", throwable);
+                return false;
+            }
+        }
 
         @Override
         public void tick() {
-            LivingEntity t = mob.getTarget();
-            if (t == null || !(mob.level() instanceof ServerLevel sl)) return;
-            mob.getLookControl().setLookAt(t.getX(), t.getEyeY(), t.getZ());
-            if (mob.distanceTo(t) > MELEE_ATTACK_REACH) {
-                mob.getNavigation().moveTo(t, MELEE_CHASE_SPEED);
-            } else {
-                mob.getNavigation().stop();
-                if (mob.tickCount % 20 == 0 && hasLineOfSight(mob, t)) {
-                    mob.doHurtTarget(sl, t);
-                    mob.swing(InteractionHand.MAIN_HAND);
+            try {
+                LivingEntity t = mob.getTarget();
+                if (t == null || !(mob.level() instanceof ServerLevel sl)) return;
+                mob.getLookControl().setLookAt(t.getX(), t.getEyeY(), t.getZ());
+                if (mob.distanceTo(t) > MELEE_ATTACK_REACH) {
+                    mob.getNavigation().moveTo(t, MELEE_CHASE_SPEED);
+                } else {
+                    mob.getNavigation().stop();
+                    if (mob.tickCount % 20 == 0 && hasLineOfSight(mob, t)) {
+                        mob.doHurtTarget(sl, t);
+                        SwingUtil.swing(mob, InteractionHand.MAIN_HAND);
+                    }
                 }
+            } catch (Throwable throwable) {
+                Guard.report("FallbackMeleeGoal.tick", throwable);
             }
         }
     }
