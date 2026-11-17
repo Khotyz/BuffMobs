@@ -91,7 +91,6 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration.get() * 20;
         boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        // Schedule particle burst after the "drink" delay
         state.restoreAtTick   = now + DRINK_ANIMATION_TICKS;
         state.animationActive = true;
 
@@ -120,7 +119,6 @@ public class CombatDraftHandler {
                         ? "∞" : BuffMobsConfig.INSTANCE.combatDraft.maxUses.get());
     }
 
-    // Spawns happy villager particles to visually signal the heal
     private static void spawnDrinkParticles(Mob mob) {
         if (!(mob.level() instanceof ServerLevel sl)) return;
         for (int i = 0; i < 8; i++) {
@@ -137,12 +135,8 @@ public class CombatDraftHandler {
         if (mob.isRemoved() || !mob.isAlive()) return false;
         if (mob instanceof TamableAnimal t && t.isTame()) return false;
 
-        boolean hostile = MobBuffUtil.isHostileType(mob)
-                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
-                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
-                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
-                || isNeutral(mob);
-        if (!hostile) return false;
+        boolean combatMob = MobBuffUtil.isHostileType(mob) || MobBuffUtil.isNeutralType(mob);
+        if (!combatMob) return false;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         BuffMobsConfig.CombatDraft cfg = BuffMobsConfig.INSTANCE.combatDraft;
@@ -153,24 +147,11 @@ public class CombatDraftHandler {
         return true;
     }
 
-    private static boolean isNeutral(Mob mob) {
-        String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        return switch (id) {
-            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
-                 "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
-                 "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
-                 "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
-                 "minecraft:trader_llama" -> true;
-            default -> false;
-        };
-    }
-
     private static class MobDraftState {
         long lastUseTick      = -99999;
         int  useCount         = 0;
         boolean animationActive = false;
         long restoreAtTick    = 0;
-        // pendingRestore removed — no fake potion item is placed in offhand
         ItemStack pendingRestore = null;
     }
 }

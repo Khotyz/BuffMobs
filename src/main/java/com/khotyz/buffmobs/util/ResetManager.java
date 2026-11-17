@@ -6,7 +6,6 @@ import com.khotyz.buffmobs.event.BloodMoonHandler;
 import com.khotyz.buffmobs.event.EliteMobHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
 import com.khotyz.buffmobs.event.PackAggressionHandler;
-import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.event.SpecialAbilityHandler;
 import com.khotyz.buffmobs.event.TraitsHandler;
 import net.minecraft.server.MinecraftServer;
@@ -70,13 +69,11 @@ public class ResetManager {
         MobArmorManager.clearCaches();
         RangedMobAIManager.clearAllStates();
         CombatDraftHandler.clearStates();
-        PassiveMobAggressionHandler.forceReinit();
 
         int count = 0;
         for (Mob mob : mobs) {
             if (mob.isRemoved() || !mob.isAlive()) continue;
             MobTickHandler.reinitializeMob(mob);
-            PassiveMobAggressionHandler.reloadMob(mob);
             count++;
         }
         BuffMobsMod.LOGGER.info("[BuffMobs] Mob caches cleared, {} mobs reinitialized", count);

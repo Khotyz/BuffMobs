@@ -4,7 +4,6 @@ import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.EliteMobHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
-import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.event.SpecialAbilityHandler;
 import com.khotyz.buffmobs.event.TraitsHandler;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
@@ -92,10 +91,6 @@ public class DebugCommand {
         src.sendSuccess(() -> lit(isValid
                 ? "buffmobs.command.debug.valid.yes"
                 : "buffmobs.command.debug.valid.no"), false);
-
-        boolean passiveAggressive = MobBuffUtil.isPassiveAggressiveMob(mob);
-        src.sendSuccess(() -> lit("buffmobs.command.debug.passive_aggression",
-                yesNo(BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF && passiveAggressive)), false);
 
         src.sendSuccess(() -> lit("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled.get();
@@ -216,7 +211,6 @@ public class DebugCommand {
                     EliteMobHandler.onMobInitialized(mob);
                     TraitsHandler.onMobInitialized(mob);
                     SpecialAbilityHandler.onMobInitialized(mob);
-                    PassiveMobAggressionHandler.reloadMob(mob);
                     count++;
                 } catch (Exception ex) { BuffMobsMod.LOGGER.error("Failed to buff mob", ex); }
             }
@@ -235,7 +229,7 @@ public class DebugCommand {
         src.sendSuccess(() -> lit("buffmobs.command.info.damage_mult",  BuffMobsConfig.INSTANCE.attributes.damageMultiplier.get()), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.day_scaling",  yesNo(BuffMobsConfig.INSTANCE.dayScaling.enabled.get())), false);
         src.sendSuccess(() -> lit("buffmobs.command.info.presets",      yesNo(BuffMobsConfig.INSTANCE.mobPresets.enabled.get())), false);
-        src.sendSuccess(() -> lit("buffmobs.command.info.passive_aggression", yesNo(BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get() != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF)), false);
+        src.sendSuccess(() -> lit("buffmobs.command.info.buff_neutral_mobs", yesNo(BuffMobsConfig.INSTANCE.mobFilter.buffNeutralMobs.get())), false);
         return 1;
     }
 }

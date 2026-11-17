@@ -1,6 +1,7 @@
 package com.khotyz.buffmobs.config;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -10,6 +11,8 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
@@ -72,6 +75,47 @@ public class StringListEditScreen extends Screen {
     }
 
     @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        renderHint(guiGraphics);
+        if (list == null || layout == null) return;
+        int areaTop = layout.getHeaderHeight();
+        int areaBottom = height - layout.getFooterHeight();
+        for (ListEntry entry : list.children()) {
+            entry.renderSuggestions(guiGraphics, font, width, height, entry.isControlVisible(areaTop, areaBottom));
+        }
+    }
+
+    private void renderHint(GuiGraphics guiGraphics) {
+        SuggestionKind kind = option.suggestionKind();
+        if (!kind.isEnabled() || layout == null) return;
+        int hintY = Math.max(2, layout.getHeaderHeight() - 11);
+        guiGraphics.drawCenteredString(font, Component.translatable(kind.hintKey()), width / 2, hintY, 0xFF8A8A8A);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        AutoCompleteField field = openField();
+        if (field != null && field.keyPressed(event)) return true;
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        AutoCompleteField field = openField();
+        if (field != null && field.mouseClicked(event)) return true;
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    private AutoCompleteField openField() {
+        if (list == null) return null;
+        for (ListEntry entry : list.children()) {
+            if (entry.isSuggestionOpen()) return entry.suggestionField();
+        }
+        return null;
+    }
+
+    @Override
     public void onClose() {
         commit();
         parent.refreshEntries();
@@ -87,7 +131,7 @@ public class StringListEditScreen extends Screen {
     private void commit() {
         if (list == null) return;
         List<String> values = new ArrayList<>();
-        for (ListEntry entry : list.children()) values.add(entry.editBox.getValue());
+        for (ListEntry entry : list.children()) values.add(entry.value());
         option.set(values);
     }
 
@@ -121,11 +165,20 @@ public class StringListEditScreen extends Screen {
 
         private final EditBox editBox;
         private final Button removeButton;
+        private final AutoCompleteField autoComplete;
         private final List<AbstractWidget> widgets = new ArrayList<>();
 
         private ListEntry(String value) {
-            editBox = new EditBox(font, 0, 0, 120, 20, option.label());
+            editBox = new EditBox(font, 0, 0, 120, 20, option.label()) {
+                @Override
+                public void setFocused(boolean focused) {
+                    super.setFocused(focused);
+                    if (focused) ListEntry.this.refreshSuggestions();
+                }
+            };
             editBox.setMaxLength(1024);
+            autoComplete = new AutoCompleteField(editBox, option.suggestionKind());
+            editBox.setResponder(text -> refreshSuggestions());
             editBox.setValue(value == null ? "" : value);
             widgets.add(editBox);
             removeButton = Button.builder(Component.translatable("buffmobs.config.menu.removeEntry").copy().withStyle(ChatFormatting.RED), button -> {
@@ -133,6 +186,30 @@ public class StringListEditScreen extends Screen {
                 commit();
             }).build();
             widgets.add(removeButton);
+        }
+
+        private String value() {
+            return editBox.getValue();
+        }
+
+        private void refreshSuggestions() {
+            if (autoComplete != null) autoComplete.refresh();
+        }
+
+        private boolean isSuggestionOpen() {
+            return autoComplete != null && autoComplete.isOpen();
+        }
+
+        private AutoCompleteField suggestionField() {
+            return autoComplete;
+        }
+
+        private void renderSuggestions(GuiGraphics guiGraphics, Font entryFont, int screenWidth, int screenHeight, boolean areaVisible) {
+            if (autoComplete != null) autoComplete.render(guiGraphics, entryFont, screenWidth, screenHeight, areaVisible);
+        }
+
+        private boolean isControlVisible(int areaTop, int areaBottom) {
+            return editBox.getY() + editBox.getHeight() > areaTop && editBox.getY() < areaBottom;
         }
 
         @Override

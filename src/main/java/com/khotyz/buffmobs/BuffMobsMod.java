@@ -10,7 +10,6 @@ import com.khotyz.buffmobs.event.LootXpScalingHandler;
 import com.khotyz.buffmobs.event.MobEventHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
 import com.khotyz.buffmobs.event.PackAggressionHandler;
-import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.event.SpecialAbilityHandler;
 import com.khotyz.buffmobs.event.TraitsHandler;
 import net.neoforged.bus.api.IEventBus;
@@ -40,7 +39,6 @@ public class BuffMobsMod {
         NeoForge.EVENT_BUS.register(new AdaptiveDifficultyHandler());
         NeoForge.EVENT_BUS.register(DebugCommand.class);
         NeoForge.EVENT_BUS.register(ResetCommand.class);
-        PassiveMobAggressionHandler.register();
 
         LOGGER.info("BuffMobs initialized successfully");
     }

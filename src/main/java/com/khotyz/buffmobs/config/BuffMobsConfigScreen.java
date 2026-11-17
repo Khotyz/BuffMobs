@@ -17,6 +17,7 @@ import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -104,6 +105,26 @@ public class BuffMobsConfigScreen extends Screen {
             list.updateSize(width, layout);
             list.setScrollAmount(savedScroll);
         }
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        if (layout == null) return;
+        int areaTop = layout.getHeaderHeight();
+        int areaBottom = height - layout.getFooterHeight();
+        for (CommittingEditBox<?> editBox : editBoxes) {
+            boolean areaVisible = editBox.getY() + editBox.getHeight() > areaTop && editBox.getY() < areaBottom;
+            editBox.renderSuggestions(guiGraphics, font, width, height, areaVisible);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        for (CommittingEditBox<?> editBox : editBoxes) {
+            if (editBox.isSuggestionOpen() && editBox.suggestionField().mouseClicked(event)) return true;
+        }
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
@@ -371,7 +392,7 @@ public class BuffMobsConfigScreen extends Screen {
             Component invalid = Component.translatable("buffmobs.config.menu.invalidNumber", formatBound(intOption.min()), formatBound(intOption.max()));
             CommittingEditBox<Integer> editBox = new CommittingEditBox<>(font, intOption.label(),
                     text -> parseInteger(text, intOption), value -> Integer.toString(value), intOption::value, intOption::set,
-                    intOption.tooltip(), invalid);
+                    intOption.tooltip(), invalid, SuggestionKind.NONE);
             editBoxes.add(editBox);
             refreshAction = editBox::refreshFromSource;
             return editBox;
@@ -382,7 +403,7 @@ public class BuffMobsConfigScreen extends Screen {
             Component invalid = Component.translatable("buffmobs.config.menu.invalidNumber", formatBound(doubleOption.min()), formatBound(doubleOption.max()));
             CommittingEditBox<Double> editBox = new CommittingEditBox<>(font, doubleOption.label(),
                     text -> parseDecimal(text, doubleOption), BuffMobsConfigScreen::formatDecimal, doubleOption::value, doubleOption::set,
-                    doubleOption.tooltip(), invalid);
+                    doubleOption.tooltip(), invalid, SuggestionKind.NONE);
             editBoxes.add(editBox);
             refreshAction = editBox::refreshFromSource;
             return editBox;
@@ -392,7 +413,7 @@ public class BuffMobsConfigScreen extends Screen {
             ConfigMenu.Option<String> stringOption = castOption(option);
             CommittingEditBox<String> editBox = new CommittingEditBox<>(font, stringOption.label(),
                     text -> text, value -> value == null ? "" : value, stringOption::value, stringOption::set,
-                    stringOption.tooltip(), null);
+                    stringOption.tooltip(), null, stringOption.suggestionKind());
             editBoxes.add(editBox);
             refreshAction = editBox::refreshFromSource;
             return editBox;
@@ -463,9 +484,11 @@ public class BuffMobsConfigScreen extends Screen {
         private final Consumer<T> committer;
         private final Component validTooltip;
         private final Component invalidTooltip;
+        private final AutoCompleteField autoComplete;
 
         private CommittingEditBox(Font font, Component message, Function<String, T> parser, Function<T, String> formatter,
-                                  Supplier<T> source, Consumer<T> committer, Component validTooltip, Component invalidTooltip) {
+                                  Supplier<T> source, Consumer<T> committer, Component validTooltip, Component invalidTooltip,
+                                  SuggestionKind suggestionKind) {
             super(font, 0, 0, 120, 20, message);
             this.parser = parser;
             this.formatter = formatter;
@@ -473,10 +496,27 @@ public class BuffMobsConfigScreen extends Screen {
             this.committer = committer;
             this.validTooltip = validTooltip;
             this.invalidTooltip = invalidTooltip;
+            this.autoComplete = suggestionKind != null && suggestionKind.isEnabled() ? new AutoCompleteField(this, suggestionKind) : null;
             setMaxLength(1024);
-            setResponder(text -> updateValidity());
+            setResponder(text -> {
+                updateValidity();
+                if (autoComplete != null) autoComplete.refresh();
+            });
             setValue(formatter.apply(source.get()));
             updateValidity();
+            if (autoComplete != null) autoComplete.refresh();
+        }
+
+        private boolean isSuggestionOpen() {
+            return autoComplete != null && autoComplete.isOpen();
+        }
+
+        private AutoCompleteField suggestionField() {
+            return autoComplete;
+        }
+
+        private void renderSuggestions(GuiGraphics guiGraphics, Font screenFont, int screenWidth, int screenHeight, boolean areaVisible) {
+            if (autoComplete != null) autoComplete.render(guiGraphics, screenFont, screenWidth, screenHeight, areaVisible);
         }
 
         private void updateValidity() {
@@ -504,11 +544,16 @@ public class BuffMobsConfigScreen extends Screen {
         @Override
         public void setFocused(boolean focused) {
             super.setFocused(focused);
-            if (!focused) commit();
+            if (!focused) {
+                commit();
+            } else if (autoComplete != null) {
+                autoComplete.refresh();
+            }
         }
 
         @Override
         public boolean keyPressed(KeyEvent event) {
+            if (autoComplete != null && autoComplete.keyPressed(event)) return true;
             if (event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) {
                 commit();
                 return true;
