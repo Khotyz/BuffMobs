@@ -60,7 +60,6 @@ public class ResetManager {
             MobArmorManager.stripArmor(mob);
             RangedMobAIManager.cleanup(mob);
             CombatDraftHandler.onMobRemoved(mob);
-            PassiveMobAggressionHandler.onMobRemoved(mob);
         }
         MobTickHandler.clearCaches();
         EliteMobHandler.clearCaches();
@@ -70,13 +69,11 @@ public class ResetManager {
         MobArmorManager.clearCaches();
         RangedMobAIManager.clearAllStates();
         CombatDraftHandler.forceReinit();
-        PassiveMobAggressionHandler.forceReinit();
 
         int count = 0;
         for (Mob mob : mobs) {
             if (mob.isRemoved() || !mob.isAlive()) continue;
             MobTickHandler.reinitializeMob(mob);
-            PassiveMobAggressionHandler.reloadMob(mob);
             count++;
         }
         BuffMobsMod.LOGGER.info("[BuffMobs] Mob caches cleared, {} mobs reinitialized", count);

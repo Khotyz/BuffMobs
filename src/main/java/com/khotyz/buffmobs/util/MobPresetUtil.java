@@ -14,11 +14,14 @@ public class MobPresetUtil {
         String presetName = null;
 
         for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
-            String[] parts = mapping.split(":");
+            if (mapping == null) continue;
+            String trimmed = mapping.trim();
+            if (trimmed.isEmpty()) continue;
+            String[] parts = trimmed.split(":");
             if (parts.length >= 3) {
-                String mappedMobId = parts[0] + ":" + parts[1];
+                String mappedMobId = parts[0].trim() + ":" + parts[1].trim();
                 if (mappedMobId.equals(mobId)) {
-                    presetName = parts[2];
+                    presetName = parts[2].trim();
                     break;
                 }
             } else {
@@ -59,8 +62,8 @@ public class MobPresetUtil {
     }
 
     public static String effectivePresetName(BuffMobsConfig.MobPresets.PresetSlot preset, int zeroBasedIndex) {
-        String configuredName = preset.presetName;
-        if (configuredName != null && !configuredName.isEmpty()) return configuredName;
+        String configuredName = preset.presetName == null ? "" : preset.presetName.trim();
+        if (!configuredName.isEmpty()) return configuredName;
         return switch (zeroBasedIndex) {
             case 0 -> "default";
             case 1 -> "boss";

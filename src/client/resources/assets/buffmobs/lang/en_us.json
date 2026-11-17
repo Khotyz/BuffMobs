@@ -263,6 +263,8 @@
 
   "modmenu.nameTranslation.buffmobs": "BuffMobs",
   "modmenu.descriptionTranslation.buffmobs": "Makes hostile and neutral mobs stronger, faster, and more challenging with progressive difficulty scaling.",
+  "key.buffmobs.open_config": "Open BuffMobs Config",
+  "key.categories.buffmobs": "BuffMobs",
 
   "buffmobs.config.credits.translation": "Translation by: Khotyz ",
 
@@ -286,6 +288,12 @@
   "buffmobs.config.dimensionMaxHealth.dimensionId.tooltip": "Dimension ID, e.g. minecraft:the_nether",
   "buffmobs.config.dimensionMaxHealth.maxHealth": "Max Health",
   "buffmobs.config.dimensionMaxHealth.maxHealth.tooltip": "Fixed max health applied to mobs in this dimension (0 = disabled).",
+  "buffmobs.config.dimensionMaxHealth.slotUseAllowlist": "Use Allowlist For This Slot",
+  "buffmobs.config.dimensionMaxHealth.slotUseAllowlist.tooltip": "When enabled, only mobs listed in this slot allowlist receive the fixed max health.",
+  "buffmobs.config.dimensionMaxHealth.slotAllowlist": "Slot Allowlist",
+  "buffmobs.config.dimensionMaxHealth.slotAllowlist.tooltip": "Mob IDs allowed to receive the fixed max health in this slot, e.g. minecraft:zombie.",
+  "buffmobs.config.dimensionMaxHealth.slotDenylist": "Slot Denylist",
+  "buffmobs.config.dimensionMaxHealth.slotDenylist.tooltip": "Mob IDs that never receive the fixed max health in this slot.",
   "buffmobs.config.dimensionMaxHealth.mobFilter": "Mob Filter",
   "buffmobs.config.dimensionMaxHealth.useAllowlist": "Use Allowlist",
   "buffmobs.config.dimensionMaxHealth.useAllowlist.tooltip": "If true, only mobs in 'allowlist' receive dimension max health overrides.",

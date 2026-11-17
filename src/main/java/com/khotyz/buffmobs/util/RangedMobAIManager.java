@@ -119,7 +119,7 @@ public class RangedMobAIManager {
 
     public static boolean isRangedMob(Mob mob) {
         String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (BuffMobsConfig.INSTANCE.rangedMeleeSwitching.customRangedMobs.contains(id)) return true;
+        if (MobBuffUtil.containsEntry(BuffMobsConfig.INSTANCE.rangedMeleeSwitching.customRangedMobs, id)) return true;
         return mob instanceof AbstractSkeleton || mob instanceof Stray
                 || mob instanceof Piglin || mob instanceof Pillager;
     }

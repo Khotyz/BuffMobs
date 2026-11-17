@@ -88,7 +88,7 @@ public class MobArmorManager {
     public static boolean canWearArmor(Mob mob) {
         if (mob instanceof Zombie || mob instanceof AbstractSkeleton || mob instanceof AbstractPiglin) return true;
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        return BuffMobsConfig.INSTANCE.mobArmor.additionalArmorMobs.contains(mobId);
+        return MobBuffUtil.containsEntry(BuffMobsConfig.INSTANCE.mobArmor.additionalArmorMobs, mobId);
     }
 
     private static boolean isEligible(Mob mob) {

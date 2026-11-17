@@ -6,7 +6,6 @@ import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.DimensionUtil;
 import com.khotyz.buffmobs.util.MobArmorManager;
 import com.khotyz.buffmobs.util.MobBuffUtil;
-import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -57,7 +56,6 @@ public class MobTickHandler {
             PENDING_INIT.remove(uuid);
             RangedMobAIManager.cleanup(mob);
             CombatDraftHandler.onMobRemoved(mob);
-            PassiveMobAggressionHandler.onMobRemoved(mob);
             EliteMobHandler.onMobRemoved(mob);
             TraitsHandler.onMobRemoved(mob);
             SpecialAbilityHandler.onMobRemoved(mob);
@@ -115,7 +113,6 @@ public class MobTickHandler {
                                 RangedMobAIManager.updateMobBehavior(mob);
                                 MobBuffUtil.refreshInfiniteEffects(mob);
                                 CombatDraftHandler.tick(mob);
-                                PassiveMobAggressionHandler.tick(mob);
                                 MobBuffUtil.applyDimensionMaxHealth(mob);
                             } catch (Exception ex) {
                                 BuffMobsMod.LOGGER.warn("[BuffMobs] Error updating mob behavior", ex);
@@ -156,7 +153,7 @@ public class MobTickHandler {
     private static void initializeMob(Mob mob, boolean forceReapply) {
         if (!BuffMobsConfig.INSTANCE.enabled) {
             MobBuffUtil.removeAllModifiers(mob);
-            MobBuffUtil.applyDimensionMaxHealth(mob);
+            MobBuffUtil.removeAllBuffEffects(mob);
             return;
         }
         UUID uuid = mob.getUUID();
@@ -167,21 +164,17 @@ public class MobTickHandler {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
-                PassiveMobAggressionHandler.onMobInitialized(mob);
                 EliteMobHandler.onMobInitialized(mob);
                 TraitsHandler.onMobInitialized(mob);
                 SpecialAbilityHandler.onMobInitialized(mob);
                 MobArmorManager.equipArmor(mob, forceReapply);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
-            } else if (MobBuffUtil.isPassiveAggressiveMob(mob)) {
-                PassiveMobAggressionHandler.onMobInitialized(mob);
-                INITIALIZED_MOBS.add(uuid);
-                BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression: {}", mob.getType().getDescriptionId());
             } else {
                 MobBuffUtil.removeAllModifiers(mob);
+                MobBuffUtil.removeAllBuffEffects(mob);
+                MobBuffUtil.applyDimensionMaxHealth(mob);
             }
-            MobBuffUtil.applyDimensionMaxHealth(mob);
         } catch (Exception e) {
             BuffMobsMod.LOGGER.error("[BuffMobs] Failed to initialize mob: {}", mob.getType(), e);
         }
@@ -210,7 +203,6 @@ public class MobTickHandler {
     public static void forceReinitAll() {
         INITIALIZED_MOBS.clear();
         PENDING_INIT.clear();
-        PassiveMobAggressionHandler.forceReinit();
         CombatDraftHandler.forceReinit();
     }
 }

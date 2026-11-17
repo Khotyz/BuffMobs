@@ -1,5 +1,6 @@
 package com.khotyz.buffmobs.config;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -10,7 +11,6 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -21,6 +21,7 @@ public class StringListEditScreen extends Screen {
     private final BuffMobsConfigScreen parent;
     private final ConfigMenu.Option<List<String>> option;
     private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this);
+    private final AutoCompleteDropdown autoComplete = new AutoCompleteDropdown();
     private EntryList list;
     private Button addButton;
     private Button doneButton;
@@ -34,6 +35,7 @@ public class StringListEditScreen extends Screen {
 
     @Override
     protected void init() {
+        autoComplete.clear();
         layout.addTitleHeader(title, font);
         list = new EntryList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight(), 24);
         for (String value : option.value()) list.addValue(value);
@@ -41,8 +43,8 @@ public class StringListEditScreen extends Screen {
         layout.visitWidgets(this::addRenderableWidget);
         addButton = addRenderableWidget(Button.builder(Component.translatable("buffmobs.config.menu.addEntry").copy().withStyle(ChatFormatting.AQUA), button -> {
             ListEntry entry = list.addValue("");
-            commit();
             list.centerOn(entry);
+            focusEntry(entry);
         }).build());
         doneButton = addRenderableWidget(Button.builder(Component.translatable("gui.done").copy().withStyle(ChatFormatting.AQUA), button -> onClose()).build());
         repositionElements();
@@ -71,7 +73,53 @@ public class StringListEditScreen extends Screen {
     }
 
     @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        boolean overDropdown = list != null && autoComplete.isMouseOver(
+                mouseX, mouseY, list.getY(), list.getY() + list.getHeight(), height - 32);
+        autoComplete.resetFrameTracking();
+        int effectiveMouseX = overDropdown ? -1 : mouseX;
+        int effectiveMouseY = overDropdown ? -1 : mouseY;
+        super.render(guiGraphics, effectiveMouseX, effectiveMouseY, partialTick);
+        if (list != null) {
+            autoComplete.render(guiGraphics, font, mouseX, mouseY,
+                    list.getY(), list.getY() + list.getHeight(), height - 32);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (list != null && autoComplete.mouseClicked(
+                mouseX, mouseY, button, list.getY(), list.getY() + list.getHeight(), height - 32)) {
+            return true;
+        }
+        boolean handled = super.mouseClicked(mouseX, mouseY, button);
+        syncFocusedEntry();
+        return handled;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (list != null && autoComplete.mouseScrolled(
+                mouseX, mouseY, scrollY, list.getY(), list.getY() + list.getHeight(), height - 32)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (list != null && autoComplete.keyPressed(
+                keyCode, list.getY(), list.getY() + list.getHeight(), height - 32)) {
+            return true;
+        }
+        boolean handled = super.keyPressed(keyCode, scanCode, modifiers);
+        syncFocusedEntry();
+        return handled;
+    }
+
+    @Override
     public void onClose() {
+        autoComplete.clear();
         commit();
         parent.refreshEntries();
         if (minecraft != null) minecraft.setScreen(parent);
@@ -79,6 +127,7 @@ public class StringListEditScreen extends Screen {
 
     @Override
     public void removed() {
+        autoComplete.clear();
         commit();
         super.removed();
     }
@@ -86,8 +135,37 @@ public class StringListEditScreen extends Screen {
     private void commit() {
         if (list == null) return;
         List<String> values = new ArrayList<>();
-        for (ListEntry entry : list.children()) values.add(entry.editBox.getValue());
+        for (ListEntry entry : list.children()) {
+            String value = entry.editBox.getValue().trim();
+            if (!value.isEmpty()) values.add(value);
+        }
         option.set(values);
+    }
+
+    private void focusEntry(ListEntry entry) {
+        setFocused(list);
+        list.setFocused(entry);
+        entry.setFocused(entry.editBox);
+        SuggestionProvider provider = option.suggestionProvider();
+        if (provider != null) {
+            autoComplete.activate(entry.editBox, provider, selected -> commit(), false);
+        }
+    }
+
+    private void syncFocusedEntry() {
+        SuggestionProvider provider = option.suggestionProvider();
+        if (provider == null || list == null) {
+            autoComplete.clear();
+            return;
+        }
+        EditBox focusedBox = null;
+        for (ListEntry entry : list.children()) {
+            if (entry.editBox.isFocused()) {
+                focusedBox = entry.editBox;
+                break;
+            }
+        }
+        autoComplete.syncFocusedBox(focusedBox, provider, selected -> commit());
     }
 
     private final class EntryList extends ContainerObjectSelectionList<ListEntry> {
@@ -123,11 +201,17 @@ public class StringListEditScreen extends Screen {
         private final List<AbstractWidget> widgets = new ArrayList<>();
 
         private ListEntry(String value) {
+            SuggestionProvider provider = option.suggestionProvider();
             editBox = new EditBox(font, 0, 0, 120, 20, option.label());
             editBox.setMaxLength(1024);
             editBox.setValue(value == null ? "" : value);
+            if (provider != null) {
+                editBox.setHint(provider.hint().copy().withStyle(ChatFormatting.DARK_GRAY));
+                editBox.setResponder(text -> autoComplete.onTextChanged(editBox, provider, selected -> commit()));
+            }
             widgets.add(editBox);
             removeButton = Button.builder(Component.translatable("buffmobs.config.menu.removeEntry").copy().withStyle(ChatFormatting.RED), button -> {
+                autoComplete.onBoxRemoved(editBox);
                 StringListEditScreen.this.list.removeValue(this);
                 commit();
             }).build();
@@ -155,6 +239,7 @@ public class StringListEditScreen extends Screen {
             editBox.setY(y);
             editBox.setWidth(Math.max(40, width - removeWidth - gap));
             editBox.setHeight(20);
+            autoComplete.markBoxRendered(editBox);
             removeButton.setX(left + width - removeWidth);
             removeButton.setY(y);
             removeButton.setWidth(removeWidth);

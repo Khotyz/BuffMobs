@@ -39,7 +39,6 @@ public class CombatDraftHandler {
         STATES.clear();
     }
 
-    // Kept for API compatibility with MobTickHandler; no-op now that offhand restore was removed.
     public static void tickRestore(Mob mob) {}
 
     public static void tick(Mob mob) {
@@ -67,14 +66,12 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration * 20;
         boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        // Play drink sound without touching any item slot
         mob.level().playSound(null,
                 mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.GENERIC_DRINK,
                 mob.getSoundSource(),
                 1.0f, 0.9f + mob.level().getRandom().nextFloat() * 0.2f);
 
-        // Spawn happy-villager particles as a visual cue
         if (mob.level() instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(
                     ParticleTypes.HAPPY_VILLAGER,
@@ -107,7 +104,7 @@ public class CombatDraftHandler {
                 draftAmp,
                 state.useCount,
                 BuffMobsConfig.INSTANCE.combatDraft.maxUses == 0
-                        ? "∞" : BuffMobsConfig.INSTANCE.combatDraft.maxUses);
+                        ? "unlimited" : BuffMobsConfig.INSTANCE.combatDraft.maxUses);
     }
 
     private static boolean isEligible(Mob mob) {
@@ -117,9 +114,9 @@ public class CombatDraftHandler {
         BuffMobsConfig.CombatDraft cfg = BuffMobsConfig.INSTANCE.combatDraft;
 
         if (HARDCODED_BLACKLIST.contains(mobId)) return false;
-        if (cfg.blacklist.contains(mobId)) return false;
-        if (cfg.useWhitelist) return cfg.whitelist.contains(mobId);
-        return true;
+        if (MobBuffUtil.containsEntry(cfg.blacklist, mobId)) return false;
+        if (MobBuffUtil.containsEntry(cfg.whitelist, mobId)) return true;
+        return !cfg.useWhitelist;
     }
 
     private static class MobDraftState {

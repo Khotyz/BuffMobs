@@ -143,18 +143,25 @@ public class SpecialAbilityHandler {
     private static EnumSet<Ability> parseAbilitiesFor(String mobId) {
         EnumSet<Ability> abilities = EnumSet.noneOf(Ability.class);
         for (String entry : BuffMobsConfig.INSTANCE.specialAbilities.mobAbilities) {
-            String[] parts = entry.split(":");
+            if (entry == null) continue;
+            String trimmed = entry.trim();
+            if (trimmed.isEmpty()) continue;
+            String[] parts = trimmed.split(":");
             if (parts.length < 3) {
                 BuffMobsMod.LOGGER.warn("[BuffMobs] Invalid ability mapping format: '{}' (expected modid:mob_id:ability_id)", entry);
                 continue;
             }
-            String mappedMobId = parts[0] + ":" + parts[1];
+            String mappedMobId = parts[0].trim() + ":" + parts[1].trim();
             if (!mappedMobId.equals(mobId)) continue;
-            Ability ability = Ability.fromId(parts[2].trim());
-            if (ability != null) {
-                abilities.add(ability);
-            } else {
-                BuffMobsMod.LOGGER.warn("[BuffMobs] Unknown ability id: '{}' in mapping '{}'", parts[2], entry);
+            for (String token : parts[2].split(",")) {
+                String abilityId = token.trim();
+                if (abilityId.isEmpty()) continue;
+                Ability ability = Ability.fromId(abilityId);
+                if (ability != null) {
+                    abilities.add(ability);
+                } else {
+                    BuffMobsMod.LOGGER.warn("[BuffMobs] Unknown ability id: '{}' in mapping '{}'", abilityId, entry);
+                }
             }
         }
         return abilities;
@@ -289,7 +296,8 @@ public class SpecialAbilityHandler {
     }
 
     private static Mob spawnMinion(ServerLevel level, Vec3 position, String entityId) {
-        ResourceLocation id = ResourceLocation.tryParse(entityId);
+        String normalized = entityId == null ? "" : entityId.trim();
+        ResourceLocation id = ResourceLocation.tryParse(normalized);
         if (id == null) {
             BuffMobsMod.LOGGER.warn("[BuffMobs] Invalid minion entity id: '{}'", entityId);
             return null;

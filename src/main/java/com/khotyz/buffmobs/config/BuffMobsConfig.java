@@ -31,7 +31,6 @@ public class BuffMobsConfig {
     public RangedMeleeSwitching rangedMeleeSwitching = new RangedMeleeSwitching();
     public CombatDraft combatDraft = new CombatDraft();
     public MobPresets mobPresets = new MobPresets();
-    public PassiveMobAggression passiveMobAggression = new PassiveMobAggression();
     public ZombieHandling zombieHandling = new ZombieHandling();
     public HealthSync healthSync = new HealthSync();
     public DimensionMaxHealth dimensionMaxHealth = new DimensionMaxHealth();
@@ -79,7 +78,6 @@ public class BuffMobsConfig {
         if (src.rangedMeleeSwitching != null) INSTANCE.rangedMeleeSwitching = src.rangedMeleeSwitching;
         if (src.combatDraft != null) INSTANCE.combatDraft = src.combatDraft;
         if (src.mobPresets != null) INSTANCE.mobPresets = src.mobPresets;
-        if (src.passiveMobAggression != null) INSTANCE.passiveMobAggression = src.passiveMobAggression;
         if (src.zombieHandling != null) INSTANCE.zombieHandling = src.zombieHandling;
         if (src.healthSync != null) INSTANCE.healthSync = src.healthSync;
         if (src.dimensionMaxHealth != null) INSTANCE.dimensionMaxHealth = src.dimensionMaxHealth;
@@ -91,6 +89,54 @@ public class BuffMobsConfig {
         if (src.specialAbilities != null) INSTANCE.specialAbilities = src.specialAbilities;
         if (src.bloodMoon != null) INSTANCE.bloodMoon = src.bloodMoon;
         if (src.adaptiveDifficulty != null) INSTANCE.adaptiveDifficulty = src.adaptiveDifficulty;
+        sanitize();
+    }
+
+    private static void sanitize() {
+        if (INSTANCE.mobFilter.whitelist == null) INSTANCE.mobFilter.whitelist = new ArrayList<>();
+        if (INSTANCE.mobFilter.blacklist == null) INSTANCE.mobFilter.blacklist = new ArrayList<>();
+        if (INSTANCE.modidFilter.whitelist == null) INSTANCE.modidFilter.whitelist = new ArrayList<>();
+        if (INSTANCE.modidFilter.blacklist == null) INSTANCE.modidFilter.blacklist = new ArrayList<>();
+        if (INSTANCE.dimensionFilter.whitelist == null) INSTANCE.dimensionFilter.whitelist = new ArrayList<>();
+        if (INSTANCE.dimensionFilter.blacklist == null) INSTANCE.dimensionFilter.blacklist = new ArrayList<>();
+        if (INSTANCE.rangedMeleeSwitching.customRangedMobs == null) INSTANCE.rangedMeleeSwitching.customRangedMobs = new ArrayList<>();
+        if (INSTANCE.combatDraft.whitelist == null) INSTANCE.combatDraft.whitelist = new ArrayList<>();
+        if (INSTANCE.combatDraft.blacklist == null) INSTANCE.combatDraft.blacklist = new ArrayList<>();
+        if (INSTANCE.mobPresets.mobMapping == null) INSTANCE.mobPresets.mobMapping = new ArrayList<>();
+        if (INSTANCE.mobPresets.preset1 == null) INSTANCE.mobPresets.preset1 = new MobPresets.PresetSlot("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        if (INSTANCE.mobPresets.preset2 == null) INSTANCE.mobPresets.preset2 = new MobPresets.PresetSlot("", 3.0, 2.5, 1.2, 1.5, 10.0, 5.0);
+        if (INSTANCE.mobPresets.preset3 == null) INSTANCE.mobPresets.preset3 = new MobPresets.PresetSlot("", 2.0, 1.8, 1.1, 1.2, 5.0, 2.0);
+        if (INSTANCE.mobPresets.preset4 == null) INSTANCE.mobPresets.preset4 = new MobPresets.PresetSlot("", 0.5, 0.5, 0.9, 0.8, 0.0, 0.0);
+        if (INSTANCE.mobPresets.preset5 == null) INSTANCE.mobPresets.preset5 = new MobPresets.PresetSlot("", 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+        if (INSTANCE.dimensionScaling.slot1 == null) INSTANCE.dimensionScaling.slot1 = new DimensionScaling.DimensionSlot();
+        if (INSTANCE.dimensionScaling.slot2 == null) INSTANCE.dimensionScaling.slot2 = new DimensionScaling.DimensionSlot();
+        if (INSTANCE.dimensionScaling.slot3 == null) INSTANCE.dimensionScaling.slot3 = new DimensionScaling.DimensionSlot();
+        if (INSTANCE.dimensionScaling.slot4 == null) INSTANCE.dimensionScaling.slot4 = new DimensionScaling.DimensionSlot();
+        if (INSTANCE.dimensionScaling.slot5 == null) INSTANCE.dimensionScaling.slot5 = new DimensionScaling.DimensionSlot();
+        if (INSTANCE.dimensionMaxHealth.allowlist == null) INSTANCE.dimensionMaxHealth.allowlist = new ArrayList<>();
+        if (INSTANCE.dimensionMaxHealth.denylist == null) INSTANCE.dimensionMaxHealth.denylist = new ArrayList<>();
+        if (INSTANCE.dimensionMaxHealth.slot1 == null) INSTANCE.dimensionMaxHealth.slot1 = new DimensionMaxHealth.Slot();
+        if (INSTANCE.dimensionMaxHealth.slot2 == null) INSTANCE.dimensionMaxHealth.slot2 = new DimensionMaxHealth.Slot();
+        if (INSTANCE.dimensionMaxHealth.slot3 == null) INSTANCE.dimensionMaxHealth.slot3 = new DimensionMaxHealth.Slot();
+        if (INSTANCE.dimensionMaxHealth.slot4 == null) INSTANCE.dimensionMaxHealth.slot4 = new DimensionMaxHealth.Slot();
+        if (INSTANCE.dimensionMaxHealth.slot5 == null) INSTANCE.dimensionMaxHealth.slot5 = new DimensionMaxHealth.Slot();
+        DimensionMaxHealth.Slot[] healthSlots = {
+                INSTANCE.dimensionMaxHealth.slot1, INSTANCE.dimensionMaxHealth.slot2, INSTANCE.dimensionMaxHealth.slot3,
+                INSTANCE.dimensionMaxHealth.slot4, INSTANCE.dimensionMaxHealth.slot5
+        };
+        for (DimensionMaxHealth.Slot slot : healthSlots) {
+            if (slot.dimensionId == null) slot.dimensionId = "";
+            if (slot.allowlist == null) slot.allowlist = new ArrayList<>();
+            if (slot.denylist == null) slot.denylist = new ArrayList<>();
+        }
+        if (INSTANCE.mobArmor.additionalArmorMobs == null) INSTANCE.mobArmor.additionalArmorMobs = new ArrayList<>();
+        if (INSTANCE.eliteMobs.generatedNamePrefixes == null) INSTANCE.eliteMobs.generatedNamePrefixes = new ArrayList<>();
+        if (INSTANCE.eliteMobs.generatedNameSuffixes == null) INSTANCE.eliteMobs.generatedNameSuffixes = new ArrayList<>();
+        if (INSTANCE.specialAbilities.mobAbilities == null) INSTANCE.specialAbilities.mobAbilities = new ArrayList<>();
+        if (INSTANCE.specialAbilities.deathrattle == null) INSTANCE.specialAbilities.deathrattle = new SpecialAbilities.Deathrattle();
+        if (INSTANCE.specialAbilities.lastStand == null) INSTANCE.specialAbilities.lastStand = new SpecialAbilities.LastStand();
+        if (INSTANCE.specialAbilities.teleport == null) INSTANCE.specialAbilities.teleport = new SpecialAbilities.Teleport();
+        if (INSTANCE.specialAbilities.summon == null) INSTANCE.specialAbilities.summon = new SpecialAbilities.Summon();
     }
 
     public static class DayScaling {
@@ -155,6 +201,7 @@ public class BuffMobsConfig {
     }
 
     public static class MobFilter {
+        public boolean buffNeutralMobs = false;
         public boolean useWhitelist = false;
         public List<String> whitelist = new ArrayList<>();
         public List<String> blacklist = new ArrayList<>(List.of("minecraft:warden"));
@@ -252,17 +299,6 @@ public class BuffMobsConfig {
                 this.armorToughnessAddition = tough;
             }
         }
-    }
-
-    public static class PassiveMobAggression {
-        public PassiveMode mode = PassiveMode.OFF;
-        public double baseDamage = 3.0;
-        public boolean scaleWithHealth = false;
-        public double healthScaleFactor = 0.1;
-        public List<String> whitelist = new ArrayList<>();
-        public List<String> blacklist = new ArrayList<>();
-
-        public enum PassiveMode { OFF, NEUTRAL, HOSTILE }
     }
 
     public static class ZombieHandling {

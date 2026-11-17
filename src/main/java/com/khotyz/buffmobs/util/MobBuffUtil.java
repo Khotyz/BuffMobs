@@ -16,6 +16,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -118,7 +119,7 @@ public class MobBuffUtil {
         BuffMobsConfig.DimensionMaxHealth.Slot slot = findDimensionMaxHealthSlot(getDimensionId(mob.level()));
         if (slot == null || slot.maxHealth <= 0) return 0.0;
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (!isAllowedByDimensionMaxHealthFilter(mobId, slot)) return 0.0;
+        if (!isAllowedByDimensionMaxHealthFilter(mob, mobId, slot)) return 0.0;
         return slot.maxHealth;
     }
 
@@ -197,15 +198,18 @@ public class MobBuffUtil {
                 BuffMobsConfig.INSTANCE.dimensionScaling.slot5
         };
         for (BuffMobsConfig.DimensionScaling.DimensionSlot slot : slots) {
-            if (slot.dimensionName != null && !slot.dimensionName.isEmpty() && slot.dimensionName.equals(dim)) {
-                return new DimensionMultipliers(
-                        slot.healthMultiplier      / 100.0,
-                        slot.damageMultiplier      / 100.0,
-                        slot.speedMultiplier       / 100.0,
-                        slot.attackSpeedMultiplier / 100.0,
-                        (double) slot.armorAddition,
-                        (double) slot.armorToughnessAddition
-                );
+            if (slot != null && slot.dimensionName != null) {
+                String slotDim = slot.dimensionName.trim();
+                if (!slotDim.isEmpty() && slotDim.equals(dim)) {
+                    return new DimensionMultipliers(
+                            slot.healthMultiplier      / 100.0,
+                            slot.damageMultiplier      / 100.0,
+                            slot.speedMultiplier       / 100.0,
+                            slot.attackSpeedMultiplier / 100.0,
+                            (double) slot.armorAddition,
+                            (double) slot.armorToughnessAddition
+                    );
+                }
             }
         }
         return new DimensionMultipliers(1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
@@ -277,73 +281,80 @@ public class MobBuffUtil {
     }
 
     public static boolean isValidMob(Mob mob) {
+        if (mob.isRemoved() || !mob.isAlive()) return false;
         if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
 
-        boolean isHostile = isHostileType(mob);
-        boolean isNeutral = isNeutralMob(mob);
-        boolean isPassiveAggressive = isPassiveAggressiveMob(mob);
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (!isHostile && !isNeutral && !isPassiveAggressive && !isExplicitlyAllowed(mobId)) return false;
+        ResourceLocation entityKey = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        String mobId = entityKey.toString();
+        String modId = entityKey.getNamespace();
+        String dimId = getDimensionId(mob.level());
 
-        String dim   = getDimensionId(mob.level());
-        String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
-
-        boolean validDim = isValidDimension(dim);
-        boolean validMod = isValidModId(modId);
-        boolean validMob = isValidMobId(mobId);
-
-        if (!validDim) BuffMobsMod.LOGGER.debug("[BuffMobs] {} in invalid dimension {}", mobId, dim);
-        if (!validMod) BuffMobsMod.LOGGER.debug("[BuffMobs] {} mod filtered",            mobId);
-        if (!validMob) BuffMobsMod.LOGGER.debug("[BuffMobs] {} in blacklist",             mobId);
-
-        return validDim && validMod && validMob;
-    }
-
-    public static boolean isHostileType(Mob mob) {
-        return mob instanceof Enemy || mob.getType().getCategory() == MobCategory.MONSTER;
-    }
-
-    public static boolean isPassiveAggressiveMob(Mob mob) {
-        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
-        if (cfg.mode == BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF) return false;
-        if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
-        if (isHostileType(mob)) return false;
-        if (isNeutralMob(mob)) return false;
-
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (cfg.blacklist.contains(mobId)) return false;
-        if (!cfg.whitelist.isEmpty()) return cfg.whitelist.contains(mobId);
-        return true;
-    }
-
-    public static double getPassiveDamageForMob(Mob mob) {
-        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
-        double base = cfg.baseDamage;
-        if (cfg.scaleWithHealth) {
-            base += mob.getMaxHealth() * cfg.healthScaleFactor;
+        if (!isValidDimension(dimId)) {
+            BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by dimension: {}", mobId, dimId);
+            return false;
         }
-        return base;
+
+        BuffMobsConfig.MobFilter filter = BuffMobsConfig.INSTANCE.mobFilter;
+
+        if (containsEntry(filter.blacklist, mobId)) {
+            BuffMobsMod.LOGGER.debug("[BuffMobs] {} in denylist", mobId);
+            return false;
+        }
+
+        if (containsEntry(filter.whitelist, mobId)) {
+            return true;
+        }
+
+        if (!isValidModId(modId)) {
+            BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by mod: {}", mobId, modId);
+            return false;
+        }
+
+        if (filter.useWhitelist) {
+            return false;
+        }
+
+        if (hasPresetMapping(mobId)) {
+            return true;
+        }
+
+        if (isHostileMob(mob)) {
+            return true;
+        }
+
+        return filter.buffNeutralMobs && isNeutralMob(mob);
     }
 
-    private static boolean isExplicitlyAllowed(String mobId) {
-        if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.contains(mobId)) return true;
-        if (BuffMobsConfig.INSTANCE.mobPresets.enabled) {
-            for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
-                String[] parts = mapping.split(":");
-                if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
-            }
+    private static boolean hasPresetMapping(String mobId) {
+        if (!BuffMobsConfig.INSTANCE.mobPresets.enabled) return false;
+        List<String> mappings = BuffMobsConfig.INSTANCE.mobPresets.mobMapping;
+        if (mappings == null) return false;
+        for (String mapping : mappings) {
+            if (mapping == null) continue;
+            String[] parts = mapping.trim().split(":");
+            if (parts.length >= 3 && (parts[0].trim() + ":" + parts[1].trim()).equals(mobId)) return true;
         }
         return false;
     }
 
-    private static boolean isNeutralMob(Mob mob) {
+    public static boolean isHostileType(Mob mob) {
+        if (isNeutralMob(mob)) return false;
+        return mob instanceof Enemy || mob.getType().getCategory() == MobCategory.MONSTER;
+    }
+
+    public static boolean isHostileMob(Mob mob) {
+        if (isNeutralMob(mob)) return false;
+        return isHostileType(mob)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
+                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES);
+    }
+
+    public static boolean isNeutralMob(Mob mob) {
+        if (mob instanceof NeutralMob) return true;
         String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         return switch (id) {
-            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
-                 "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
-                 "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
-                 "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
-                 "minecraft:trader_llama", "minecraft:slime", "minecraft:magma_cube" -> true;
+            case "minecraft:panda", "minecraft:llama", "minecraft:dolphin", "minecraft:trader_llama" -> true;
             default -> false;
         };
     }
@@ -378,45 +389,25 @@ public class MobBuffUtil {
         double presetArm   = preset != null ? preset.armor          : 0.0;
         double presetTough = preset != null ? preset.armorToughness : 0.0;
 
-        boolean isPassive = isPassiveAggressiveMob(mob);
-
         DimensionMultipliers effectiveDim =
                 (preset != null && BuffMobsConfig.INSTANCE.mobPresets.overrideDimensionScaling)
                         ? DimensionMultipliers.NEUTRAL : dim;
 
-        if (isPassive) {
-            applyPassiveAggressionDamage(mob);
-        } else {
-            applyHealthMultiplier(mob, attrHp * effectiveDim.health * presetHp * dayMult);
-            applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * effectiveDim.damage      * presetDmg  * dayMult);
-            applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * effectiveDim.speed       * presetSpd  * dayMult);
-            applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * effectiveDim.attackSpeed * presetAspd * dayMult);
-            applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + effectiveDim.armor          + presetArm)   * dayMult);
-            applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + effectiveDim.armorToughness + presetTough) * dayMult);
-        }
+        applyHealthMultiplier(mob, attrHp * effectiveDim.health * presetHp * dayMult);
+        applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID,       attrDmg  * effectiveDim.damage      * presetDmg  * dayMult);
+        applySpeedBonus(mob,                             SPEED_MOD_ID,        attrSpd  * effectiveDim.speed       * presetSpd  * dayMult);
+        applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, attrAspd * effectiveDim.attackSpeed * presetAspd * dayMult);
+        applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID,       (attrArm   + effectiveDim.armor          + presetArm)   * dayMult);
+        applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID,   (attrTough + effectiveDim.armorToughness + presetTough) * dayMult);
     }
 
     private static void applyOverrideMode(Mob mob, double dayMult, DimensionMultipliers dim) {
-        // Ignora atributos globais e presets; usa apenas os multiplicadores de dimensão * dayScaling
         applyHealthMultiplier(mob, dim.health * dayMult);
         applyMultiplier(mob, Attributes.ATTACK_DAMAGE,   DAMAGE_MOD_ID, dim.damage * dayMult);
         applySpeedBonus(mob,                             SPEED_MOD_ID,  dim.speed  * dayMult);
         applyMultiplier(mob, Attributes.ATTACK_SPEED,    ATTACK_SPEED_MOD_ID, dim.attackSpeed * dayMult);
         applyAddition  (mob, Attributes.ARMOR,           ARMOR_MOD_ID, dim.armor * dayMult);
         applyAddition  (mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID, dim.armorToughness * dayMult);
-    }
-
-    private static void applyPassiveAggressionDamage(Mob mob) {
-        AttributeInstance dmgAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (dmgAttr == null) return;
-        dmgAttr.removeModifier(DAMAGE_MOD_ID);
-        double baseDmg = BuffMobsConfig.INSTANCE.passiveMobAggression.baseDamage;
-        double current = dmgAttr.getBaseValue();
-        if (baseDmg > current) {
-            double bonus = baseDmg - current;
-            dmgAttr.addPermanentModifier(new AttributeModifier(DAMAGE_MOD_ID, bonus,
-                    AttributeModifier.Operation.ADD_VALUE));
-        }
     }
 
     private static void applyHealthMultiplier(Mob mob, double finalMult) {
@@ -479,14 +470,14 @@ public class MobBuffUtil {
         if (inst == null) return;
         inst.removeModifier(DIMENSION_MAX_HEALTH_MOD_ID);
 
-        if (!BuffMobsConfig.INSTANCE.dimensionMaxHealth.enabled) return;
+        if (!BuffMobsConfig.INSTANCE.enabled || !BuffMobsConfig.INSTANCE.dimensionMaxHealth.enabled) return;
 
         String dim = getDimensionId(mob.level());
         BuffMobsConfig.DimensionMaxHealth.Slot slot = findDimensionMaxHealthSlot(dim);
         if (slot == null || slot.maxHealth <= 0) return;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (!isAllowedByDimensionMaxHealthFilter(mobId, slot)) return;
+        if (!isAllowedByDimensionMaxHealthFilter(mob, mobId, slot)) return;
 
         double current = inst.getValue();
         double delta = slot.maxHealth - current;
@@ -509,18 +500,38 @@ public class MobBuffUtil {
                 BuffMobsConfig.INSTANCE.dimensionMaxHealth.slot5
         };
         for (BuffMobsConfig.DimensionMaxHealth.Slot slot : slots) {
-            if (slot.dimensionId != null && !slot.dimensionId.isEmpty() && slot.dimensionId.equals(dim)) return slot;
+            if (slot != null && slot.dimensionId != null) {
+                String slotDim = slot.dimensionId.trim();
+                if (!slotDim.isEmpty() && slotDim.equals(dim)) return slot;
+            }
         }
         return null;
     }
 
-    private static boolean isAllowedByDimensionMaxHealthFilter(String mobId, BuffMobsConfig.DimensionMaxHealth.Slot slot) {
+    private static boolean isAllowedByDimensionMaxHealthFilter(Mob mob, String mobId, BuffMobsConfig.DimensionMaxHealth.Slot slot) {
+        if (mob.isRemoved() || !mob.isAlive()) return false;
+        if (mob instanceof TamableAnimal ta && ta.isTame()) return false;
+        if (!isValidDimension(getDimensionId(mob.level()))) return false;
+
         BuffMobsConfig.DimensionMaxHealth cfg = BuffMobsConfig.INSTANCE.dimensionMaxHealth;
-        if (cfg.denylist.contains(mobId)) return false;
-        if (cfg.useAllowlist && !cfg.allowlist.contains(mobId)) return false;
-        if (slot.denylist.contains(mobId)) return false;
-        if (slot.useAllowlist) return slot.allowlist.contains(mobId);
-        return true;
+        BuffMobsConfig.MobFilter mobFilter = BuffMobsConfig.INSTANCE.mobFilter;
+
+        if (containsEntry(cfg.denylist, mobId)) return false;
+        if (containsEntry(slot.denylist, mobId)) return false;
+        if (containsEntry(mobFilter.blacklist, mobId)) return false;
+
+        boolean inGlobalAllowlist = containsEntry(cfg.allowlist, mobId);
+        boolean inSlotAllowlist = containsEntry(slot.allowlist, mobId);
+        boolean inMobAllowlist = containsEntry(mobFilter.whitelist, mobId);
+
+        if (cfg.useAllowlist && !inGlobalAllowlist) return false;
+        if (slot.useAllowlist && !inSlotAllowlist) return false;
+
+        if (inGlobalAllowlist || inSlotAllowlist || inMobAllowlist) return true;
+        if (mobFilter.useWhitelist) return false;
+        if (hasPresetMapping(mobId)) return true;
+        if (isHostileMob(mob)) return true;
+        return mobFilter.buffNeutralMobs && isNeutralMob(mob);
     }
 
     private static void applyStatusEffects(Mob mob) {
@@ -563,27 +574,27 @@ public class MobBuffUtil {
     }
 
     private static boolean isValidDimension(String dim) {
-        List<String> bl = BuffMobsConfig.INSTANCE.dimensionFilter.blacklist;
-        if (bl.contains(dim)) return false;
-        if (BuffMobsConfig.INSTANCE.dimensionFilter.useWhitelist)
-            return BuffMobsConfig.INSTANCE.dimensionFilter.whitelist.contains(dim);
+        if (containsEntry(BuffMobsConfig.INSTANCE.dimensionFilter.blacklist, dim)) return false;
+        if (BuffMobsConfig.INSTANCE.dimensionFilter.useWhitelist) {
+            return containsEntry(BuffMobsConfig.INSTANCE.dimensionFilter.whitelist, dim);
+        }
         return true;
     }
 
     private static boolean isValidModId(String modId) {
-        List<String> bl = BuffMobsConfig.INSTANCE.modidFilter.blacklist;
-        if (bl.contains(modId)) return false;
-        if (BuffMobsConfig.INSTANCE.modidFilter.useWhitelist)
-            return BuffMobsConfig.INSTANCE.modidFilter.whitelist.contains(modId);
+        if (containsEntry(BuffMobsConfig.INSTANCE.modidFilter.blacklist, modId)) return false;
+        if (BuffMobsConfig.INSTANCE.modidFilter.useWhitelist) {
+            return containsEntry(BuffMobsConfig.INSTANCE.modidFilter.whitelist, modId);
+        }
         return true;
     }
 
-    private static boolean isValidMobId(String mobId) {
-        List<String> bl = BuffMobsConfig.INSTANCE.mobFilter.blacklist;
-        if (bl.contains(mobId)) return false;
-        if (BuffMobsConfig.INSTANCE.mobFilter.useWhitelist)
-            return BuffMobsConfig.INSTANCE.mobFilter.whitelist.contains(mobId);
-        return true;
+    public static boolean containsEntry(List<? extends String> list, String value) {
+        if (list == null || value == null) return false;
+        for (String entry : list) {
+            if (entry != null && entry.trim().equals(value)) return true;
+        }
+        return false;
     }
 
     public static double calculateFinalMultiplier(double base, double dim, double day) { return base * dim * day; }

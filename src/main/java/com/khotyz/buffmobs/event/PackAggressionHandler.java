@@ -43,6 +43,7 @@ public class PackAggressionHandler {
         if (!(entity instanceof Mob victim)) return;
         if (!(victim.level() instanceof ServerLevel serverLevel)) return;
         if (!MobBuffUtil.isValidMob(victim)) return;
+        if (!canParticipateInPack(victim)) return;
         Player player = resolveAttackingPlayer(source);
         if (player == null || player.isSpectator() || player.isCreative()) return;
 
@@ -69,8 +70,13 @@ public class PackAggressionHandler {
         if (candidate == victim) return false;
         if (candidate.getType() != victim.getType()) return false;
         if (!MobBuffUtil.isValidMob(candidate)) return false;
+        if (!canParticipateInPack(candidate)) return false;
         Long lastPull = LAST_PULL_TICK.get(candidate.getUUID());
         return lastPull == null || now - lastPull >= cfg.cooldownTicks;
+    }
+
+    private static boolean canParticipateInPack(Mob mob) {
+        return MobBuffUtil.isHostileMob(mob) || MobBuffUtil.isNeutralMob(mob);
     }
 
     private static void pullMob(Mob mob, Player player) {

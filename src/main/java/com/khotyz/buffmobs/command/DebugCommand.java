@@ -1,6 +1,5 @@
 package com.khotyz.buffmobs.command;
 
-import com.khotyz.buffmobs.BuffMobsMod;
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.event.EliteMobHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
@@ -16,8 +15,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -70,12 +67,6 @@ public class DebugCommand {
         boolean isValid = MobBuffUtil.isValidMob(mob);
         src.sendSuccess(() -> Component.translatable(
                 isValid ? "buffmobs.command.debug.valid.yes" : "buffmobs.command.debug.valid.no"), false);
-
-        // Exibe o modo de agressão passiva
-        BuffMobsConfig.PassiveMobAggression.PassiveMode mode = BuffMobsConfig.INSTANCE.passiveMobAggression.mode;
-        boolean passiveActive = mode != BuffMobsConfig.PassiveMobAggression.PassiveMode.OFF;
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.passive_aggression",
-                passiveActive ? mode.name() : "OFF"), false);
 
         src.sendSuccess(() -> Component.translatable("buffmobs.command.debug.preset_header"), false);
         boolean presetsOn = BuffMobsConfig.INSTANCE.mobPresets.enabled;
@@ -162,29 +153,34 @@ public class DebugCommand {
                 BuffMobsConfig.INSTANCE.mobPresets.preset3, BuffMobsConfig.INSTANCE.mobPresets.preset4,
                 BuffMobsConfig.INSTANCE.mobPresets.preset5
         };
-        int[] n = {1};
-        for (BuffMobsConfig.MobPresets.PresetSlot p : presets) {
-            if (p.presetName != null && !p.presetName.isEmpty()) {
-                int num = n[0];
-                final String entry = String.format("%d. %s (HP:%.1fx DMG:%.1fx SPD:%.1fx ASPD:%.1fx ARM:+%.0f TOUGH:+%.0f)",
-                        num, p.presetName,
-                        p.healthMultiplier, p.damageMultiplier,
-                        p.speedMultiplier, p.attackSpeedMultiplier,
-                        p.armorAddition, p.armorToughnessAddition);
-                src.sendSuccess(() -> Component.literal(entry), false);
+        for (int index = 0; index < presets.length; index++) {
+            BuffMobsConfig.MobPresets.PresetSlot p = presets[index];
+            String effectiveName = MobPresetUtil.effectivePresetName(p, index);
+            if (!effectiveName.isEmpty()) {
+                final int slotNumber = index + 1;
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.entry",
+                        slotNumber, effectiveName,
+                        String.format("%.1f", p.healthMultiplier),
+                        String.format("%.1f", p.damageMultiplier),
+                        String.format("%.1f", p.speedMultiplier),
+                        String.format("%.1f", p.attackSpeedMultiplier),
+                        String.format("%.0f", p.armorAddition),
+                        String.format("%.0f", p.armorToughnessAddition)), false);
             }
-            n[0]++;
         }
 
         src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mappings_header"), false);
         for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping) {
-            String[] parts = mapping.split(":");
+            if (mapping == null) continue;
+            String trimmed = mapping.trim();
+            if (trimmed.isEmpty()) continue;
+            String[] parts = trimmed.split(":");
             if (parts.length >= 3) {
-                final String mid = parts[0] + ":" + parts[1];
-                final String pn  = parts[2];
+                final String mid = parts[0].trim() + ":" + parts[1].trim();
+                final String pn  = parts[2].trim();
                 src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mapping_entry", mid, pn), false);
             } else {
-                src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mapping_invalid", mapping), false);
+                src.sendSuccess(() -> Component.translatable("buffmobs.command.presets.mapping_invalid", trimmed), false);
             }
         }
         return 1;
@@ -203,14 +199,13 @@ public class DebugCommand {
     private static int showInfo(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.header"), false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.enabled",     String.valueOf(BuffMobsConfig.INSTANCE.enabled)),                              false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.initialized", String.valueOf(MobTickHandler.getInitializedCount())),                         false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.health_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.healthMultiplier)),          false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)),          false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling", String.valueOf(BuffMobsConfig.INSTANCE.dayScaling.enabled)),                   false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",     String.valueOf(BuffMobsConfig.INSTANCE.mobPresets.enabled)),                   false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.passive_aggression",
-                BuffMobsConfig.INSTANCE.passiveMobAggression.mode.name()), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.enabled",           yesNo(BuffMobsConfig.INSTANCE.enabled)),                     false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.initialized",       String.valueOf(MobTickHandler.getInitializedCount())),       false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.health_mult",       String.valueOf(BuffMobsConfig.INSTANCE.attributes.healthMultiplier)), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult",       String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling",       yesNo(BuffMobsConfig.INSTANCE.dayScaling.enabled)),          false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",           yesNo(BuffMobsConfig.INSTANCE.mobPresets.enabled)),          false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.buff_neutral_mobs", yesNo(BuffMobsConfig.INSTANCE.mobFilter.buffNeutralMobs)),   false);
         return 1;
     }
 }
