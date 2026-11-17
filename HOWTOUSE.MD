@@ -92,9 +92,11 @@ Control which mobs are buffed by ID.
 
 | Option | Default | Description |
 |---|---|---|
-| `useWhitelist` | `false` | If `true`, only mobs in the whitelist are buffed. |
-| `whitelist` | `[]` | List of mob IDs to buff. Example: `["minecraft:zombie"]`. |
-| `blacklist` | `["minecraft:warden"]` | List of mob IDs that are never buffed. |
+| `buffNeutralMobs` | `false` | If `true`, neutral mobs (wolves, iron golems, spiders, ...) are also buffed. Purely passive mobs are only buffed when added to the allowlist. |
+| `whitelist` | `[]` | Mob IDs that are always buffed, even if passive, neutral or from another mod. Example: `["minecraft:cow"]`. |
+| `blacklist` | `["minecraft:warden"]` | Mob IDs that are never buffed. |
+
+Priority order: denylist first, then allowlist, then hostile mobs, then neutral mobs when `buffNeutralMobs` is enabled.
 
 ---
 

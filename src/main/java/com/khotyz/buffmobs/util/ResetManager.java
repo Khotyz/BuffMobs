@@ -69,7 +69,6 @@ public class ResetManager {
         MobArmorManager.clearCaches();
         RangedMobAIManager.clearAllStates();
         CombatDraftHandler.clearStates();
-        PassiveMobAggressionHandler.forceReinit();
 
         int count = 0;
         for (Mob mob : mobs) {

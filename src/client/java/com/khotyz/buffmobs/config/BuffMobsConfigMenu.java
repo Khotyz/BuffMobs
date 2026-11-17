@@ -184,6 +184,7 @@ public class BuffMobsConfigMenu {
             sub.add(eb.startStrField(Component.translatable("buffmobs.config.dimensionScaling.dimensionId"), slot.dimensionName)
                     .setDefaultValue("")
                     .setTooltip(tt("buffmobs.config.dimensionScaling.dimensionId.tooltip"))
+                    .setSuggestionProvider(Suggestions.dimensionIds())
                     .setSaveConsumer(v -> slot.dimensionName = v).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.healthPercent"), slot.healthMultiplier)
                     .setDefaultValue(100).setMin(100).setMax(999999)
@@ -213,17 +214,19 @@ public class BuffMobsConfigMenu {
         }
 
         ConfigMenu.Category mobFilter = builder.getOrCreateCategory(Component.translatable("buffmobs.config.mobFilter"));
-        mobFilter.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobFilter.useWhitelist"), cfg.mobFilter.useWhitelist)
+        mobFilter.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.mobFilter.buffNeutralMobs"), cfg.mobFilter.buffNeutralMobs)
                 .setDefaultValue(false)
-                .setTooltip(tt("buffmobs.config.mobFilter.useWhitelist.tooltip"))
-                .setSaveConsumer(v -> cfg.mobFilter.useWhitelist = v).build());
+                .setTooltip(tt("buffmobs.config.mobFilter.buffNeutralMobs.tooltip"))
+                .setSaveConsumer(v -> cfg.mobFilter.buffNeutralMobs = v).build());
         mobFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.blacklist"), new ArrayList<>(cfg.mobFilter.blacklist))
                 .setDefaultValue(List.of("minecraft:warden"))
                 .setTooltip(tt("buffmobs.config.mobFilter.blacklist.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.mobFilter.blacklist = v).build());
         mobFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.whitelist"), new ArrayList<>(cfg.mobFilter.whitelist))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.mobFilter.whitelist.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.mobFilter.whitelist = v).build());
 
         ConfigMenu.Category modFilter = builder.getOrCreateCategory(Component.translatable("buffmobs.config.modidFilter"));
@@ -234,10 +237,12 @@ public class BuffMobsConfigMenu {
         modFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.blacklist"), new ArrayList<>(cfg.modidFilter.blacklist))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.modidFilter.blacklist.tooltip"))
+                .setSuggestionProvider(Suggestions.modIds())
                 .setSaveConsumer(v -> cfg.modidFilter.blacklist = v).build());
         modFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.whitelist"), new ArrayList<>(cfg.modidFilter.whitelist))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.modidFilter.whitelist.tooltip"))
+                .setSuggestionProvider(Suggestions.modIds())
                 .setSaveConsumer(v -> cfg.modidFilter.whitelist = v).build());
 
         ConfigMenu.Category dimFilter = builder.getOrCreateCategory(Component.translatable("buffmobs.config.dimensionFilter"));
@@ -248,10 +253,12 @@ public class BuffMobsConfigMenu {
         dimFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.blacklist"), new ArrayList<>(cfg.dimensionFilter.blacklist))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.dimensionFilter.blacklist.tooltip"))
+                .setSuggestionProvider(Suggestions.dimensionIds())
                 .setSaveConsumer(v -> cfg.dimensionFilter.blacklist = v).build());
         dimFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.whitelist"), new ArrayList<>(cfg.dimensionFilter.whitelist))
                 .setDefaultValue(List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"))
                 .setTooltip(tt("buffmobs.config.dimensionFilter.whitelist.tooltip"))
+                .setSuggestionProvider(Suggestions.dimensionIds())
                 .setSaveConsumer(v -> cfg.dimensionFilter.whitelist = v).build());
 
         ConfigMenu.Category ranged = builder.getOrCreateCategory(Component.translatable("buffmobs.config.rangedMeleeSwitching"));
@@ -281,6 +288,7 @@ public class BuffMobsConfigMenu {
         ranged.addEntry(eb.startStrList(Component.translatable("buffmobs.config.rangedMeleeSwitching.customRangedMobs"), new ArrayList<>(cfg.rangedMeleeSwitching.customRangedMobs))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.customRangedMobs.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.rangedMeleeSwitching.customRangedMobs = v).build());
 
         var weaponSub = eb.startSubCategory(Component.translatable("buffmobs.config.rangedMeleeSwitching.weaponUnlockDays"));
@@ -358,9 +366,11 @@ public class BuffMobsConfigMenu {
                 .setTooltip(tt("buffmobs.config.filter.useWhitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.combatDraft.useWhitelist = v).build());
         draftFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.combatDraft.mobFilter.whitelist"), new ArrayList<>(cfg.combatDraft.whitelist))
-                .setDefaultValue(new ArrayList<>()).setSaveConsumer(v -> cfg.combatDraft.whitelist = v).build());
+                .setDefaultValue(new ArrayList<>()).setSuggestionProvider(Suggestions.entityIds())
+                .setSaveConsumer(v -> cfg.combatDraft.whitelist = v).build());
         draftFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.combatDraft.mobFilter.blacklist"), new ArrayList<>(cfg.combatDraft.blacklist))
-                .setDefaultValue(new ArrayList<>()).setSaveConsumer(v -> cfg.combatDraft.blacklist = v).build());
+                .setDefaultValue(new ArrayList<>()).setSuggestionProvider(Suggestions.entityIds())
+                .setSaveConsumer(v -> cfg.combatDraft.blacklist = v).build());
         draft.addEntry(draftFilterSub.build());
 
         ConfigMenu.Category presets = builder.getOrCreateCategory(Component.translatable("buffmobs.config.mobPresets"));
@@ -409,46 +419,8 @@ public class BuffMobsConfigMenu {
                 .setDefaultValue(List.of("minecraft:zombie:default", "minecraft:skeleton:default",
                         "minecraft:ender_dragon:boss", "minecraft:wither:boss"))
                 .setTooltip(tt("buffmobs.config.mobPresets.mobMapping.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.mobPresets.mobMapping = v).build());
-
-        ConfigMenu.Category passiveAggression = builder.getOrCreateCategory(Component.translatable("buffmobs.config.passiveMobAggression"));
-        passiveAggression.addEntry(eb.startEnumSelector(Component.translatable("buffmobs.config.passiveMobAggression.mode"),
-                        BuffMobsConfig.PassiveMobAggression.Mode.class,
-                        cfg.passiveMobAggression.mode)
-                .setDefaultValue(BuffMobsConfig.PassiveMobAggression.Mode.OFF)
-                .setEnumNameProvider(e -> switch ((BuffMobsConfig.PassiveMobAggression.Mode) e) {
-                    case OFF     -> Component.translatable("buffmobs.config.passiveMobAggression.mode.off");
-                    case NEUTRAL -> Component.translatable("buffmobs.config.passiveMobAggression.mode.neutral");
-                    case HOSTILE -> Component.translatable("buffmobs.config.passiveMobAggression.mode.hostile");
-                })
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.mode.tooltip"))
-                .setSaveConsumer(v -> {
-                    cfg.passiveMobAggression.mode = v;
-                    com.khotyz.buffmobs.util.PassiveMobAggressionHandler.forceReinit();
-                }).build());
-        passiveAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.baseDamage"), cfg.passiveMobAggression.baseDamage)
-                .setDefaultValue(3.0).setMin(0.5).setMax(100.0)
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.baseDamage.tooltip"))
-                .setSaveConsumer(v -> cfg.passiveMobAggression.baseDamage = v).build());
-        passiveAggression.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.passiveMobAggression.scaleWithHealth"), cfg.passiveMobAggression.scaleWithHealth)
-                .setDefaultValue(false)
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.scaleWithHealth.tooltip"))
-                .setSaveConsumer(v -> cfg.passiveMobAggression.scaleWithHealth = v).build());
-        passiveAggression.addEntry(eb.startDoubleField(Component.translatable("buffmobs.config.passiveMobAggression.healthScaleFactor"), cfg.passiveMobAggression.healthScaleFactor)
-                .setDefaultValue(0.1).setMin(0.0).setMax(100.0)
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.healthScaleFactor.tooltip"))
-                .setSaveConsumer(v -> cfg.passiveMobAggression.healthScaleFactor = v).build());
-
-        var passiveMobFilterSub = eb.startSubCategory(Component.translatable("buffmobs.config.passiveMobAggression.mobFilter"));
-        passiveMobFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.passiveMobAggression.whitelist"), new ArrayList<>(cfg.passiveMobAggression.whitelist))
-                .setDefaultValue(new ArrayList<>())
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.whitelist.tooltip"))
-                .setSaveConsumer(v -> cfg.passiveMobAggression.whitelist = v).build());
-        passiveMobFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.passiveMobAggression.blacklist"), new ArrayList<>(cfg.passiveMobAggression.blacklist))
-                .setDefaultValue(new ArrayList<>())
-                .setTooltip(tt("buffmobs.config.passiveMobAggression.blacklist.tooltip"))
-                .setSaveConsumer(v -> cfg.passiveMobAggression.blacklist = v).build());
-        passiveAggression.addEntry(passiveMobFilterSub.build());
 
         ConfigMenu.Category zombieHandling = builder.getOrCreateCategory(Component.translatable("buffmobs.config.zombieHandling"));
         zombieHandling.addEntry(eb.startBooleanToggle(Component.translatable("buffmobs.config.zombieHandling.disableLeaderZombies"), cfg.zombieHandling.disableLeaderZombies)
@@ -493,6 +465,7 @@ public class BuffMobsConfigMenu {
             dhSub.add(eb.startStrField(Component.translatable("buffmobs.config.dimensionMaxHealth.dimensionId"), slot.dimensionId)
                     .setDefaultValue("")
                     .setTooltip(tt("buffmobs.config.dimensionMaxHealth.dimensionId.tooltip"))
+                    .setSuggestionProvider(Suggestions.dimensionIds())
                     .setSaveConsumer(v -> slot.dimensionId = v).build());
             dhSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.dimensionMaxHealth.maxHealth"), slot.maxHealth)
                     .setDefaultValue(20.0).setMin(0.0).setMax(999999.0)
@@ -506,10 +479,12 @@ public class BuffMobsConfigMenu {
             dhFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionMaxHealth.allowlist"), new ArrayList<>(slot.allowlist))
                     .setDefaultValue(new ArrayList<>())
                     .setTooltip(tt("buffmobs.config.dimensionMaxHealth.allowlist.tooltip"))
+                    .setSuggestionProvider(Suggestions.entityIds())
                     .setSaveConsumer(v -> slot.allowlist = v).build());
             dhFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionMaxHealth.denylist"), new ArrayList<>(slot.denylist))
                     .setDefaultValue(new ArrayList<>())
                     .setTooltip(tt("buffmobs.config.dimensionMaxHealth.denylist.tooltip"))
+                    .setSuggestionProvider(Suggestions.entityIds())
                     .setSaveConsumer(v -> slot.denylist = v).build());
             dhSub.add(dhFilterSub.build());
             dimMaxHealth.addEntry(dhSub.build());
@@ -749,6 +724,7 @@ public class BuffMobsConfigMenu {
         mobArmor.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobArmor.additionalArmorMobs"), new ArrayList<>(cfg.mobArmor.additionalArmorMobs))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.mobArmor.additionalArmorMobs.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.mobArmor.additionalArmorMobs = v).build());
 
         ConfigMenu.Category eliteMobs = builder.getOrCreateCategory(Component.translatable("buffmobs.config.eliteMobs"));
@@ -1081,6 +1057,7 @@ public class BuffMobsConfigMenu {
         specialAbilities.addEntry(eb.startStrList(Component.translatable("buffmobs.config.specialAbilities.mobAbilities"), new ArrayList<>(cfg.specialAbilities.mobAbilities))
                 .setDefaultValue(new ArrayList<>())
                 .setTooltip(tt("buffmobs.config.specialAbilities.mobAbilities.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.specialAbilities.mobAbilities = v).build());
         var specialAbilitiesSub1 = eb.startSubCategory(Component.translatable("buffmobs.config.specialAbilities.deathrattle"));
         specialAbilitiesSub1.add(eb.startEnumSelector(Component.translatable("buffmobs.config.specialAbilities.deathrattle.mode"),
@@ -1118,6 +1095,7 @@ public class BuffMobsConfigMenu {
         specialAbilitiesSub1.add(eb.startStrField(Component.translatable("buffmobs.config.specialAbilities.deathrattle.minionEntityId"), cfg.specialAbilities.deathrattle.minionEntityId)
                 .setDefaultValue("minecraft:slime")
                 .setTooltip(tt("buffmobs.config.specialAbilities.deathrattle.minionEntityId.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.specialAbilities.deathrattle.minionEntityId = v).build());
         specialAbilitiesSub1.add(eb.startIntField(Component.translatable("buffmobs.config.specialAbilities.deathrattle.minionMinCount"), cfg.specialAbilities.deathrattle.minionMinCount)
                 .setDefaultValue(1).setMin(0).setMax(10)
@@ -1164,6 +1142,7 @@ public class BuffMobsConfigMenu {
         specialAbilitiesSub4.add(eb.startStrField(Component.translatable("buffmobs.config.specialAbilities.Summon.minionEntityId"), cfg.specialAbilities.Summon.minionEntityId)
                 .setDefaultValue("minecraft:zombie")
                 .setTooltip(tt("buffmobs.config.specialAbilities.Summon.minionEntityId.tooltip"))
+                .setSuggestionProvider(Suggestions.entityIds())
                 .setSaveConsumer(v -> cfg.specialAbilities.Summon.minionEntityId = v).build());
         specialAbilitiesSub4.add(eb.startIntField(Component.translatable("buffmobs.config.specialAbilities.Summon.maxAliveMinions"), cfg.specialAbilities.Summon.maxAliveMinions)
                 .setDefaultValue(3).setMin(0).setMax(20)

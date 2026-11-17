@@ -1,6 +1,6 @@
 # BuffMobs
 
-**BuffMobs** makes hostile and neutral mobs stronger, faster, and more dangerous — with deep customization, progressive difficulty scaling, and intelligent combat behavior.
+**BuffMobs** makes hostile mobs stronger, faster, and more dangerous — with deep customization, progressive difficulty scaling, and intelligent combat behavior. Neutral mobs can be included with a single option.
 
 [![GitHub](https://img.shields.io/badge/GitHub-BuffMobs-blue?logo=github)](https://github.com/Khotyz/BuffMobs)
 
@@ -9,7 +9,7 @@
 ## Features
 
 ### Attribute Buffs
-Multiply the health, damage, speed, attack speed, and armor of all hostile and neutral mobs globally. Every value is individually configurable.
+Multiply the health, damage, speed, attack speed, and armor of all hostile mobs globally. Neutral mobs are included when `buffNeutralMobs` is enabled, and any mob can be forced in through the allowlist. Every value is individually configurable.
 
 ### Status Effects
 Grant mobs permanent Strength, Speed, Resistance, Regeneration, and Absorption effects. Undead mobs receive Absorption instead of Regeneration.

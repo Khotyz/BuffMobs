@@ -6,7 +6,6 @@ import com.khotyz.buffmobs.event.MobTickHandler;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobBuffUtil;
 import com.khotyz.buffmobs.util.MobPresetUtil;
-import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -180,7 +179,6 @@ public class DebugCommand {
                     MobBuffUtil.applyBuffs(mob);
                     RangedMobAIManager.initializeMob(mob);
                     CombatDraftHandler.onMobInitialized(mob);
-                    PassiveMobAggressionHandler.onMobInitialized(mob);
                     MobTickHandler.markInitialized(mob);
                     count++;
                 } catch (Exception ex) {
@@ -202,7 +200,6 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)),          false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling", String.valueOf(BuffMobsConfig.INSTANCE.dayScaling.enabled)),                   false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",     String.valueOf(BuffMobsConfig.INSTANCE.mobPresets.enabled)),                   false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.passive_mode", BuffMobsConfig.INSTANCE.passiveMobAggression.mode.name()), false);
         return 1;
     }
 }

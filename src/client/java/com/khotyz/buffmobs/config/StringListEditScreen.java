@@ -123,7 +123,8 @@ public class StringListEditScreen extends Screen {
         private final List<AbstractWidget> widgets = new ArrayList<>();
 
         ListEntry(String value) {
-            this.editBox = new EditBox(StringListEditScreen.this.font, 0, 0, 120, ROW_HEIGHT, option.label());
+            this.editBox = new SuggestionEditBox(StringListEditScreen.this.font, 0, 0, 120, ROW_HEIGHT,
+                    option.label(), option.suggestionProvider());
             this.editBox.setMaxLength(1024);
             this.editBox.setValue(value == null ? "" : value);
             this.widgets.add(this.editBox);

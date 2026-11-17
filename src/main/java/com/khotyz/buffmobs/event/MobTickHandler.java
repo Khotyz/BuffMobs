@@ -5,7 +5,6 @@ import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.util.CombatDraftHandler;
 import com.khotyz.buffmobs.util.MobArmorManager;
 import com.khotyz.buffmobs.util.MobBuffUtil;
-import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.util.RangedMobAIManager;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -55,7 +54,6 @@ public class MobTickHandler {
             PENDING_INIT.remove(uuid);
             RangedMobAIManager.cleanup(mob);
             CombatDraftHandler.onMobRemoved(mob);
-            PassiveMobAggressionHandler.onMobRemoved(mob);
             EliteMobHandler.onMobRemoved(mob);
             TraitsHandler.onMobRemoved(mob);
             SpecialAbilityHandler.onMobRemoved(mob);
@@ -111,7 +109,6 @@ public class MobTickHandler {
                                 RangedMobAIManager.updateMobBehavior(mob);
                                 MobBuffUtil.refreshInfiniteEffects(mob);
                                 CombatDraftHandler.tick(mob);
-                                PassiveMobAggressionHandler.tick(mob);
                                 MobBuffUtil.enforceDimensionMaxHealth(mob);
                                 EliteMobHandler.tick(mob);
                                 TraitsHandler.tick(mob);
@@ -131,24 +128,16 @@ public class MobTickHandler {
         UUID uuid = mob.getUUID();
         if (!forceReapply && INITIALIZED_MOBS.contains(uuid)) return;
         try {
-            // Apply buffs to ALL mobs that pass the validity check (including passive aggressive)
             if (MobBuffUtil.isValidMob(mob)) {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
-                PassiveMobAggressionHandler.onMobInitialized(mob);
                 MobArmorManager.equipArmor(mob);
                 EliteMobHandler.onMobInitialized(mob);
                 TraitsHandler.onMobInitialized(mob);
                 SpecialAbilityHandler.onMobInitialized(mob);
                 INITIALIZED_MOBS.add(uuid);
                 BuffMobsMod.LOGGER.debug("[BuffMobs] Buffed: {}", mob.getType().getDescriptionId());
-            } else if (MobBuffUtil.isPassiveAggressiveMob(mob)) {
-                // Fallback: if isValidMob returned false but it's passive aggressive, still apply buffs and AI
-                MobBuffUtil.applyBuffs(mob);
-                PassiveMobAggressionHandler.onMobInitialized(mob);
-                INITIALIZED_MOBS.add(uuid);
-                BuffMobsMod.LOGGER.debug("[BuffMobs] PassiveAggression (fallback): {}", mob.getType().getDescriptionId());
             } else {
                 MobBuffUtil.removeAllModifiers(mob);
                 MobBuffUtil.enforceDimensionMaxHealth(mob);
@@ -181,6 +170,5 @@ public class MobTickHandler {
     public static void forceReinitAll() {
         INITIALIZED_MOBS.clear();
         PENDING_INIT.clear();
-        PassiveMobAggressionHandler.forceReinit();
     }
 }

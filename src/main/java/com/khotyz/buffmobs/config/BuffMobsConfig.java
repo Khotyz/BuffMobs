@@ -31,7 +31,6 @@ public class BuffMobsConfig {
     public RangedMeleeSwitching rangedMeleeSwitching = new RangedMeleeSwitching();
     public CombatDraft combatDraft = new CombatDraft();
     public MobPresets mobPresets = new MobPresets();
-    public PassiveMobAggression passiveMobAggression = new PassiveMobAggression();
     public ZombieHandling zombieHandling = new ZombieHandling();
     public HealthSync healthSync = new HealthSync();
     public DimensionMaxHealth dimensionMaxHealth = new DimensionMaxHealth();
@@ -79,7 +78,6 @@ public class BuffMobsConfig {
         if (src.rangedMeleeSwitching != null) INSTANCE.rangedMeleeSwitching = src.rangedMeleeSwitching;
         if (src.combatDraft != null) INSTANCE.combatDraft = src.combatDraft;
         if (src.mobPresets != null) INSTANCE.mobPresets = src.mobPresets;
-        if (src.passiveMobAggression != null) INSTANCE.passiveMobAggression = src.passiveMobAggression;
         if (src.zombieHandling != null) INSTANCE.zombieHandling = src.zombieHandling;
         if (src.healthSync != null) INSTANCE.healthSync = src.healthSync;
         if (src.dimensionMaxHealth != null) INSTANCE.dimensionMaxHealth = src.dimensionMaxHealth;
@@ -155,7 +153,7 @@ public class BuffMobsConfig {
     }
 
     public static class MobFilter {
-        public boolean useWhitelist = false;
+        public boolean buffNeutralMobs = false;
         public List<String> whitelist = new ArrayList<>();
         public List<String> blacklist = new ArrayList<>(List.of("minecraft:warden"));
     }
@@ -252,17 +250,6 @@ public class BuffMobsConfig {
                 this.armorToughnessAddition = tough;
             }
         }
-    }
-
-    public static class PassiveMobAggression {
-        public Mode mode = Mode.NEUTRAL;
-        public double baseDamage = 3.0;
-        public boolean scaleWithHealth = false;
-        public double healthScaleFactor = 0.1;
-        public List<String> whitelist = new ArrayList<>();
-        public List<String> blacklist = new ArrayList<>();
-
-        public enum Mode { OFF, NEUTRAL, HOSTILE }
     }
 
     public static class ZombieHandling {

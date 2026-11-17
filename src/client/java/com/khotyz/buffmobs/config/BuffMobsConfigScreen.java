@@ -410,6 +410,15 @@ public class BuffMobsConfigScreen extends Screen {
                 }
                 case STRING -> {
                     ConfigMenu.Option<String> stringOption = (ConfigMenu.Option<String>) option;
+                    if (option.suggestionProvider() != null) {
+                        SuggestionEditBox suggestionBox = new SuggestionEditBox(
+                                BuffMobsConfigScreen.this.font, 0, 0, width, ROW_HEIGHT,
+                                option.label(), option.suggestionProvider());
+                        suggestionBox.setMaxLength(512);
+                        suggestionBox.setValue(stringOption.value());
+                        suggestionBox.setResponder(stringOption::set);
+                        return suggestionBox;
+                    }
                     EditBox box = new EditBox(BuffMobsConfigScreen.this.font, 0, 0, width, ROW_HEIGHT, option.label());
                     box.setMaxLength(512);
                     box.setValue(stringOption.value());
