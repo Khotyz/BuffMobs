@@ -113,7 +113,7 @@ All commands require permission level 2 (op).
 ## 📦 Download
 
 - [Modrinth](https://modrinth.com/mod/buff-mobs)
-- [GitHub Releases](https://github.com/Khotyz/BuffMobs/releases)
+- [Curseforge](https://www.curseforge.com/minecraft/mc-mods/buff-mobs/files/all)
 
 ---
 
