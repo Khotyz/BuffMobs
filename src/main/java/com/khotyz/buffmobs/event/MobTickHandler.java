@@ -21,11 +21,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MobTickHandler {
     private static final Set<UUID> INITIALIZED_MOBS = new HashSet<>();
     private static final Set<UUID> PENDING_INIT = new HashSet<>();
     private static final Map<String, Long> lastScalingInterval = new HashMap<>();
+    private static final AtomicBoolean REINIT_REQUESTED = new AtomicBoolean();
     private static int globalTickCounter = 0;
     private static boolean initialScanDone = false;
 
@@ -73,7 +75,6 @@ public class MobTickHandler {
             PENDING_INIT.remove(uuid);
             RangedMobAIManager.cleanup(mob);
             CombatDraftHandler.onMobRemoved(mob);
-            PassiveMobAggressionHandler.onMobRemoved(mob);
             EliteMobHandler.onMobRemoved(mob);
             TraitsHandler.onMobRemoved(mob);
             SpecialAbilityHandler.onMobRemoved(mob);
@@ -89,6 +90,11 @@ public class MobTickHandler {
         try {
             if (!BuffMobsConfig.INSTANCE.enabled.get()) return;
             if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
+
+            if (REINIT_REQUESTED.getAndSet(false)) {
+                INITIALIZED_MOBS.clear();
+                PENDING_INIT.clear();
+            }
 
             globalTickCounter++;
 
@@ -117,7 +123,6 @@ public class MobTickHandler {
                             RangedMobAIManager.updateMobBehavior(mob);
                             MobBuffUtil.refreshInfiniteEffects(mob);
                             CombatDraftHandler.tick(mob);
-                            PassiveMobAggressionHandler.tick(mob);
                             MobBuffUtil.enforceDimensionMaxHealth(mob);
                             EliteMobHandler.tick(mob);
                             TraitsHandler.tick(mob);
@@ -130,7 +135,6 @@ public class MobTickHandler {
                             RangedMobAIManager.updateMobBehavior(mob);
                             MobBuffUtil.refreshInfiniteEffects(mob);
                             CombatDraftHandler.tick(mob);
-                            PassiveMobAggressionHandler.tick(mob);
                             MobBuffUtil.enforceDimensionMaxHealth(mob);
                             EliteMobHandler.tick(mob);
                             TraitsHandler.tick(mob);
@@ -179,7 +183,6 @@ public class MobTickHandler {
             MobBuffUtil.removeAllModifiers(mob);
             MobBuffUtil.removeAllBuffEffects(mob);
             RangedMobAIManager.cleanup(mob);
-            PassiveMobAggressionHandler.resetMob(mob);
             EliteMobHandler.deactivateMob(mob);
             TraitsHandler.deactivateMob(mob);
             return;
@@ -191,7 +194,6 @@ public class MobTickHandler {
                 MobBuffUtil.applyBuffs(mob);
                 RangedMobAIManager.initializeMob(mob);
                 CombatDraftHandler.onMobInitialized(mob);
-                PassiveMobAggressionHandler.onMobInitialized(mob);
                 MobArmorManager.equipArmor(mob);
                 EliteMobHandler.onMobInitialized(mob);
                 TraitsHandler.onMobInitialized(mob);
@@ -232,6 +234,9 @@ public class MobTickHandler {
     public static void forceReinitAll() {
         INITIALIZED_MOBS.clear();
         PENDING_INIT.clear();
-        PassiveMobAggressionHandler.forceReinit();
+    }
+
+    public static void requestReinit() {
+        REINIT_REQUESTED.set(true);
     }
 }

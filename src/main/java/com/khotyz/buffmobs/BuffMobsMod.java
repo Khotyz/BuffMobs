@@ -7,7 +7,6 @@ import com.khotyz.buffmobs.event.BloodMoonHandler;
 import com.khotyz.buffmobs.event.LootXpScalingHandler;
 import com.khotyz.buffmobs.event.MobEventHandler;
 import com.khotyz.buffmobs.event.MobTickHandler;
-import com.khotyz.buffmobs.event.PassiveMobAggressionHandler;
 import com.khotyz.buffmobs.util.Guard;
 import com.khotyz.buffmobs.util.ModConfigCompat;
 import net.neoforged.bus.api.IEventBus;
@@ -31,7 +30,6 @@ public class BuffMobsMod {
         safely(() -> NeoForge.EVENT_BUS.register(new AdaptiveDifficultyHandler()), "adaptive difficulty events");
         safely(() -> NeoForge.EVENT_BUS.register(new LootXpScalingHandler()), "loot and xp scaling events");
         safely(() -> NeoForge.EVENT_BUS.register(DebugCommand.class), "the debug command listener");
-        safely(PassiveMobAggressionHandler::register, "passive mob aggression");
 
         LOGGER.info("BuffMobs initialized successfully");
     }

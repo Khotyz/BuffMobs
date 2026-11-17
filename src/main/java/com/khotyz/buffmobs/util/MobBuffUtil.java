@@ -27,6 +27,7 @@ import net.minecraft.world.level.Level;
 import static com.khotyz.buffmobs.util.DimensionUtil.getDimensionId;
 
 import java.util.List;
+import java.util.Set;
 
 public class MobBuffUtil {
 
@@ -37,6 +38,11 @@ public class MobBuffUtil {
     private static final Identifier ARMOR_MOD_ID        = Identifier.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "armor");
     private static final Identifier TOUGHNESS_MOD_ID    = Identifier.fromNamespaceAndPath(BuffMobsMod.MOD_ID, "toughness");
     private static final Identifier LEADER_ZOMBIE_BONUS_ID = Identifier.fromNamespaceAndPath("minecraft", "leader_zombie_bonus");
+    private static final Set<String> NEUTRAL_MOB_IDS = Set.of(
+            "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
+            "minecraft:iron_golem", "minecraft:wolf", "minecraft:polar_bear",
+            "minecraft:bee", "minecraft:panda", "minecraft:llama", "minecraft:trader_llama",
+            "minecraft:goat");
 
     private static final BuffMobsConfig.EliteMobs.EliteParticle[] RANDOM_PARTICLES = {
             BuffMobsConfig.EliteMobs.EliteParticle.ENCHANT,
@@ -248,8 +254,7 @@ public class MobBuffUtil {
     }
 
     public static void refreshInfiniteEffects(Mob mob) {
-        if (BuffMobsConfig.INSTANCE.effects.duration.get() != -1 || !isValidMob(mob)
-                || isPassiveAggressiveMob(mob)) return;
+        if (BuffMobsConfig.INSTANCE.effects.duration.get() != -1 || !isValidMob(mob)) return;
         boolean show   = BuffMobsConfig.INSTANCE.visualEffects.get();
         boolean undead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
@@ -294,88 +299,58 @@ public class MobBuffUtil {
     }
 
     public static boolean isValidMob(Mob mob) {
-        if (mob.isRemoved() || !mob.isAlive()) return false;
-        if (mob instanceof TamableAnimal t && t.isTame()) return false;
+        if (mob == null || mob.isRemoved() || !mob.isAlive()) return false;
+        if (mob instanceof TamableAnimal tameable && tameable.isTame()) return false;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
         String modId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).getNamespace();
-        String dimId = getDimensionId(mob.level());
+        String dimensionId = getDimensionId(mob.level());
 
-        boolean hostile = isHostileType(mob)
-                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.RAIDERS)
-                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.SKELETONS)
-                || mob.getType().builtInRegistryHolder().is(EntityTypeTags.ZOMBIES)
-                || isNeutralMob(mob);
-
-        if (!hostile) {
-            BuffMobsConfig.PassiveMobAggression.PassiveMobMode mode =
-                    BuffMobsConfig.INSTANCE.passiveMobAggression.mode.get();
-            if (mode != BuffMobsConfig.PassiveMobAggression.PassiveMobMode.OFF && isPassiveAggressiveMob(mob)) {
-                hostile = true;
-            }
+        if (!isDimensionAllowed(dimensionId)) {
+            BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by dimension: {}", mobId, dimensionId);
+            return false;
         }
-
-        if (!hostile && !isExplicitlyAllowed(mobId)) return false;
-
-        boolean validDim = isValidDimension(dimId);
-        boolean validMod = isValidModId(modId);
-        boolean validMob = isValidMobId(mobId);
-
-        if (!validDim) BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by dimension: {}", mobId, dimId);
-        if (!validMod) BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by mod: {}",       mobId, modId);
-        if (!validMob) BuffMobsMod.LOGGER.debug("[BuffMobs] {} in blacklist",               mobId);
-
-        return validDim && validMod && validMob;
+        if (isDenylisted(mobId)) {
+            BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by denylist", mobId);
+            return false;
+        }
+        if (isAllowlisted(mobId)) return true;
+        if (!isModAllowed(modId)) {
+            BuffMobsMod.LOGGER.debug("[BuffMobs] {} filtered by mod: {}", mobId, modId);
+            return false;
+        }
+        if (BuffMobsConfig.INSTANCE.mobFilter.useWhitelist.get()) return false;
+        if (isNeutralMob(mob)) return BuffMobsConfig.INSTANCE.mobFilter.buffNeutralMobs.get();
+        return isHostileType(mob);
     }
 
     public static boolean isHostileType(Mob mob) {
         return mob instanceof Enemy || mob.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
     }
 
-    private static boolean isExplicitlyAllowed(String mobId) {
+    public static boolean isNeutralMob(Mob mob) {
+        if (mob == null) return false;
+        if (mob instanceof NeutralMob) return true;
+        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
+        return NEUTRAL_MOB_IDS.contains(mobId);
+    }
+
+    private static boolean isAllowlisted(String mobId) {
         if (BuffMobsConfig.INSTANCE.mobFilter.whitelist.get().contains(mobId)) return true;
-        if (BuffMobsConfig.INSTANCE.mobPresets.enabled.get()) {
-            for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping.get()) {
-                String[] parts = mapping.split(":");
-                if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
-            }
+        return isPresetConfigured(mobId);
+    }
+
+    private static boolean isDenylisted(String mobId) {
+        return BuffMobsConfig.INSTANCE.mobFilter.blacklist.get().contains(mobId);
+    }
+
+    private static boolean isPresetConfigured(String mobId) {
+        if (!BuffMobsConfig.INSTANCE.mobPresets.enabled.get()) return false;
+        for (String mapping : BuffMobsConfig.INSTANCE.mobPresets.mobMapping.get()) {
+            String[] parts = mapping.split(":");
+            if (parts.length >= 3 && (parts[0] + ":" + parts[1]).equals(mobId)) return true;
         }
         return false;
-    }
-
-    public static boolean isPassiveAggressiveMob(Mob mob) {
-        if (mob.isRemoved() || !mob.isAlive()) return false;
-        if (mob instanceof TamableAnimal t && t.isTame()) return false;
-        if (isHostileType(mob)) return false;
-        if (mob instanceof NeutralMob) return false;
-
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
-
-        if (cfg.blacklist.get().contains(mobId)) return false;
-        if (!cfg.whitelist.get().isEmpty()) return cfg.whitelist.get().contains(mobId);
-        return true;
-    }
-
-    public static double getPassiveDamageForMob(Mob mob) {
-        BuffMobsConfig.PassiveMobAggression cfg = BuffMobsConfig.INSTANCE.passiveMobAggression;
-        double base = cfg.baseDamage.get();
-        if (cfg.scaleWithHealth.get()) {
-            base += mob.getMaxHealth() * cfg.healthScaleFactor.get();
-        }
-        return base;
-    }
-
-    private static boolean isNeutralMob(Mob mob) {
-        String id = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        return switch (id) {
-            case "minecraft:enderman", "minecraft:piglin", "minecraft:zombified_piglin",
-                 "minecraft:iron_golem", "minecraft:spider", "minecraft:cave_spider",
-                 "minecraft:wolf", "minecraft:polar_bear", "minecraft:bee",
-                 "minecraft:panda", "minecraft:llama", "minecraft:dolphin",
-                 "minecraft:trader_llama", "minecraft:slime", "minecraft:magma_cube" -> true;
-            default -> false;
-        };
     }
 
     private static void applyAllLayers(Mob mob, double dayMult, DimensionMultipliers dim,
@@ -399,8 +374,6 @@ public class MobBuffUtil {
 
         BuffMobsConfig.DimensionScaling.DimensionScalingMode dimMode =
                 BuffMobsConfig.INSTANCE.dimensionScaling.mode.get();
-
-        boolean isPassive = isPassiveAggressiveMob(mob);
 
         handleZombieLeaderBonus(mob);
 
@@ -430,11 +403,7 @@ public class MobBuffUtil {
         applyAddition(mob, Attributes.ARMOR, ARMOR_MOD_ID, finalArmor);
         applyAddition(mob, Attributes.ARMOR_TOUGHNESS, TOUGHNESS_MOD_ID, finalToughness);
 
-        if (isPassive) {
-            applyPassiveAggressionDamage(mob);
-        } else {
-            applyMultiplier(mob, Attributes.ATTACK_DAMAGE, DAMAGE_MOD_ID, finalDamage);
-        }
+        applyMultiplier(mob, Attributes.ATTACK_DAMAGE, DAMAGE_MOD_ID, finalDamage);
     }
 
     private static void handleZombieLeaderBonus(Mob mob) {
@@ -489,19 +458,6 @@ public class MobBuffUtil {
         }
     }
 
-    private static void applyPassiveAggressionDamage(Mob mob) {
-        AttributeInstance dmgAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (dmgAttr == null) return;
-        dmgAttr.removeModifier(DAMAGE_MOD_ID);
-        double baseDmg = getPassiveDamageForMob(mob);
-        double current = dmgAttr.getBaseValue();
-        if (baseDmg > current) {
-            double bonus = baseDmg - current;
-            dmgAttr.addPermanentModifier(new AttributeModifier(DAMAGE_MOD_ID, bonus,
-                    AttributeModifier.Operation.ADD_VALUE));
-        }
-    }
-
     private static void applyMultiplier(Mob mob,
                                         Holder<net.minecraft.world.entity.ai.attributes.Attribute> attr,
                                         Identifier id, double finalMult) {
@@ -549,26 +505,24 @@ public class MobBuffUtil {
         boolean show   = BuffMobsConfig.INSTANCE.visualEffects.get();
         boolean undead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        if (!isPassiveAggressiveMob(mob)) {
-            addEffect(mob, MobEffects.STRENGTH,   BuffMobsConfig.INSTANCE.effects.strengthAmplifier.get(),   duration, show);
-            addEffect(mob, MobEffects.SPEED,      BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),      duration, show);
-            addEffect(mob, MobEffects.RESISTANCE, BuffMobsConfig.INSTANCE.effects.resistanceAmplifier.get(), duration, show);
+        addEffect(mob, MobEffects.STRENGTH,   BuffMobsConfig.INSTANCE.effects.strengthAmplifier.get(),   duration, show);
+        addEffect(mob, MobEffects.SPEED,      BuffMobsConfig.INSTANCE.effects.speedAmplifier.get(),      duration, show);
+        addEffect(mob, MobEffects.RESISTANCE, BuffMobsConfig.INSTANCE.effects.resistanceAmplifier.get(), duration, show);
 
-            int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
-            if (absAmp > 0) {
-                float absAmount = absAmp * 4.0f;
-                if (undead) {
-                    mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, absAmp - 1, false, show, true));
-                    mob.setAbsorptionAmount(absAmount);
-                } else {
-                    addEffect(mob, MobEffects.ABSORPTION, absAmp, duration, show);
-                    mob.setAbsorptionAmount(absAmount);
-                }
+        int absAmp = BuffMobsConfig.INSTANCE.effects.absorptionAmplifier.get();
+        if (absAmp > 0) {
+            float absAmount = absAmp * 4.0f;
+            if (undead) {
+                mob.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, duration, absAmp - 1, false, show, true));
+                mob.setAbsorptionAmount(absAmount);
+            } else {
+                addEffect(mob, MobEffects.ABSORPTION, absAmp, duration, show);
+                mob.setAbsorptionAmount(absAmount);
             }
-
-            if (!undead)
-                addEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier.get(), duration, show);
         }
+
+        if (!undead)
+            addEffect(mob, MobEffects.REGENERATION, BuffMobsConfig.INSTANCE.effects.regenerationAmplifier.get(), duration, show);
     }
 
     private static void refreshEffect(Mob mob, Holder<MobEffect> effect, int amp, boolean show) {
@@ -584,27 +538,19 @@ public class MobBuffUtil {
         if (amp > 0) mob.addEffect(new MobEffectInstance(effect, duration, amp - 1, false, show, true));
     }
 
-    private static boolean isValidDimension(String dim) {
-        List<? extends String> bl = BuffMobsConfig.INSTANCE.dimensionFilter.blacklist.get();
-        if (bl.contains(dim)) return false;
+    private static boolean isDimensionAllowed(String dimensionId) {
+        List<? extends String> denied = BuffMobsConfig.INSTANCE.dimensionFilter.blacklist.get();
+        if (denied.contains(dimensionId)) return false;
         if (BuffMobsConfig.INSTANCE.dimensionFilter.useWhitelist.get())
-            return BuffMobsConfig.INSTANCE.dimensionFilter.whitelist.get().contains(dim);
+            return BuffMobsConfig.INSTANCE.dimensionFilter.whitelist.get().contains(dimensionId);
         return true;
     }
 
-    private static boolean isValidModId(String modId) {
-        List<? extends String> bl = BuffMobsConfig.INSTANCE.modidFilter.blacklist.get();
-        if (bl.contains(modId)) return false;
+    private static boolean isModAllowed(String modId) {
+        List<? extends String> denied = BuffMobsConfig.INSTANCE.modidFilter.blacklist.get();
+        if (denied.contains(modId)) return false;
         if (BuffMobsConfig.INSTANCE.modidFilter.useWhitelist.get())
             return BuffMobsConfig.INSTANCE.modidFilter.whitelist.get().contains(modId);
-        return true;
-    }
-
-    private static boolean isValidMobId(String mobId) {
-        List<? extends String> bl = BuffMobsConfig.INSTANCE.mobFilter.blacklist.get();
-        if (bl.contains(mobId)) return false;
-        if (BuffMobsConfig.INSTANCE.mobFilter.useWhitelist.get())
-            return BuffMobsConfig.INSTANCE.mobFilter.whitelist.get().contains(mobId);
         return true;
     }
 

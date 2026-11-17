@@ -80,7 +80,6 @@ public class CombatDraftHandler {
         int duration = BuffMobsConfig.INSTANCE.combatDraft.regenDuration.get() * 20;
         boolean isUndead = mob.getType().builtInRegistryHolder().is(EntityTypeTags.UNDEAD);
 
-        // Schedule particle burst after the "drink" delay
         state.restoreAtTick   = now + DRINK_ANIMATION_TICKS;
         state.animationActive = true;
 
@@ -109,7 +108,6 @@ public class CombatDraftHandler {
                         ? "∞" : BuffMobsConfig.INSTANCE.combatDraft.maxUses.get());
     }
 
-    // Spawns happy villager particles to visually signal the heal
     private static void spawnDrinkParticles(Mob mob) {
         if (!(mob.level() instanceof ServerLevel sl)) return;
         for (int i = 0; i < 8; i++) {
@@ -159,7 +157,6 @@ public class CombatDraftHandler {
         int  useCount         = 0;
         boolean animationActive = false;
         long restoreAtTick    = 0;
-        // pendingRestore removed — no fake potion item is placed in offhand
         ItemStack pendingRestore = null;
     }
 }

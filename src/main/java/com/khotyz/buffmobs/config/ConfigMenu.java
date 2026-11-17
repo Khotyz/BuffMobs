@@ -59,6 +59,8 @@ public class ConfigMenu {
         private Class<? extends Enum<?>> enumClass;
         private Function<Enum<?>, Component> enumNameProvider;
         private Function<Integer, Component> sliderText;
+        private SuggestionType suggestionType = SuggestionType.NONE;
+        private String hintKey;
 
         private Option(Kind kind, Component label, T value) {
             this.kind = kind;
@@ -110,6 +112,14 @@ public class ConfigMenu {
         public Component sliderText(int sliderValue) {
             if (sliderText != null) return sliderText.apply(sliderValue);
             return Component.literal(String.valueOf(sliderValue));
+        }
+
+        public SuggestionType suggestionType() {
+            return suggestionType;
+        }
+
+        public String hintKey() {
+            return hintKey;
         }
 
         public void set(T newValue) {
@@ -234,6 +244,16 @@ public class ConfigMenu {
 
         public B setSaveConsumer(Consumer<T> saveConsumer) {
             option.saveConsumer = saveConsumer;
+            return self();
+        }
+
+        public B setSuggestionType(SuggestionType suggestionType) {
+            option.suggestionType = suggestionType == null ? SuggestionType.NONE : suggestionType;
+            return self();
+        }
+
+        public B setHintKey(String hintKey) {
+            option.hintKey = hintKey;
             return self();
         }
 

@@ -32,7 +32,6 @@ public class BuffMobsConfig {
     public final RangedMeleeSwitching rangedMeleeSwitching;
     public final CombatDraft combatDraft;
     public final MobPresets mobPresets;
-    public final PassiveMobAggression passiveMobAggression;
     public final MobArmor mobArmor;
     public final EliteMobs eliteMobs;
     public final LootXpScaling lootXpScaling;
@@ -62,7 +61,6 @@ public class BuffMobsConfig {
         rangedMeleeSwitching = new RangedMeleeSwitching(builder);
         combatDraft = new CombatDraft(builder);
         mobPresets = new MobPresets(builder);
-        passiveMobAggression = new PassiveMobAggression(builder);
         mobArmor = new MobArmor(builder);
         eliteMobs = new EliteMobs(builder);
         lootXpScaling = new LootXpScaling(builder);
@@ -268,15 +266,21 @@ public class BuffMobsConfig {
     }
 
     public static class MobFilter {
+        public final ModConfigSpec.BooleanValue buffNeutralMobs;
         public final ModConfigSpec.BooleanValue useWhitelist;
         public final ModConfigSpec.ConfigValue<List<? extends String>> whitelist;
         public final ModConfigSpec.ConfigValue<List<? extends String>> blacklist;
 
         MobFilter(ModConfigSpec.Builder builder) {
             builder.push("mobFilter");
-            useWhitelist = builder.comment("If true, only mobs in the whitelist are buffed").define("useWhitelist", false);
-            whitelist = builder.comment("Mob IDs to buff (used when useWhitelist = true)").defineListAllowEmpty("whitelist", new ArrayList<>(), o -> o instanceof String);
-            blacklist = builder.comment("Mob IDs to never buff").defineListAllowEmpty("blacklist", List.of("minecraft:warden"), o -> o instanceof String);
+            buffNeutralMobs = builder.comment("Also buff neutral mobs such as wolves, iron golems, bees, endermen and zombified piglins. Purely passive mobs stay ignored unless they are in the whitelist")
+                    .define("buffNeutralMobs", false);
+            useWhitelist = builder.comment("Only buff mobs listed in the whitelist and disable automatic hostile and neutral detection")
+                    .define("useWhitelist", false);
+            whitelist = builder.comment("Mob IDs that are always buffed unless they are also in the blacklist")
+                    .defineListAllowEmpty("whitelist", new ArrayList<>(), o -> o instanceof String);
+            blacklist = builder.comment("Mob IDs that are never buffed. Highest priority, overrides the whitelist and automatic detection")
+                    .defineListAllowEmpty("blacklist", List.of("minecraft:warden"), o -> o instanceof String);
             builder.pop();
         }
     }
@@ -463,29 +467,6 @@ public class BuffMobsConfig {
                 armorToughnessAddition = builder.defineInRange("armorToughnessAddition", tough, 0.0, 999999.0);
                 builder.pop();
             }
-        }
-    }
-
-    public static class PassiveMobAggression {
-        public final ModConfigSpec.EnumValue<PassiveMobMode> mode;
-        public final ModConfigSpec.DoubleValue baseDamage;
-        public final ModConfigSpec.BooleanValue scaleWithHealth;
-        public final ModConfigSpec.DoubleValue healthScaleFactor;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> whitelist;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> blacklist;
-
-        public enum PassiveMobMode { OFF, NEUTRAL, HOSTILE }
-
-        PassiveMobAggression(ModConfigSpec.Builder builder) {
-            builder.push("passiveMobAggression");
-            mode = builder.comment("Passive mob behaviour: OFF (vanilla), NEUTRAL (retaliate when hit), HOSTILE (attack players on sight)")
-                    .defineEnum("mode", PassiveMobMode.OFF);
-            baseDamage = builder.comment("Base attack damage given to affected passive mobs").defineInRange("baseDamage", 3.0, 0.5, 100.0);
-            scaleWithHealth = builder.comment("Add bonus damage based on the mob's max health").define("scaleWithHealth", false);
-            healthScaleFactor = builder.comment("Scaling factor: totalDamage = baseDamage + (maxHealth * healthScaleFactor)").defineInRange("healthScaleFactor", 0.1, 0.0, 100.0);
-            whitelist = builder.comment("Mob IDs affected (if non-empty, only these mobs are affected)").defineListAllowEmpty("whitelist", new ArrayList<>(), o -> o instanceof String);
-            blacklist = builder.comment("Mob IDs that are never affected").defineListAllowEmpty("blacklist", new ArrayList<>(), o -> o instanceof String);
-            builder.pop();
         }
     }
 

@@ -35,6 +35,8 @@ public class BuffMobsConfigScreen extends Screen {
     private static final int ESCAPE_KEY = resolveInputConstant("KEY_ESCAPE", 256);
 
     private final Screen lastScreen;
+    private final SuggestionPopup suggestions = new SuggestionPopup();
+    private AutocompleteEditBox autocompleteBox;
     private List<ConfigMenu.Node> categories = List.of();
     private int selectedCategory = 0;
     private OptionList list;
@@ -53,6 +55,8 @@ public class BuffMobsConfigScreen extends Screen {
     @Override
     protected void init() {
         try {
+            autocompleteBox = null;
+            suggestions.hide();
             if (categories.isEmpty()) categories = BuffMobsConfigMenu.create();
             if (selectedCategory >= categories.size()) selectedCategory = 0;
 
@@ -111,6 +115,8 @@ public class BuffMobsConfigScreen extends Screen {
                     graphics.text(font, lines.get(index), categoryX, 12 + index * font.lineHeight, 0xFFFFAA00);
                 }
             }
+            suggestions.refresh(autocompleteBox, width, height);
+            suggestions.render(graphics, font, mouseX, mouseY);
         } catch (Throwable throwable) {
             Guard.report("BuffMobsConfigScreen.extractRenderState", throwable);
         }
@@ -130,6 +136,7 @@ public class BuffMobsConfigScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         try {
+            if (suggestions.keyPressed(event, autocompleteBox)) return true;
             if (isEscapeKey(event)) {
                 onClose();
                 return true;
@@ -144,6 +151,9 @@ public class BuffMobsConfigScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         try {
+            if (suggestions.mouseClicked(event.x(), event.y(), autocompleteBox)) return true;
+            autocompleteBox = null;
+            suggestions.hide();
             if (doneButton != null && isLeftMouseButton(event) && doneButton.isMouseOver(event.x(), event.y())) {
                 setFocused(doneButton);
                 onClose();
@@ -177,7 +187,7 @@ public class BuffMobsConfigScreen extends Screen {
         return Math.max(0.0, Math.min(1.0, (value - min) / (double) (max - min)));
     }
 
-    private static int resolveInputConstant(String fieldName, int fallback) {
+    static int resolveInputConstant(String fieldName, int fallback) {
         try {
                 return InputConstants.class.getField(fieldName).getInt(null);
             } catch (ReflectiveOperationException exception) {
@@ -194,6 +204,8 @@ public class BuffMobsConfigScreen extends Screen {
         }
 
         void refreshEntries() {
+            autocompleteBox = null;
+            suggestions.hide();
             if (list != null) {
                 savedScroll = list.scrollAmount();
                 list.fill(selectedCategory());
@@ -533,6 +545,8 @@ public class BuffMobsConfigScreen extends Screen {
             }).build();
             this.resetButton.setWidth(resetWidth);
             this.resetButton.setHeight(ROW_HEIGHT);
+            this.resetButton.setTooltip(Tooltip.create(
+                    Component.translatable("buffmobs.config.menu.reset.tooltip")));
             this.widgets.add(this.resetButton);
             int widgetWidth = control == null ? 0 : control.getWidth();
             int textRoom = Math.max(40, BuffMobsConfigScreen.this.list.getRowWidth() - resetWidth - widgetWidth - 16);
@@ -577,10 +591,13 @@ public class BuffMobsConfigScreen extends Screen {
                 }
                 case STRING -> {
                     ConfigMenu.Option<String> stringOption = (ConfigMenu.Option<String>) option;
-                    EditBox box = new EditBox(BuffMobsConfigScreen.this.font, 0, 0, width, ROW_HEIGHT, option.label());
+                    AutocompleteEditBox box = new AutocompleteEditBox(
+                            BuffMobsConfigScreen.this.font, 0, 0, width, ROW_HEIGHT, option.label(),
+                            option.suggestionType(), option.hintKey());
                     box.setMaxLength(512);
                     box.setValue(stringOption.value());
                     box.setResponder(stringOption::set);
+                    box.onActivation(() -> BuffMobsConfigScreen.this.autocompleteBox = box);
                     return box;
                 }
                 case STRING_LIST -> {
@@ -644,7 +661,12 @@ public class BuffMobsConfigScreen extends Screen {
                             : option.kind() == ConfigMenu.Kind.DECIMAL
                             ? String.valueOf((Double) option.value())
                             : String.valueOf((String) option.value());
-                    if (!box.getValue().equals(current)) box.setValue(current);
+                    if (box.getValue().equals(current)) return;
+                    if (box instanceof AutocompleteEditBox autocomplete) {
+                        autocomplete.withoutActivation(() -> box.setValue(current));
+                    } else {
+                        box.setValue(current);
+                    }
                 } else if (control instanceof ConfigSlider slider) {
                     slider.applyNormalized((Integer) option.value());
                 } else if (control instanceof Button button && option.kind() == ConfigMenu.Kind.STRING_LIST) {

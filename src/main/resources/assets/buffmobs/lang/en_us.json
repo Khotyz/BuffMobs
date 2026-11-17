@@ -262,7 +262,7 @@
   "buffmobs.config.filter.blacklist.tooltip": "List of IDs that are always excluded. Format: modid:entry_id",
 
   "modmenu.nameTranslation.buffmobs": "BuffMobs",
-  "modmenu.descriptionTranslation.buffmobs": "Makes hostile and neutral mobs stronger, faster, and more challenging with progressive difficulty scaling.",
+  "modmenu.descriptionTranslation.buffmobs": "Makes hostile mobs stronger, faster and more challenging with progressive difficulty scaling, and can optionally include neutral mobs.",
 
   "buffmobs.config.credits.translation": "Translation by: Khotyz ",
 

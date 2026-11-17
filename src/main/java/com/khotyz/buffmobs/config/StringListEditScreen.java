@@ -7,7 +7,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
@@ -27,6 +26,8 @@ public class StringListEditScreen extends Screen {
 
     private final BuffMobsConfigScreen parent;
     private final ConfigMenu.Option<List<String>> option;
+    private final SuggestionPopup suggestions = new SuggestionPopup();
+    private AutocompleteEditBox autocompleteBox;
     private EntryList list;
     private Button addButton;
     private Button doneButton;
@@ -41,6 +42,8 @@ public class StringListEditScreen extends Screen {
     @Override
     protected void init() {
         try {
+            autocompleteBox = null;
+            suggestions.hide();
             double scroll = list != null ? list.scrollAmount() : savedScroll;
             int titleHeight = font.split(title, Math.max(1, width - 24)).size() * font.lineHeight;
             int listTop = Math.max(28, 8 + titleHeight + 8);
@@ -81,6 +84,8 @@ public class StringListEditScreen extends Screen {
                 graphics.text(font, line, width / 2 - font.width(line) / 2,
                         8 + index * font.lineHeight, 0xFFFFFF);
             }
+            suggestions.refresh(autocompleteBox, width, height);
+            suggestions.render(graphics, font, mouseX, mouseY);
         } catch (Throwable throwable) {
             Guard.report("StringListEditScreen.extractRenderState", throwable);
         }
@@ -89,6 +94,7 @@ public class StringListEditScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         try {
+            if (suggestions.keyPressed(event, autocompleteBox)) return true;
             if (BuffMobsConfigScreen.isEscapeKey(event)) {
                 onClose();
                 return true;
@@ -103,6 +109,9 @@ public class StringListEditScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         try {
+            if (suggestions.mouseClicked(event.x(), event.y(), autocompleteBox)) return true;
+            autocompleteBox = null;
+            suggestions.hide();
             if (doneButton != null && BuffMobsConfigScreen.isLeftMouseButton(event)
                     && doneButton.isMouseOver(event.x(), event.y())) {
                 setFocused(doneButton);
@@ -192,19 +201,23 @@ public class StringListEditScreen extends Screen {
 
     private final class ListEntry extends ContainerObjectSelectionList.Entry<ListEntry> {
 
-        private final EditBox editBox;
+        private final AutocompleteEditBox editBox;
         private final Button removeButton;
         private final List<AbstractWidget> widgets = new ArrayList<>();
 
         ListEntry(String value) {
-            this.editBox = new EditBox(StringListEditScreen.this.font, 0, 0, 120, ROW_HEIGHT, option.label());
+            this.editBox = new AutocompleteEditBox(StringListEditScreen.this.font, 0, 0, 120, ROW_HEIGHT,
+                    option.label(), option.suggestionType(), option.hintKey());
             this.editBox.setMaxLength(1024);
             this.editBox.setValue(value == null ? "" : value);
+            this.editBox.onActivation(() -> StringListEditScreen.this.autocompleteBox = this.editBox);
             this.widgets.add(this.editBox);
             this.removeButton = Button.builder(
                     Component.translatable("buffmobs.config.menu.removeEntry").withStyle(ChatFormatting.RED),
                     button -> {
                         StringListEditScreen.this.list.removeValue(this);
+                        StringListEditScreen.this.autocompleteBox = null;
+                        StringListEditScreen.this.suggestions.hide();
                         commit();
                     }).build();
             this.removeButton.setWidth(REMOVE_WIDTH);

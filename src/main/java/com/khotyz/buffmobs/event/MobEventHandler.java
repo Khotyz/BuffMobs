@@ -51,13 +51,6 @@ public class MobEventHandler {
                 SpecialAbilityHandler.onMobDamaged(damagedMob, event.getSource());
             }
 
-            if (event.getEntity() instanceof Mob mob && MobBuffUtil.isPassiveAggressiveMob(mob)) {
-                Entity attacker = event.getSource().getEntity();
-                if (attacker instanceof Player player) {
-                    PassiveMobAggressionHandler.onMobHurtByPlayer(mob, player);
-                }
-            }
-
             if (!BuffMobsConfig.INSTANCE.harmfulEffects.enabled.get()) return;
             if (!(event.getEntity() instanceof Player player)) return;
 

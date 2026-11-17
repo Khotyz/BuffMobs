@@ -243,7 +243,7 @@
   "buffmobs.config.filter.whitelist.tooltip": "Lista de IDs que são exclusivamente afetados quando o Uso da Lista de Permissões estiver ativada.",
   "buffmobs.config.filter.blacklist.tooltip": "Lista de IDs que serão excluídos. Formato: modid:id_da_entrada",
   "modmenu.nameTranslation.buffmobs": "BuffMobs",
-  "modmenu.descriptionTranslation.buffmobs": "Torna as criaturas hostis e neutras mais fortes, rápidas e desafiadoras com uma dificuldade progressiva.",
+  "modmenu.descriptionTranslation.buffmobs": "Torna as criaturas hostis mais fortes, rápidas e desafiadoras com dificuldade progressiva, podendo incluir criaturas neutras opcionalmente.",
   "buffmobs.config.credits.translation": "Tradução por: Khotyz",
   "buffmobs.config.zombieHandling": "Comportamento de Zumbis",
   "buffmobs.config.zombieHandling.disableLeaderZombies": "Desativar Bônus de Zumbis Líderes",

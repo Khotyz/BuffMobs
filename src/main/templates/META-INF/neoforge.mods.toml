@@ -7,21 +7,21 @@ modId = "${mod_id}"
 version = "${mod_display_version}"
 displayName = "${mod_name}"
 description = '''
-Makes hostile and neutral mobs stronger, faster, and more challenging with progressive difficulty scaling.
+Makes hostile mobs stronger, faster, and more challenging with progressive difficulty scaling and optional neutral mob support.
 '''
 logoFile = "META-INF/buffmobs.png"
 
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.1.0.19-beta,)"
+versionRange = "[${neo_version},)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.${mod_id}]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.1,26.3]"
+versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
 

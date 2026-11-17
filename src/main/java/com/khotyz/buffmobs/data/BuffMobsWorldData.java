@@ -34,8 +34,7 @@ public class BuffMobsWorldData extends SavedData {
             Codec.LONG.fieldOf("nextSummonTick").orElse(0L).forGetter(MobState::nextSummonTick),
             Codec.STRING.listOf().fieldOf("summonedMinions").orElse(List.of()).forGetter(MobState::summonedMinions),
             Codec.LONG.fieldOf("packLastPullTick").orElse(Long.MIN_VALUE).forGetter(MobState::packLastPullTick),
-            Codec.BOOL.fieldOf("bloodMoonGlowing").orElse(false).forGetter(MobState::bloodMoonGlowing),
-            Codec.BOOL.fieldOf("passiveAggressionEnraged").orElse(false).forGetter(MobState::passiveAggressionEnraged)
+            Codec.BOOL.fieldOf("bloodMoonGlowing").orElse(false).forGetter(MobState::bloodMoonGlowing)
     ).apply(instance, MobState::new));
 
     public static final Codec<BuffMobsWorldData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -173,18 +172,16 @@ public class BuffMobsWorldData extends SavedData {
         private List<String> summonedMinions;
         private long packLastPullTick;
         private boolean bloodMoonGlowing;
-        private boolean passiveAggressionEnraged;
 
         public MobState() {
             this(false, false, false, false, false, "", false, 0, false, false,
-                    -100000L, 0L, List.of(), Long.MIN_VALUE, false, false);
+                    -100000L, 0L, List.of(), Long.MIN_VALUE, false);
         }
 
         private MobState(boolean eliteEvaluated, boolean elite, boolean eliteGeneratedName, boolean eliteNotified,
                         boolean traitEvaluated, String trait, boolean armorEvaluated, int armorSlotsMask, boolean summonedMinion,
                         boolean lastStandUsed, long lastTeleportTick, long nextSummonTick,
-                        List<String> summonedMinions, long packLastPullTick, boolean bloodMoonGlowing,
-                        boolean passiveAggressionEnraged) {
+                        List<String> summonedMinions, long packLastPullTick, boolean bloodMoonGlowing) {
             this.eliteEvaluated = eliteEvaluated;
             this.elite = elite;
             this.eliteGeneratedName = eliteGeneratedName;
@@ -200,7 +197,6 @@ public class BuffMobsWorldData extends SavedData {
             this.summonedMinions = new ArrayList<>(summonedMinions == null ? List.of() : summonedMinions);
             this.packLastPullTick = packLastPullTick;
             this.bloodMoonGlowing = bloodMoonGlowing;
-            this.passiveAggressionEnraged = passiveAggressionEnraged;
         }
 
         public boolean eliteEvaluated() { return eliteEvaluated; }
@@ -218,7 +214,6 @@ public class BuffMobsWorldData extends SavedData {
         public List<String> summonedMinions() { return List.copyOf(summonedMinions); }
         public long packLastPullTick() { return packLastPullTick; }
         public boolean bloodMoonGlowing() { return bloodMoonGlowing; }
-        public boolean passiveAggressionEnraged() { return passiveAggressionEnraged; }
 
         public void setEliteEvaluated(boolean value) { eliteEvaluated = value; }
         public void setElite(boolean value) { elite = value; }
@@ -237,7 +232,6 @@ public class BuffMobsWorldData extends SavedData {
         public void removeSummonedMinion(UUID uuid) { summonedMinions.remove(uuid.toString()); }
         public void setPackLastPullTick(long value) { packLastPullTick = value; }
         public void setBloodMoonGlowing(boolean value) { bloodMoonGlowing = value; }
-        public void setPassiveAggressionEnraged(boolean value) { passiveAggressionEnraged = value; }
 
         private void resetGameplayState() {
             eliteEvaluated = false;
@@ -254,13 +248,12 @@ public class BuffMobsWorldData extends SavedData {
             nextSummonTick = 0L;
             summonedMinions.clear();
             packLastPullTick = Long.MIN_VALUE;
-            passiveAggressionEnraged = false;
         }
 
         private MobState copy() {
             return new MobState(eliteEvaluated, elite, eliteGeneratedName, eliteNotified, traitEvaluated, trait,
                     armorEvaluated, armorSlotsMask, summonedMinion, lastStandUsed, lastTeleportTick, nextSummonTick,
-                    summonedMinions, packLastPullTick, bloodMoonGlowing, passiveAggressionEnraged);
+                    summonedMinions, packLastPullTick, bloodMoonGlowing);
         }
     }
 }
