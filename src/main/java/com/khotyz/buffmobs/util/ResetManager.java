@@ -59,7 +59,6 @@ public class ResetManager {
             TraitsHandler.removeTrait(mob);
             SpecialAbilityHandler.resetMob(mob);
             MobArmorManager.stripArmor(mob);
-            PassiveMobAggressionHandler.resetMob(mob);
             MobBuffUtil.removeAllModifiers(mob);
             MobBuffUtil.removeAllBuffEffects(mob);
             RangedMobAIManager.cleanup(mob);
@@ -74,7 +73,6 @@ public class ResetManager {
         MobArmorManager.clearCaches();
         RangedMobAIManager.clearAllStates();
         CombatDraftHandler.clearStates();
-        PassiveMobAggressionHandler.forceReinit();
 
         int count = 0;
         for (Mob mob : mobs) {

@@ -1,10 +1,8 @@
-// MobEventHandler.java
 package com.khotyz.buffmobs.event;
 
 import com.khotyz.buffmobs.config.BuffMobsConfig;
 import com.khotyz.buffmobs.data.BuffMobsWorldData;
 import com.khotyz.buffmobs.util.MobBuffUtil;
-import com.khotyz.buffmobs.util.PassiveMobAggressionHandler;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.network.chat.Component;
@@ -40,13 +38,6 @@ public class MobEventHandler {
             if (entity instanceof Mob damagedMob) {
                 PackAggressionHandler.onMobDamaged(damagedMob, source);
                 SpecialAbilityHandler.onMobDamaged(damagedMob, source);
-            }
-
-            if (entity instanceof Mob mob && MobBuffUtil.isPassiveAggressiveMob(mob)) {
-                Entity attacker = source.getEntity();
-                if (attacker instanceof Player player) {
-                    PassiveMobAggressionHandler.onMobHurtByPlayer(mob, player);
-                }
             }
 
             if (!BuffMobsConfig.INSTANCE.harmfulEffects.enabled) return;

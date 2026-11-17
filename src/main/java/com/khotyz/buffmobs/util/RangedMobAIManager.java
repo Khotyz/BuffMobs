@@ -44,6 +44,7 @@ public class RangedMobAIManager {
 
     public static void initializeMob(Mob mob) {
         if (!BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enabled) return;
+        if (!MobBuffUtil.isHostileType(mob)) return;
         if (!isRangedMob(mob) || MOB_STATES.containsKey(mob.getUUID())) return;
 
         MobState state = new MobState();
@@ -81,7 +82,8 @@ public class RangedMobAIManager {
     }
 
     public static void updateMobBehavior(Mob mob) {
-        if (!BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enabled || !isRangedMob(mob)) return;
+        if (!BuffMobsConfig.INSTANCE.rangedMeleeSwitching.enabled) return;
+        if (!MobBuffUtil.isHostileType(mob) || !isRangedMob(mob)) return;
 
         MobState state = MOB_STATES.get(mob.getUUID());
         if (state == null) { initializeMob(mob); return; }

@@ -27,6 +27,5 @@
   },
   "suggests": {
     "modmenu": ">=18.0.0"
-  },
-  "accessWidener": "buffmobs.accesswidener"
+  }
 }

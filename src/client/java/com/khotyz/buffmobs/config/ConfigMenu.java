@@ -59,6 +59,7 @@ public class ConfigMenu {
         private Class<? extends Enum<?>> enumClass;
         private Function<Enum<?>, Component> enumNameProvider;
         private Function<Integer, Component> sliderText;
+        private SuggestionProvider suggestions;
 
         private Option(Kind kind, Component label, T value) {
             this.kind = kind;
@@ -110,6 +111,10 @@ public class ConfigMenu {
         public Component sliderText(int sliderValue) {
             if (sliderText != null) return sliderText.apply(sliderValue);
             return Component.literal(String.valueOf(sliderValue));
+        }
+
+        public SuggestionProvider suggestions() {
+            return suggestions;
         }
 
         public void set(T newValue) {
@@ -300,11 +305,21 @@ public class ConfigMenu {
         private StringFieldBuilder(Option<String> option) {
             super(option);
         }
+
+        public StringFieldBuilder setSuggestions(SuggestionProvider provider) {
+            option.suggestions = provider;
+            return this;
+        }
     }
 
     public static final class StringListBuilder extends FieldBuilder<List<String>, StringListBuilder> {
         private StringListBuilder(Option<List<String>> option) {
             super(option);
+        }
+
+        public StringListBuilder setSuggestions(SuggestionProvider provider) {
+            option.suggestions = provider;
+            return this;
         }
     }
 

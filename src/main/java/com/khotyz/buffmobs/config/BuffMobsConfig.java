@@ -1,4 +1,3 @@
-// BuffMobsConfig.java
 package com.khotyz.buffmobs.config;
 
 import com.google.gson.Gson;
@@ -20,6 +19,7 @@ public class BuffMobsConfig {
 
     public boolean enabled = true;
     public boolean visualEffects = true;
+    public boolean buffNeutralMobs = false;
 
     public DayScaling dayScaling = new DayScaling();
     public Attributes attributes = new Attributes();
@@ -32,7 +32,6 @@ public class BuffMobsConfig {
     public RangedMeleeSwitching rangedMeleeSwitching = new RangedMeleeSwitching();
     public CombatDraft combatDraft = new CombatDraft();
     public MobPresets mobPresets = new MobPresets();
-    public PassiveMobAggression passiveMobAggression = new PassiveMobAggression();
     public ZombieHandling zombieHandling = new ZombieHandling();
     public HealthSync healthSync = new HealthSync();
     public DimensionMaxHealth dimensionMaxHealth = new DimensionMaxHealth();
@@ -55,7 +54,27 @@ public class BuffMobsConfig {
                 BuffMobsMod.LOGGER.error("[BuffMobs] Failed to load config, using defaults", e);
             }
         }
+        sanitize();
         save();
+    }
+
+    private static void sanitize() {
+        if (INSTANCE.mobFilter == null) INSTANCE.mobFilter = new MobFilter();
+        if (INSTANCE.mobFilter.whitelist == null) INSTANCE.mobFilter.whitelist = new ArrayList<>();
+        if (INSTANCE.mobFilter.blacklist == null) INSTANCE.mobFilter.blacklist = new ArrayList<>();
+        if (INSTANCE.modidFilter == null) INSTANCE.modidFilter = new ModIdFilter();
+        if (INSTANCE.modidFilter.whitelist == null) INSTANCE.modidFilter.whitelist = new ArrayList<>();
+        if (INSTANCE.modidFilter.blacklist == null) INSTANCE.modidFilter.blacklist = new ArrayList<>();
+        if (INSTANCE.dimensionFilter == null) INSTANCE.dimensionFilter = new DimensionFilter();
+        if (INSTANCE.dimensionFilter.whitelist == null) INSTANCE.dimensionFilter.whitelist = new ArrayList<>();
+        if (INSTANCE.dimensionFilter.blacklist == null) INSTANCE.dimensionFilter.blacklist = new ArrayList<>();
+        if (INSTANCE.mobPresets == null) INSTANCE.mobPresets = new MobPresets();
+        if (INSTANCE.mobPresets.mobMapping == null) INSTANCE.mobPresets.mobMapping = new ArrayList<>();
+        if (INSTANCE.mobPresets.preset1 == null) INSTANCE.mobPresets.preset1 = new MobPresets.PresetSlot();
+        if (INSTANCE.mobPresets.preset2 == null) INSTANCE.mobPresets.preset2 = new MobPresets.PresetSlot();
+        if (INSTANCE.mobPresets.preset3 == null) INSTANCE.mobPresets.preset3 = new MobPresets.PresetSlot();
+        if (INSTANCE.mobPresets.preset4 == null) INSTANCE.mobPresets.preset4 = new MobPresets.PresetSlot();
+        if (INSTANCE.mobPresets.preset5 == null) INSTANCE.mobPresets.preset5 = new MobPresets.PresetSlot();
     }
 
     public static void save() {
@@ -69,6 +88,7 @@ public class BuffMobsConfig {
     private static void copyFrom(BuffMobsConfig src) {
         INSTANCE.enabled = src.enabled;
         INSTANCE.visualEffects = src.visualEffects;
+        INSTANCE.buffNeutralMobs = src.buffNeutralMobs;
         if (src.dayScaling != null) INSTANCE.dayScaling = src.dayScaling;
         if (src.attributes != null) INSTANCE.attributes = src.attributes;
         if (src.effects != null) INSTANCE.effects = src.effects;
@@ -80,7 +100,6 @@ public class BuffMobsConfig {
         if (src.rangedMeleeSwitching != null) INSTANCE.rangedMeleeSwitching = src.rangedMeleeSwitching;
         if (src.combatDraft != null) INSTANCE.combatDraft = src.combatDraft;
         if (src.mobPresets != null) INSTANCE.mobPresets = src.mobPresets;
-        if (src.passiveMobAggression != null) INSTANCE.passiveMobAggression = src.passiveMobAggression;
         if (src.zombieHandling != null) INSTANCE.zombieHandling = src.zombieHandling;
         if (src.healthSync != null) INSTANCE.healthSync = src.healthSync;
         if (src.dimensionMaxHealth != null) INSTANCE.dimensionMaxHealth = src.dimensionMaxHealth;
@@ -156,7 +175,6 @@ public class BuffMobsConfig {
     }
 
     public static class MobFilter {
-        public boolean useWhitelist = false;
         public List<String> whitelist = new ArrayList<>();
         public List<String> blacklist = new ArrayList<>(List.of("minecraft:warden"));
     }
@@ -253,17 +271,6 @@ public class BuffMobsConfig {
                 this.armorToughnessAddition = tough;
             }
         }
-    }
-
-    public static class PassiveMobAggression {
-        public Mode mode = Mode.OFF;
-        public double baseDamage = 3.0;
-        public boolean scaleWithHealth = false;
-        public double healthScaleFactor = 0.1;
-        public List<String> whitelist = new ArrayList<>();
-        public List<String> blacklist = new ArrayList<>();
-
-        public enum Mode { OFF, NEUTRAL, HOSTILE }
     }
 
     public static class ZombieHandling {

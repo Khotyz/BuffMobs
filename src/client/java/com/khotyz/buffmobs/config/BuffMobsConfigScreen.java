@@ -105,6 +105,11 @@ public class BuffMobsConfigScreen extends Screen {
                 graphics.text(font, lines.get(index), categoryX, 12 + index * font.lineHeight, 0xFFFFAA00);
             }
         }
+        SuggestionBox suggestionBox = focusedSuggestion();
+        if (suggestionBox != null) {
+            suggestionBox.refresh();
+            suggestionBox.renderOverlay(graphics, mouseX, mouseY, this.height);
+        }
     }
 
     @Override
@@ -116,6 +121,17 @@ public class BuffMobsConfigScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        SuggestionBox suggestionBox = focusedSuggestion();
+        if (suggestionBox != null) {
+            suggestionBox.refresh();
+            if (suggestionBox.hasOverlay()) {
+                if (isEscapeKey(event)) {
+                    suggestionBox.clearOverlay();
+                    return true;
+                }
+                if (suggestionBox.handleKey(event.key())) return true;
+            }
+        }
         if (isEscapeKey(event)) {
             onClose();
             return true;
@@ -125,6 +141,8 @@ public class BuffMobsConfigScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        SuggestionBox suggestionBox = focusedSuggestion();
+        if (suggestionBox != null && suggestionBox.clickSuggestion(event.x(), event.y(), this.height)) return true;
         if (doneButton != null && isLeftMouseButton(event) && doneButton.isMouseOver(event.x(), event.y())) {
             setFocused(doneButton);
             onClose();
@@ -168,6 +186,17 @@ public class BuffMobsConfigScreen extends Screen {
 
     static boolean isEscapeKey(KeyEvent event) {
         return event.key() == ESCAPE_KEY;
+    }
+
+    private SuggestionBox focusedSuggestion() {
+        if (list == null) return null;
+        for (OptionRow row : list.children()) {
+            if (row instanceof OptionEntry entry && entry.suggestionBox() != null
+                    && entry.suggestionBox().isFocused()) {
+                return entry.suggestionBox();
+            }
+        }
+        return null;
     }
 
     void refreshEntries() {
@@ -533,10 +562,12 @@ public class BuffMobsConfigScreen extends Screen {
                 }
                 case STRING -> {
                     ConfigMenu.Option<String> stringOption = (ConfigMenu.Option<String>) option;
-                    EditBox box = new EditBox(BuffMobsConfigScreen.this.font, 0, 0, width, ROW_HEIGHT, option.label());
+                    SuggestionBox box = new SuggestionBox(BuffMobsConfigScreen.this.font, 0, 0, width, ROW_HEIGHT,
+                            option.label());
                     box.setMaxLength(512);
                     box.setValue(stringOption.value());
                     box.setResponder(stringOption::set);
+                    if (option.suggestions() != null) box.setSuggestionProvider(option.suggestions());
                     return box;
                 }
                 case STRING_LIST -> {
@@ -642,6 +673,10 @@ public class BuffMobsConfigScreen extends Screen {
             resetButton.setX(resetX);
             resetButton.setY(top + (height - ROW_HEIGHT) / 2);
             resetButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        }
+
+        SuggestionBox suggestionBox() {
+            return control instanceof SuggestionBox box ? box : null;
         }
 
         @Override

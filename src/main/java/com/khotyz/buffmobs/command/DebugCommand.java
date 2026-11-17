@@ -176,17 +176,22 @@ public class DebugCommand {
             }
         }
         int count = 0;
+        List<String> failures = new java.util.ArrayList<>();
         MobTickHandler.forceReinitAll();
         for (ServerLevel level : server.getAllLevels()) {
             for (var entity : level.getAllEntities()) {
                 if (!(entity instanceof Mob mob)) continue;
                 try {
-                    MobTickHandler.reinitializeMob(mob);
-                    count++;
-                } catch (Exception exception) {
+                    String result = MobTickHandler.reinitializeMob(mob);
+                    if (result == null) count++;
+                    else if (failures.size() < 5 && !failures.contains(result)) failures.add(result);
+                } catch (Throwable exception) {
                     BuffMobsMod.LOGGER.error("[BuffMobs] Failed to reinitialize mob", exception);
                 }
             }
+        }
+        for (String failure : failures) {
+            src.sendSuccess(() -> Component.literal("[BuffMobs] " + failure), false);
         }
         int reinitialized = count;
         src.sendSuccess(() -> Component.translatable("buffmobs.command.reload.done", reinitialized), false);
@@ -202,7 +207,7 @@ public class DebugCommand {
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.damage_mult", String.valueOf(BuffMobsConfig.INSTANCE.attributes.damageMultiplier)),          false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.day_scaling", String.valueOf(BuffMobsConfig.INSTANCE.dayScaling.enabled)),                   false);
         src.sendSuccess(() -> Component.translatable("buffmobs.command.info.presets",     String.valueOf(BuffMobsConfig.INSTANCE.mobPresets.enabled)),                   false);
-        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.passive_mode", BuffMobsConfig.INSTANCE.passiveMobAggression.mode.name()), false);
+        src.sendSuccess(() -> Component.translatable("buffmobs.command.info.buff_neutral_mobs", String.valueOf(BuffMobsConfig.INSTANCE.buffNeutralMobs)), false);
         return 1;
     }
 }

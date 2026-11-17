@@ -7,9 +7,7 @@ import com.khotyz.buffmobs.util.MobBuffUtil;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityReference;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 
@@ -59,6 +57,7 @@ public class PackAggressionHandler {
                                            BuffMobsConfig.PackAggression cfg, BuffMobsWorldData data) {
         if (candidate == victim) return false;
         if (candidate.getType() != victim.getType()) return false;
+        if (!MobBuffUtil.isHostileType(candidate)) return false;
         if (!MobBuffUtil.isValidMob(candidate)) return false;
         long lastPull = data.getMobState(candidate.getUUID()).packLastPullTick();
         return lastPull == Long.MIN_VALUE || now - lastPull >= cfg.cooldownTicks;
@@ -66,10 +65,6 @@ public class PackAggressionHandler {
 
     private static void pullMob(Mob mob, Player player) {
         mob.setTarget(player);
-        if (mob instanceof NeutralMob neutralMob) {
-            neutralMob.setPersistentAngerTarget(EntityReference.of(player));
-            neutralMob.startPersistentAngerTimer();
-        }
     }
 
     private static Player resolveAttackingPlayer(DamageSource source) {

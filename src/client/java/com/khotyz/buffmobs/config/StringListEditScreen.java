@@ -6,7 +6,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
@@ -75,10 +74,29 @@ public class StringListEditScreen extends Screen {
             graphics.text(font, line, width / 2 - font.width(line) / 2,
                     8 + index * font.lineHeight, 0xFFFFFF);
         }
+        SuggestionBox suggestionBox = focusedSuggestion();
+        if (suggestionBox != null) {
+            suggestionBox.refresh();
+            suggestionBox.renderOverlay(graphics, mouseX, mouseY, this.height);
+        }
     }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        SuggestionBox suggestionBox = focusedSuggestion();
+        if (suggestionBox != null) {
+            suggestionBox.refresh();
+            if (suggestionBox.hasOverlay()) {
+                if (BuffMobsConfigScreen.isEscapeKey(event)) {
+                    suggestionBox.clearOverlay();
+                    return true;
+                }
+                if (suggestionBox.handleKey(event.key())) {
+                    commit();
+                    return true;
+                }
+            }
+        }
         if (BuffMobsConfigScreen.isEscapeKey(event)) {
             onClose();
             return true;
@@ -88,6 +106,11 @@ public class StringListEditScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        SuggestionBox suggestionBox = focusedSuggestion();
+        if (suggestionBox != null && suggestionBox.clickSuggestion(event.x(), event.y(), this.height)) {
+            commit();
+            return true;
+        }
         if (doneButton != null && BuffMobsConfigScreen.isLeftMouseButton(event)
                 && doneButton.isMouseOver(event.x(), event.y())) {
             setFocused(doneButton);
@@ -118,6 +141,14 @@ public class StringListEditScreen extends Screen {
     public void removed() {
         commit();
         super.removed();
+    }
+
+    private SuggestionBox focusedSuggestion() {
+        if (list == null) return null;
+        for (ListEntry entry : list.children()) {
+            if (entry.editBox.isFocused()) return entry.editBox;
+        }
+        return null;
     }
 
     private void commit() {
@@ -165,14 +196,15 @@ public class StringListEditScreen extends Screen {
 
     private final class ListEntry extends ContainerObjectSelectionList.Entry<ListEntry> {
 
-        private final EditBox editBox;
+        private final SuggestionBox editBox;
         private final Button removeButton;
         private final List<AbstractWidget> widgets = new ArrayList<>();
 
         ListEntry(String value) {
-            this.editBox = new EditBox(StringListEditScreen.this.font, 0, 0, 120, ROW_HEIGHT, option.label());
+            this.editBox = new SuggestionBox(StringListEditScreen.this.font, 0, 0, 120, ROW_HEIGHT, option.label());
             this.editBox.setMaxLength(1024);
             this.editBox.setValue(value == null ? "" : value);
+            if (option.suggestions() != null) this.editBox.setSuggestionProvider(option.suggestions());
             this.widgets.add(this.editBox);
             this.removeButton = Button.builder(
                     Component.translatable("buffmobs.config.menu.removeEntry").withStyle(ChatFormatting.RED),
