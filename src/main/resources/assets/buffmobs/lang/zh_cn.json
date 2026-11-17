@@ -1,9 +1,13 @@
 {
   "buffmobs.config.title": "BuffMobs 配置",
+  "buffmobs.config.menu.abilityMappingHint": "输入实体 ID，然后输入 :能力（例如 minecraft:creeper:deathrattle）",
   "buffmobs.config.menu.addEntry": "添加条目",
+  "buffmobs.config.menu.dimensionIdHint": "输入以搜索维度 ID（例如 minecraft:the_nether）",
   "buffmobs.config.menu.editList": "编辑列表 (%s)",
   "buffmobs.config.menu.entityIdHint": "输入以搜索实体 ID（例如 minecraft:zombie）",
   "buffmobs.config.menu.invalidNumber": "无效数字。允许范围：%s 到 %s",
+  "buffmobs.config.menu.modIdHint": "输入以搜索模组 ID（例如 minecraft）",
+  "buffmobs.config.menu.presetMappingHint": "输入实体 ID，然后输入 :预设（例如 minecraft:zombie:default）",
   "buffmobs.config.menu.removeEntry": "移除",
   "buffmobs.config.menu.reset": "重置",
   "buffmobs.config.menu.reset.tooltip": "将此选项重置为默认值",

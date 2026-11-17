@@ -130,8 +130,8 @@ public class CombatDraftHandler {
         BuffMobsConfig.CombatDraft cfg = BuffMobsConfig.INSTANCE.combatDraft;
 
         if (HARDCODED_BLACKLIST.contains(mobId)) return false;
-        if (cfg.blacklist.get().contains(mobId)) return false;
-        if (cfg.useWhitelist.get()) return cfg.whitelist.get().contains(mobId);
+        if (MobBuffUtil.containsEntry(cfg.blacklist.get(), mobId)) return false;
+        if (cfg.useWhitelist.get()) return MobBuffUtil.containsEntry(cfg.whitelist.get(), mobId);
         return true;
     }
 

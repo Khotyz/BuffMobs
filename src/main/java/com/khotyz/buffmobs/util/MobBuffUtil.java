@@ -367,8 +367,8 @@ public class MobBuffUtil {
         if (!cfg.enabled.get()) return 0.0;
 
         String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).toString();
-        if (cfg.denylist.get().contains(mobId)) return 0.0;
-        if (cfg.useAllowlist.get() && !cfg.allowlist.get().contains(mobId)) return 0.0;
+        if (containsEntry(cfg.denylist.get(), mobId)) return 0.0;
+        if (cfg.useAllowlist.get() && !containsEntry(cfg.allowlist.get(), mobId)) return 0.0;
 
         String dim = getDimensionId(mob.level());
         return resolveDimensionMaxHealth(cfg, dim);
@@ -541,7 +541,7 @@ public class MobBuffUtil {
         return true;
     }
 
-    private static boolean containsEntry(List<? extends String> list, String value) {
+    public static boolean containsEntry(List<? extends String> list, String value) {
         for (String entry : list) {
             if (entry != null && entry.trim().equals(value)) return true;
         }

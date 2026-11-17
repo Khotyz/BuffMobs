@@ -33,6 +33,7 @@ public class BuffMobsConfigScreen extends Screen {
     private final boolean root;
     private final HeaderAndFooterLayout layout = new HeaderAndFooterLayout(this);
     private final List<CommittingEditBox<?>> editBoxes = new ArrayList<>();
+    private final AutoCompleteDropdown autoComplete = new AutoCompleteDropdown();
     private ConfigList list;
     private double savedScroll;
 
@@ -57,6 +58,7 @@ public class BuffMobsConfigScreen extends Screen {
     @Override
     protected void init() {
         editBoxes.clear();
+        autoComplete.clear();
         layout.addTitleHeader(title, font);
         list = new ConfigList(minecraft, width, layout.getContentHeight(), layout.getHeaderHeight(), root ? 26 : 42);
         populateList();
@@ -100,7 +102,53 @@ public class BuffMobsConfigScreen extends Screen {
     }
 
     @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        boolean overDropdown = list != null && autoComplete.isMouseOver(
+                mouseX, mouseY, list.getY(), list.getY() + list.getHeight(), height - 32);
+        autoComplete.resetFrameTracking();
+        int effectiveMouseX = overDropdown ? -1 : mouseX;
+        int effectiveMouseY = overDropdown ? -1 : mouseY;
+        super.render(guiGraphics, effectiveMouseX, effectiveMouseY, partialTick);
+        if (list != null) {
+            autoComplete.render(guiGraphics, font, mouseX, mouseY,
+                    list.getY(), list.getY() + list.getHeight(), height - 32);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (list != null && autoComplete.mouseClicked(
+                mouseX, mouseY, button, list.getY(), list.getY() + list.getHeight(), height - 32)) {
+            return true;
+        }
+        boolean handled = super.mouseClicked(mouseX, mouseY, button);
+        syncFocusedEditBox();
+        return handled;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (list != null && autoComplete.mouseScrolled(
+                mouseX, mouseY, scrollY, list.getY(), list.getY() + list.getHeight(), height - 32)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (list != null && autoComplete.keyPressed(
+                keyCode, list.getY(), list.getY() + list.getHeight(), height - 32)) {
+            return true;
+        }
+        boolean handled = super.keyPressed(keyCode, scanCode, modifiers);
+        syncFocusedEditBox();
+        return handled;
+    }
+
+    @Override
     public void onClose() {
+        autoComplete.clear();
         commitAll();
         if (lastScreen instanceof BuffMobsConfigScreen parentScreen) parentScreen.refreshEntries();
         if (minecraft != null) minecraft.setScreen(lastScreen);
@@ -108,9 +156,20 @@ public class BuffMobsConfigScreen extends Screen {
 
     @Override
     public void removed() {
+        autoComplete.clear();
         if (list != null) savedScroll = list.getScrollAmount();
         commitAll();
         super.removed();
+    }
+
+    private void syncFocusedEditBox() {
+        for (CommittingEditBox<?> editBox : editBoxes) {
+            if (editBox.isFocused() && editBox.suggestionProvider != null) {
+                autoComplete.syncFocusedBox(editBox, editBox.suggestionProvider, selected -> editBox.commit());
+                return;
+            }
+        }
+        autoComplete.clear();
     }
 
     private void commitAll() {
@@ -289,6 +348,9 @@ public class BuffMobsConfigScreen extends Screen {
                 int resetWidth = resetButton == null ? 0 : 46;
                 int controlWidth = Math.max(80, width - (resetButton == null ? 0 : resetWidth + 6));
                 place(control, left, controlY, controlWidth);
+                if (control instanceof CommittingEditBox<?> editBox) {
+                    autoComplete.markBoxRendered(editBox);
+                }
                 if (resetButton != null) {
                     place(resetButton, left + controlWidth + 6, controlY, resetWidth);
                     resetButton.active = option.isModified();
@@ -377,9 +439,13 @@ public class BuffMobsConfigScreen extends Screen {
 
         private CommittingEditBox<String> createStringControl(ConfigMenu.Option<?> option) {
             ConfigMenu.Option<String> stringOption = castOption(option);
+            SuggestionProvider provider = stringOption.suggestionProvider();
             CommittingEditBox<String> editBox = new CommittingEditBox<>(font, stringOption.label(),
                     text -> text, value -> value == null ? "" : value, stringOption::value, stringOption::set,
-                    stringOption.tooltip(), null);
+                    stringOption.tooltip(), null, provider);
+            if (provider != null) {
+                editBox.setOnUserTextChanged(() -> autoComplete.onTextChanged(editBox, provider, selected -> editBox.commit()));
+            }
             editBoxes.add(editBox);
             refreshAction = editBox::refreshFromSource;
             return editBox;
@@ -450,9 +516,18 @@ public class BuffMobsConfigScreen extends Screen {
         private final Consumer<T> committer;
         private final Component validTooltip;
         private final Component invalidTooltip;
+        private final SuggestionProvider suggestionProvider;
+        private Runnable onUserTextChanged;
+        private boolean updatingProgrammatically;
 
         private CommittingEditBox(Font font, Component message, Function<String, T> parser, Function<T, String> formatter,
                                   Supplier<T> source, Consumer<T> committer, Component validTooltip, Component invalidTooltip) {
+            this(font, message, parser, formatter, source, committer, validTooltip, invalidTooltip, null);
+        }
+
+        private CommittingEditBox(Font font, Component message, Function<String, T> parser, Function<T, String> formatter,
+                                  Supplier<T> source, Consumer<T> committer, Component validTooltip, Component invalidTooltip,
+                                  SuggestionProvider suggestionProvider) {
             super(font, 0, 0, 120, 20, message);
             this.parser = parser;
             this.formatter = formatter;
@@ -460,10 +535,23 @@ public class BuffMobsConfigScreen extends Screen {
             this.committer = committer;
             this.validTooltip = validTooltip;
             this.invalidTooltip = invalidTooltip;
+            this.suggestionProvider = suggestionProvider;
             setMaxLength(1024);
-            setResponder(text -> updateValidity());
+            if (suggestionProvider != null) {
+                setHint(suggestionProvider.hint().copy().withStyle(ChatFormatting.DARK_GRAY));
+            }
             setValue(formatter.apply(source.get()));
             updateValidity();
+            setResponder(text -> {
+                updateValidity();
+                if (!updatingProgrammatically && onUserTextChanged != null) {
+                    onUserTextChanged.run();
+                }
+            });
+        }
+
+        private void setOnUserTextChanged(Runnable onUserTextChanged) {
+            this.onUserTextChanged = onUserTextChanged;
         }
 
         private void updateValidity() {
@@ -479,13 +567,22 @@ public class BuffMobsConfigScreen extends Screen {
         private void commit() {
             T parsed = parser.apply(getValue());
             if (parsed != null) committer.accept(parsed);
-            setValue(formatter.apply(source.get()));
+            setValueProgrammatically(formatter.apply(source.get()));
             updateValidity();
         }
 
         private void refreshFromSource() {
-            setValue(formatter.apply(source.get()));
+            setValueProgrammatically(formatter.apply(source.get()));
             updateValidity();
+        }
+
+        private void setValueProgrammatically(String value) {
+            updatingProgrammatically = true;
+            try {
+                setValue(value);
+            } finally {
+                updatingProgrammatically = false;
+            }
         }
 
         @Override

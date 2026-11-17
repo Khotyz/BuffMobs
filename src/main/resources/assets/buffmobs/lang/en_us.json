@@ -1,9 +1,13 @@
 {
   "buffmobs.config.title": "BuffMobs Configuration",
+  "buffmobs.config.menu.abilityMappingHint": "Type entity ID, then :ability (e.g. minecraft:creeper:deathrattle)",
   "buffmobs.config.menu.addEntry": "Add Entry",
+  "buffmobs.config.menu.dimensionIdHint": "Type to search dimension ID (e.g. minecraft:the_nether)",
   "buffmobs.config.menu.editList": "Edit List (%s)",
   "buffmobs.config.menu.entityIdHint": "Type to search entity ID (e.g. minecraft:zombie)",
   "buffmobs.config.menu.invalidNumber": "Invalid number. Allowed range: %s to %s",
+  "buffmobs.config.menu.modIdHint": "Type to search mod ID (e.g. minecraft)",
+  "buffmobs.config.menu.presetMappingHint": "Type entity ID, then :preset (e.g. minecraft:zombie:default)",
   "buffmobs.config.menu.removeEntry": "Remove",
   "buffmobs.config.menu.reset": "Reset",
   "buffmobs.config.menu.reset.tooltip": "Reset this option to its default value",

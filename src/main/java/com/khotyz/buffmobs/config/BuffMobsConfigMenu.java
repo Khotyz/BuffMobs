@@ -1,8 +1,6 @@
 package com.khotyz.buffmobs.config;
 
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,13 +9,6 @@ public class BuffMobsConfigMenu {
 
     private static Component tt(String key) {
         return Component.translatable(key);
-    }
-
-    private static List<String> registeredEntityIds() {
-        return BuiltInRegistries.ENTITY_TYPE.keySet().stream()
-                .map(ResourceLocation::toString)
-                .sorted()
-                .toList();
     }
 
     public static List<ConfigMenu.Node> create() {
@@ -192,6 +183,7 @@ public class BuffMobsConfigMenu {
             var sub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionScaling.slot", n));
             sub.add(eb.startStrField(Component.translatable("buffmobs.config.dimensionScaling.dimensionId"), slot.dimensionName.get())
                     .setDefaultValue("")
+                    .setSuggestionProvider(ConfigSuggestions.dimensions())
                     .setTooltip(tt("buffmobs.config.dimensionScaling.dimensionId.tooltip"))
                     .setSaveConsumer(slot.dimensionName::set).build());
             sub.add(eb.startIntField(Component.translatable("buffmobs.config.dimensionScaling.healthPercent"), slot.healthMultiplier.get())
@@ -232,12 +224,12 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.mobFilter.useWhitelist::set).build());
         mobFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.blacklist"), new ArrayList<>(cfg.mobFilter.blacklist.get()))
                 .setDefaultValue(List.of("minecraft:warden"))
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.mobFilter.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.mobFilter.blacklist.set(v)).build());
         mobFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobFilter.whitelist"), new ArrayList<>(cfg.mobFilter.whitelist.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.mobFilter.whitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.mobFilter.whitelist.set(v)).build());
 
@@ -248,10 +240,12 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.modidFilter.useWhitelist::set).build());
         modFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.blacklist"), new ArrayList<>(cfg.modidFilter.blacklist.get()))
                 .setDefaultValue(new ArrayList<>())
+                .setSuggestionProvider(ConfigSuggestions.modIds())
                 .setTooltip(tt("buffmobs.config.modidFilter.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.modidFilter.blacklist.set(v)).build());
         modFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.modidFilter.whitelist"), new ArrayList<>(cfg.modidFilter.whitelist.get()))
                 .setDefaultValue(new ArrayList<>())
+                .setSuggestionProvider(ConfigSuggestions.modIds())
                 .setTooltip(tt("buffmobs.config.modidFilter.whitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.modidFilter.whitelist.set(v)).build());
 
@@ -262,10 +256,12 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.dimensionFilter.useWhitelist::set).build());
         dimFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.blacklist"), new ArrayList<>(cfg.dimensionFilter.blacklist.get()))
                 .setDefaultValue(new ArrayList<>())
+                .setSuggestionProvider(ConfigSuggestions.dimensions())
                 .setTooltip(tt("buffmobs.config.dimensionFilter.blacklist.tooltip"))
                 .setSaveConsumer(v -> cfg.dimensionFilter.blacklist.set(v)).build());
         dimFilter.addEntry(eb.startStrList(Component.translatable("buffmobs.config.dimensionFilter.whitelist"), new ArrayList<>(cfg.dimensionFilter.whitelist.get()))
                 .setDefaultValue(List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"))
+                .setSuggestionProvider(ConfigSuggestions.dimensions())
                 .setTooltip(tt("buffmobs.config.dimensionFilter.whitelist.tooltip"))
                 .setSaveConsumer(v -> cfg.dimensionFilter.whitelist.set(v)).build());
 
@@ -295,7 +291,7 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.rangedMeleeSwitching.meleeSpeedMultiplier::set).build());
         ranged.addEntry(eb.startStrList(Component.translatable("buffmobs.config.rangedMeleeSwitching.customRangedMobs"), new ArrayList<>(cfg.rangedMeleeSwitching.customRangedMobs.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.rangedMeleeSwitching.customRangedMobs.tooltip"))
                 .setSaveConsumer(v -> cfg.rangedMeleeSwitching.customRangedMobs.set(v)).build());
 
@@ -375,11 +371,11 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.combatDraft.useWhitelist::set).build());
         draftFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.combatDraft.mobFilter.whitelist"), new ArrayList<>(cfg.combatDraft.whitelist.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setSaveConsumer(v -> cfg.combatDraft.whitelist.set(v)).build());
         draftFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.combatDraft.mobFilter.blacklist"), new ArrayList<>(cfg.combatDraft.blacklist.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setSaveConsumer(v -> cfg.combatDraft.blacklist.set(v)).build());
         draft.addEntry(draftFilterSub.build());
 
@@ -428,6 +424,7 @@ public class BuffMobsConfigMenu {
         presets.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobPresets.mobMapping"), new ArrayList<>(cfg.mobPresets.mobMapping.get()))
                 .setDefaultValue(List.of("minecraft:zombie:default", "minecraft:skeleton:default",
                         "minecraft:ender_dragon:boss", "minecraft:wither:boss"))
+                .setSuggestionProvider(ConfigSuggestions.presetMappings())
                 .setTooltip(tt("buffmobs.config.mobPresets.mobMapping.tooltip"))
                 .setSaveConsumer(v -> cfg.mobPresets.mobMapping.set(v)).build());
 
@@ -473,6 +470,7 @@ public class BuffMobsConfigMenu {
             var dhSub = eb.startSubCategory(Component.translatable("buffmobs.config.dimensionMaxHealth.slot", n));
             dhSub.add(eb.startStrField(Component.translatable("buffmobs.config.dimensionMaxHealth.dimensionId"), slot.dimensionName.get())
                     .setDefaultValue("")
+                    .setSuggestionProvider(ConfigSuggestions.dimensions())
                     .setTooltip(tt("buffmobs.config.dimensionMaxHealth.dimensionId.tooltip"))
                     .setSaveConsumer(slot.dimensionName::set).build());
             dhSub.add(eb.startDoubleField(Component.translatable("buffmobs.config.dimensionMaxHealth.maxHealth"), slot.maxHealth.get())
@@ -489,12 +487,12 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.dimensionMaxHealth.useAllowlist::set).build());
         dimHealthFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionMaxHealth.allowlist"), new ArrayList<>(cfg.dimensionMaxHealth.allowlist.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.dimensionMaxHealth.allowlist.tooltip"))
                 .setSaveConsumer(v -> cfg.dimensionMaxHealth.allowlist.set(v)).build());
         dimHealthFilterSub.add(eb.startStrList(Component.translatable("buffmobs.config.dimensionMaxHealth.denylist"), new ArrayList<>(cfg.dimensionMaxHealth.denylist.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.dimensionMaxHealth.denylist.tooltip"))
                 .setSaveConsumer(v -> cfg.dimensionMaxHealth.denylist.set(v)).build());
         dimMaxHealth.addEntry(dimHealthFilterSub.build());
@@ -732,7 +730,7 @@ public class BuffMobsConfigMenu {
         mobArmor.addEntry(mobArmorSub3.build());
         mobArmor.addEntry(eb.startStrList(Component.translatable("buffmobs.config.mobArmor.additionalArmorMobs"), new ArrayList<>(cfg.mobArmor.additionalArmorMobs.get()))
                 .setDefaultValue(new ArrayList<>())
-                .setSuggestions(BuffMobsConfigMenu::registeredEntityIds)
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.mobArmor.additionalArmorMobs.tooltip"))
                 .setSaveConsumer(v -> cfg.mobArmor.additionalArmorMobs.set(v)).build());
 
@@ -1065,6 +1063,7 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.specialAbilities.enabled::set).build());
         specialAbilities.addEntry(eb.startStrList(Component.translatable("buffmobs.config.specialAbilities.mobAbilities"), new ArrayList<>(cfg.specialAbilities.mobAbilities.get()))
                 .setDefaultValue(new ArrayList<>())
+                .setSuggestionProvider(ConfigSuggestions.mobAbilityMappings())
                 .setTooltip(tt("buffmobs.config.specialAbilities.mobAbilities.tooltip"))
                 .setSaveConsumer(v -> cfg.specialAbilities.mobAbilities.set(v)).build());
         var specialAbilitiesSub1 = eb.startSubCategory(Component.translatable("buffmobs.config.specialAbilities.deathrattle"));
@@ -1102,6 +1101,7 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.specialAbilities.deathrattle.poisonCloudLevel::set).build());
         specialAbilitiesSub1.add(eb.startStrField(Component.translatable("buffmobs.config.specialAbilities.deathrattle.minionEntityId"), cfg.specialAbilities.deathrattle.minionEntityId.get())
                 .setDefaultValue("minecraft:slime")
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.specialAbilities.deathrattle.minionEntityId.tooltip"))
                 .setSaveConsumer(cfg.specialAbilities.deathrattle.minionEntityId::set).build());
         specialAbilitiesSub1.add(eb.startIntField(Component.translatable("buffmobs.config.specialAbilities.deathrattle.minionMinCount"), cfg.specialAbilities.deathrattle.minionMinCount.get())
@@ -1148,6 +1148,7 @@ public class BuffMobsConfigMenu {
                 .setSaveConsumer(cfg.specialAbilities.Summon.intervalTicks::set).build());
         specialAbilitiesSub4.add(eb.startStrField(Component.translatable("buffmobs.config.specialAbilities.Summon.minionEntityId"), cfg.specialAbilities.Summon.minionEntityId.get())
                 .setDefaultValue("minecraft:zombie")
+                .setSuggestionProvider(ConfigSuggestions.entities())
                 .setTooltip(tt("buffmobs.config.specialAbilities.Summon.minionEntityId.tooltip"))
                 .setSaveConsumer(cfg.specialAbilities.Summon.minionEntityId::set).build());
         specialAbilitiesSub4.add(eb.startIntField(Component.translatable("buffmobs.config.specialAbilities.Summon.maxAliveMinions"), cfg.specialAbilities.Summon.maxAliveMinions.get())

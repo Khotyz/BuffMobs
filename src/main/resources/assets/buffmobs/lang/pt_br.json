@@ -1,9 +1,13 @@
 {
   "buffmobs.config.title": "Configuração do BuffMobs",
+  "buffmobs.config.menu.abilityMappingHint": "Digite o ID da entidade e :habilidade (ex. minecraft:creeper:deathrattle)",
   "buffmobs.config.menu.addEntry": "Adicionar Item",
+  "buffmobs.config.menu.dimensionIdHint": "Digite para buscar ID de dimensão (ex. minecraft:the_nether)",
   "buffmobs.config.menu.editList": "Editar Lista (%s)",
   "buffmobs.config.menu.entityIdHint": "Digite para buscar ID de entidade (ex. minecraft:zombie)",
   "buffmobs.config.menu.invalidNumber": "Número inválido. Intervalo permitido: %s a %s",
+  "buffmobs.config.menu.modIdHint": "Digite para buscar ID de mod (ex. minecraft)",
+  "buffmobs.config.menu.presetMappingHint": "Digite o ID da entidade e :predefinição (ex. minecraft:zombie:default)",
   "buffmobs.config.menu.removeEntry": "Remover",
   "buffmobs.config.menu.reset": "Redefinir",
   "buffmobs.config.menu.reset.tooltip": "Redefine esta opção para o valor padrão",
